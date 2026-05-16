@@ -1,7 +1,6 @@
 import nodemailer from 'nodemailer';
 import { env } from '../../configs/env.config';
 
-// TODO: implement email templates (verify-email, reset-password, booking-confirmed, etc.)
 export const transporter = nodemailer.createTransport({
   host: env.EMAIL_HOST,
   port: env.EMAIL_PORT,
