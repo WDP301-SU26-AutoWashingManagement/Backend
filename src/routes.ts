@@ -1,6 +1,6 @@
 import { Router } from 'express';
 
-// import authRoutes from './modules/auth/routes/auth.routes';
+import authRoutes from './modules/auth/routes/auth.routes';
 // import adminRoutes from './modules/admin/routes/admin.routes';
 // import customerRoutes from './modules/customer/routes/customer.routes';
 // import vehicleRoutes from './modules/vehicle/routes/vehicle.routes';
@@ -16,7 +16,7 @@ import { Router } from 'express';
 
 const router = Router();
 
-// router.use('/auth', authRoutes);
+router.use('/auth', authRoutes);
 // router.use('/admins', adminRoutes);
 // router.use('/customers', customerRoutes);
 // router.use('/vehicles', vehicleRoutes);

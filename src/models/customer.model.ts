@@ -57,7 +57,9 @@ schema.pre('save', function (next) {
   next();
 });
 
-schema.methods.comparePassword = (c: string, hash: string) => bcrypt.compare(c, hash);
+schema.methods.comparePassword = async function(candidate: string): Promise<boolean> {
+  return bcrypt.compare(candidate, this.password);
+};
 schema.plugin(mongoosePaginate);
 
 export default mongoose.model<ICustomer>('Customer', schema);
