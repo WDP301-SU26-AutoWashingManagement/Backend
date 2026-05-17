@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { env } from '../../config/env.config';
+import { env } from '../../configs/env.config';
 import { UnauthorizedError, ForbiddenError } from '../utils/AppError';
 import { JwtPayload, AuthenticatedRequest, UserRole } from '../types';
 
