@@ -1,7 +1,7 @@
 import { OAuth2Client } from 'google-auth-library';
-import { authRepository } from '../repositories/auth.repository';
+import { authRepository, adminRepository } from '../repositories/auth.repository';
 import { IRegisterData, ILoginData, IAuthResponse } from '../interfaces/auth.interface';
-import { AppError } from '../../../common/utils/AppError';
+import { AppError, ForbiddenError } from '../../../common/utils/AppError';
 import { generateTokenPair, verifyRefreshToken } from '../../../common/utils/jwt.util';
 import { env } from '../../../configs/env.config';
 
@@ -25,21 +25,31 @@ export class AuthService {
   }
 
   static async login(data: ILoginData): Promise<IAuthResponse> {
-    const customer = await authRepository.findByEmailWithPassword(data.email);
-    if (!customer) {
+    const { email, password, type = 'customer' } = data; //destructure type
+
+    //Chọn repository và role dựa vào type
+    const repo = type === 'admin' ? adminRepository : authRepository;
+    const role = type === 'admin' ? 'admin' : 'customer';
+
+    const user = await repo.findByEmailWithPassword(email);
+    if (!user) {
       throw new AppError('Invalid email or password', 401);
     }
 
-    const isMatch = await customer.comparePassword(data.password!);
+    const isMatch = await user.comparePassword(password!);
     if (!isMatch) {
       throw new AppError('Invalid email or password', 401);
     }
 
-    customer.last_login_at = new Date();
-    await customer.save();
+    if ('is_active' in user && !user.is_active) {
+      throw new ForbiddenError('Account is inactive');
+    }
 
-    const tokens = generateTokenPair(customer.id as string, 'customer');
-    return { user: this.sanitizeUser(customer), tokens };
+    user.last_login_at = new Date();
+    await user.save();
+
+    const tokens = generateTokenPair(user.id as string, role);
+    return { user: this.sanitizeUser(user), tokens };
   }
 
   static async googleLogin(idToken: string): Promise<IAuthResponse> {
