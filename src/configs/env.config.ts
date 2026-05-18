@@ -22,4 +22,7 @@ export const env = {
   ADMIN_URL: process.env.ADMIN_URL ?? '',
   RATE_LIMIT_WINDOW_MS: Number(process.env.RATE_LIMIT_WINDOW_MS ?? 900000),
   RATE_LIMIT_MAX: Number(process.env.RATE_LIMIT_MAX ?? 100),
+  REDIS_HOST: process.env.REDIS_HOST ?? 'localhost',
+  REDIS_PORT: Number(process.env.REDIS_PORT ?? 6379),
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD ?? '',
 } as const;
