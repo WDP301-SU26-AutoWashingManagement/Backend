@@ -10,6 +10,7 @@ import rateLimit from 'express-rate-limit';
 import { connectDB } from './configs/db.config';
 import { errorHandler, notFoundHandler } from './common/middleware/error.middleware';
 import { logger } from './common/utils/logger';
+import { connectRedis } from './configs/redis.config';
 import routes from './routes';
 
 const app = express();
@@ -39,6 +40,7 @@ app.use(errorHandler);
 // ── Boot ──────────────────────────────────────────────────────────────────────
 const bootstrap = async (): Promise<void> => {
   await connectDB();
+  await connectRedis()
   const PORT = process.env.PORT ?? 3000;
   app.listen(PORT, () => logger.info(`🚀 Server running on port ${PORT}`));
 };

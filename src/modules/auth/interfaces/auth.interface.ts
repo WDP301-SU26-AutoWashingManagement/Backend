@@ -1,5 +1,5 @@
 import { ICustomer } from '../../../models/customer.model';
-
+import { IAdmin } from 'src/models/admin.model';
 export interface IRegisterData {
   email: string;
   password: string;
@@ -13,6 +13,7 @@ export interface IRegisterData {
 export interface ILoginData {
   email: string;
   password?: string;
+  type?: 'customer' | 'admin';
 }
 
 export interface ITokenResponse {
@@ -21,6 +22,6 @@ export interface ITokenResponse {
 }
 
 export interface IAuthResponse {
-  user: Partial<ICustomer>;
+  user: Partial<ICustomer> | Partial<IAdmin>;
   tokens: ITokenResponse;
 }

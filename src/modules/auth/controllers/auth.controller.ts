@@ -21,6 +21,15 @@ export class AuthController {
     }
   }
 
+  static async adminLogin(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await AuthService.login({ ...req.body, type: 'admin' });
+      sendSuccess(res, data, 'Admin login successful');
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async googleLogin(req: Request, res: Response, next: NextFunction) {
     try {
       const { idToken } = req.body;
