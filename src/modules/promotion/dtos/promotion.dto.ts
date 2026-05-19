@@ -34,11 +34,6 @@ export class CreatePromotionDto {
     discount_value!: number;
 
     @IsOptional()
-    @IsInt()
-    @Min(0)
-    bonus_reward_point?: number;
-
-    @IsOptional()
     @IsBoolean()
     auto_post?: boolean;
 
@@ -73,11 +68,6 @@ export class UpdatePromotionDto {
     @IsNumber()
     @Min(0)
     discount_value?: number;
-
-    @IsOptional()
-    @IsInt()
-    @Min(0)
-    bonus_reward_point?: number;
 
     @IsOptional()
     @IsBoolean()

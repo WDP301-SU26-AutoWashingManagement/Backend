@@ -31,3 +31,5 @@ export class CustomerRepository extends BaseRepository<ICustomer> {
         return result?.tier_id?.booking_window_days ?? null;
     }
 }
+
+export const customerRepository = new CustomerRepository(); // Singleton instance

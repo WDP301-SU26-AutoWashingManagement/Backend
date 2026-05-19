@@ -46,4 +46,4 @@ export class PromotionRepository extends BaseRepository<IPromotion> {
   }
 }
 
-export const promotionRepository = new PromotionRepository();
+export const promotionRepository = new PromotionRepository(); // Singleton instance

@@ -16,11 +16,16 @@ import {
 export type PromotionResponse = { promotion: IPromotion };
 
 export class PromotionService {
+    private readonly promotionRepo = promotionRepository;
+
+    constructor() {
+        this.promotionRepo = promotionRepository;
+    }
     // ─────────────────────────────────────────────
     // POST /promotions
     // ─────────────────────────────────────────────
     async createPromotion(adminId: string, dto: CreatePromotionDto): Promise<PromotionResponse> {
-        const exists = await promotionRepository.findByCode(dto.promotion_code);
+        const exists = await this.promotionRepo.findByCode(dto.promotion_code);
         if (exists) {
             throw new ConflictError(
                 `Promotion code "${dto.promotion_code.toUpperCase()}" already exists`,
@@ -31,8 +36,11 @@ export class PromotionService {
             throw new BadRequestError('end_at must be after start_at');
         }
 
-        const promotion = await promotionRepository.create({
+        const promotion = await this.promotionRepo.create({
             ...dto,
+            start_at: new Date(dto.start_at),
+            end_at:   new Date(dto.end_at),
+            usage_limit: Number(dto.usage_limit) ?? null,
             promotion_code: dto.promotion_code.toUpperCase().trim(),
             created_by:     adminId as unknown as IPromotion['created_by'],
             used_count:     0,
@@ -78,14 +86,14 @@ export class PromotionService {
             if (end_to)   filter.end_at.$lte = new Date(end_to);
         }
 
-        return promotionRepository.paginateWithCreator(filter, { page, limit });
+        return this.promotionRepo.paginateWithCreator(filter, { page, limit });
     }
 
     // ─────────────────────────────────────────────
     // GET /promotions/:id
     // ─────────────────────────────────────────────
     async getPromotionById(id: string): Promise<PromotionResponse> {
-        const promotion = await promotionRepository.findById(id);
+        const promotion = await this.promotionRepo.findById(id);
         if (!promotion) throw new NotFoundError('Promotion not found');
         return { promotion };
     }
@@ -94,7 +102,7 @@ export class PromotionService {
     // PATCH /promotions/:id
     // ─────────────────────────────────────────────
     async updatePromotion(id: string, dto: UpdatePromotionDto): Promise<PromotionResponse> {
-        const promotion = await promotionRepository.findById(id);
+        const promotion = await this.promotionRepo.findById(id);
         if (!promotion) throw new NotFoundError('Promotion not found');
 
         const effectiveStart = dto.start_at ? new Date(dto.start_at) : promotion.start_at;
@@ -109,7 +117,7 @@ export class PromotionService {
             );
         }
 
-        const updated = await promotionRepository.updateById(id, { $set: dto });
+        const updated = await this.promotionRepo.updateById(id, { $set: dto });
         if (!updated) throw new NotFoundError('Promotion not found');
 
         return { promotion: updated };
@@ -119,10 +127,10 @@ export class PromotionService {
     // PATCH /promotions/:id/toggle-active
     // ─────────────────────────────────────────────
     async toggleActive(id: string, dto: ToggleActiveDto): Promise<PromotionResponse> {
-        const promotion = await promotionRepository.findById(id);
+        const promotion = await this.promotionRepo.findById(id);
         if (!promotion) throw new NotFoundError('Promotion not found');
 
-        const updated = await promotionRepository.updateById(id, {
+        const updated = await this.promotionRepo.updateById(id, {
             $set: { is_active: dto.is_active },
         });
         if (!updated) throw new NotFoundError('Promotion not found');
@@ -134,7 +142,7 @@ export class PromotionService {
     // DELETE /promotions/:id
     // ─────────────────────────────────────────────
     async deletePromotion(id: string): Promise<void> {
-        const promotion = await promotionRepository.findById(id);
+        const promotion = await this.promotionRepo.findById(id);
         if (!promotion) throw new NotFoundError('Promotion not found');
 
         if (promotion.used_count > 0) {
@@ -143,14 +151,14 @@ export class PromotionService {
             );
         }
 
-        await promotionRepository.deleteById(id);
+        await this.promotionRepo.deleteById(id);
     }
 
     // ─────────────────────────────────────────────
     // GET /promotions/validate/:code  (public)
     // ─────────────────────────────────────────────
     async validateCode(code: string): Promise<PromotionResponse> {
-        const promotion = await promotionRepository.findActiveByCode(code);
+        const promotion = await this.promotionRepo.findActiveByCode(code);
         if (!promotion) {
             throw new NotFoundError('Promotion code is invalid or has expired');
         }

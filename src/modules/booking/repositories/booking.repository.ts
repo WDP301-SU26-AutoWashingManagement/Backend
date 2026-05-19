@@ -57,3 +57,5 @@ export class BookingRepository extends BaseRepository<IWashBooking> {
         });
     }
 }
+
+export const bookingRepository = new BookingRepository(); // Singleton instance

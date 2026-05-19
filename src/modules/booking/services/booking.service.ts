@@ -5,7 +5,7 @@ import { Vehicle } from '../../../models/vehicle.model';
 import { AppError } from '../../../common/utils/AppError';
 import { MongoId } from '../../../common/types';
 import { BookingRepository } from '../repositories/booking.repository';
-import { PromotionRepository } from '@modules/promotion/repositories/promotion.repository';
+import { promotionRepository, PromotionRepository } from '@modules/promotion/repositories/promotion.repository';
 import { toObjectId } from '@common/utils/mongo.util';
 import {
     CreateBookingDto,
@@ -15,18 +15,19 @@ import {
     FindByPlateNumberDto,
 } from '../dtos/booking.dto';
 import { validateScheduledAt } from '../middlewares/booking-window.middleware';
-import { CustomerRepository } from '@modules/customer/repositories/customer.repository';
+import { customerRepository, CustomerRepository } from '@modules/customer/repositories/customer.repository';
 import { DEFAULT_BOOKING_WINDOW_DAYS } from '@common/constants';
 
+import { bookingRepository } from '../repositories/booking.repository';
 export class BookingService {
     private readonly bookingRepo: BookingRepository;
     private readonly promotionRepo: PromotionRepository;
     private readonly customerRepo: CustomerRepository;
 
     constructor() {
-        this.bookingRepo = new BookingRepository();
-        this.promotionRepo = new PromotionRepository();
-        this.customerRepo = new CustomerRepository();
+        this.bookingRepo = bookingRepository;
+        this.promotionRepo = promotionRepository;
+        this.customerRepo = customerRepository;
     }
 
     // ─────────────────────────────────────────────
