@@ -19,8 +19,6 @@ export interface ICustomer extends Document {
   is_phone_verified: boolean;
   last_login_at: Date;
   referral_code: string;
-  created_at: Date;
-  updated_at: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
 

@@ -8,14 +8,12 @@ export interface IPromotion extends Document {
   promotion_objects: Record<string, unknown>;
   discount_type: 'percentage' | 'fixed';
   discount_value: number;
-  bonus_reward_point: number;
   auto_post: boolean;
   start_at: Date;
   end_at: Date;
   is_active: boolean;
   usage_limit?: number;
   used_count: number;
-  created_at: Date;
   isValid(): boolean;
 }
 
@@ -27,7 +25,6 @@ const promotionSchema = new Schema<IPromotion>(
     promotion_objects:  { type: Schema.Types.Mixed, default: {} },
     discount_type:      { type: String, enum: ['percentage', 'fixed'], required: true },
     discount_value:     { type: Number, required: true, min: 0 },
-    bonus_reward_point: { type: Number, default: 0 },
     auto_post:          { type: Boolean, default: false },
     start_at:           { type: Date, required: true },
     end_at:             { type: Date, required: true },

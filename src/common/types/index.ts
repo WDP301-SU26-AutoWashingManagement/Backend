@@ -22,4 +22,11 @@ export interface PaginationQuery {
   search?: string;
 }
 
+declare global {
+  namespace Express {
+    interface Request {
+      user: JwtPayload; 
+    }
+  }
+}
 export type MongoId = Types.ObjectId | string;
