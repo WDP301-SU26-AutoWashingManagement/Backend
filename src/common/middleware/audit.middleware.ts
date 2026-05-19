@@ -8,7 +8,6 @@ export const auditLog = (action: string, entity: string) =>
       if (res.statusCode < 300) {
         const adminId = (req as AuthenticatedRequest).user?.id;
         logger.info(`AUDIT | admin=${adminId} action=${action} entity=${entity} target=${req.params.id ?? '-'}`);
-        // AuditLogRepository.create({ adminId, action, entity, target: req.params.id ?? '-' });
       }
     });
     next();
