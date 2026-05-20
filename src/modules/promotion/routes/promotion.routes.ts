@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { PromotionController } from '../controllers/promotion.controller';
+import { promotionController } from '../controllers/promotion.controller';
 import { authenticate, authorize } from '../../../common/middleware/auth.middleware';
 
 const router     = Router();
-const controller = new PromotionController();
+const controller = promotionController
 
 // ─── Public ───────────────────────────────────────────────────────────────────
 // Validate promotion code (customer dùng trước khi đặt lịch)

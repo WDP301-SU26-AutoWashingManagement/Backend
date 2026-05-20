@@ -232,3 +232,5 @@ export class BookingService {
         return booking;
     }
 }
+
+export const bookingService = new BookingService();

@@ -1,99 +1,59 @@
-import {
-    IsMongoId,
-    IsNumber,
-    IsIn,
-    IsOptional,
-    IsString,
-    IsNotEmpty,
-    IsDateString,
-    Min,
-    MaxLength,
-    IsInt,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+// booking.schemas.ts
+
+import Joi from 'joi';
 import { BookingStatus } from '../../../models/washBooking.model';
+
+const MONGO_ID_PATTERN = /^[a-f\d]{24}$/i;
+const mongoId = () =>
+    Joi.string().pattern(MONGO_ID_PATTERN).message('Must be a valid MongoDB ObjectId');
 
 // ─────────────────────────────────────────────
 // BookingService.createBooking()
 // ─────────────────────────────────────────────
-export class CreateBookingDto {
-    @IsMongoId()
-    vehicle_id!: string;
-
-    @IsMongoId()
-    service_package_id!: string;
-
-    @IsOptional()
-    @IsMongoId()
-    promotion_id?: string;
-
-    @IsDateString()
-    scheduled_at!: string;           // ISO 8601 — service sẽ new Date() sau
-
-    @IsIn(['app', 'web', 'admin'])
-    booking_source!: 'app' | 'web' | 'admin';
-}
+export const createBookingSchema = Joi.object({
+    vehicle_id:         mongoId().required(),
+    service_package_id: mongoId().required(),
+    promotion_id:       mongoId().optional(),
+    scheduled_at:       Joi.string().isoDate().required(),
+    booking_source:     Joi.string().valid('app', 'web', 'admin').required(),
+});
 
 // ─────────────────────────────────────────────
 // BookingService.cancelBooking()
 // ─────────────────────────────────────────────
-export class CancelBookingDto {
-    @IsString()
-    @IsNotEmpty()
-    @MaxLength(500)
-    reason!: string;
-}
+export const cancelBookingSchema = Joi.object({
+    reason: Joi.string().max(500).required(),
+});
 
 // ─────────────────────────────────────────────
 // BookingService.getBookingList()
 // ─────────────────────────────────────────────
-export class GetBookingListDto {
-    @IsOptional()
-    @Type(() => Number)
-    @IsInt()
-    @Min(1)
-    page?: number = 1;
+const BOOKING_STATUSES: BookingStatus[] = [
+    'pending', 'confirmed', 'checked_in', 'in_progress', 'completed', 'cancelled',
+];
 
-    @IsOptional()
-    @Type(() => Number)
-    @IsInt()
-    @Min(1)
-    limit?: number = 10;
+export const getBookingListSchema = Joi.object({
+    page:           Joi.number().integer().min(1).default(1),
+    limit:          Joi.number().integer().min(1).default(10),
+    customer_id:    mongoId().optional(),
+    vehicle_id:     mongoId().optional(),
+    booking_status: Joi.string().valid(...BOOKING_STATUSES).optional(),
+    scheduled_from: Joi.string().isoDate().optional(),
+    scheduled_to:   Joi.string().isoDate().optional(),
+});
 
-    @IsOptional()
-    @IsMongoId()
-    customer_id?: string;
 
-    @IsOptional()
-    @IsMongoId()
-    vehicle_id?: string;
+const UPDATABLE_STATUSES: BookingStatus[] = [
+    'confirmed', 'checked_in', 'in_progress', 'completed', 'cancelled',
+];
 
-    @IsOptional()
-    @IsIn(['pending', 'confirmed', 'checked_in', 'in_progress', 'completed', 'cancelled'])
-    booking_status?: BookingStatus;
-
-    @IsOptional()
-    @IsDateString()
-    scheduled_from?: string;         // Lọc từ ngày (scheduled_at >= scheduled_from)
-
-    @IsOptional()
-    @IsDateString()
-    scheduled_to?: string;           // Lọc đến ngày (scheduled_at <= scheduled_to)
-}
-
-// ─────────────────────────────────────────────
-// BookingService.updateStatus()
-// ─────────────────────────────────────────────
-export class UpdateBookingStatusDto {
-    @IsIn(['confirmed', 'checked_in', 'in_progress', 'completed', 'cancelled'])
-    status!: BookingStatus;
-}
+export const updateBookingStatusSchema = Joi.object({
+    status: Joi.string().valid(...UPDATABLE_STATUSES).required(),
+});
 
 // ─────────────────────────────────────────────
 // BookingService.findBookingByPlateNumber()
 // ─────────────────────────────────────────────
-export class FindByPlateNumberDto {
-    @IsString()
-    @IsNotEmpty()
-    plate_number!: string;           // Controller lấy từ req.params rồi map vào đây
-}
+export const findByPlateNumberSchema = Joi.object({
+    plate_number: Joi.string().required(),
+});

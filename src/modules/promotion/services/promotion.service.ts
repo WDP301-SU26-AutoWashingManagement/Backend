@@ -18,9 +18,6 @@ export type PromotionResponse = { promotion: IPromotion };
 export class PromotionService {
     private readonly promotionRepo = promotionRepository;
 
-    constructor() {
-        this.promotionRepo = promotionRepository;
-    }
     // ─────────────────────────────────────────────
     // POST /promotions
     // ─────────────────────────────────────────────
@@ -170,3 +167,5 @@ export class PromotionService {
         return { promotion };
     }
 }
+
+export const promotionService = new PromotionService();

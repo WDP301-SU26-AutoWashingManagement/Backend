@@ -1,87 +1,74 @@
-// promotion.controller.ts
-
 import { Response, NextFunction } from 'express';
-import { promotionService } from '../services/promotion.service';
+import { servicePackageService } from '../services/service-package.service';
 import { sendSuccess, sendCreated, sendNoContent } from '../../../common/utils/apiResponse';
 import { sendPaginated } from '../../../common/utils/paginated.helper';
 import { AuthenticatedRequest } from '../../../common/types';
-import {
-    ICreatePromotion,
-    IUpdatePromotion,
-    IToggleActive,
-    IGetPromotionList,
-} from '../interfaces/promotion.interface';
 
-export class PromotionController {
-    private readonly promotionService = promotionService;
-
+class ServicePackageController {
     // ─────────────────────────────────────────────
-    // POST /promotions
+    // POST /service-packages
     // ─────────────────────────────────────────────
     create = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
         try {
-            const result = await this.promotionService.createPromotion(
-                req.user.id,
-                req.body as ICreatePromotion,
-            );
-            sendCreated(res, result.promotion, 'Promotion created successfully');
+            const result = await servicePackageService.createServicePackage(req.body);
+            sendCreated(res, result.servicePackage, 'Service package created successfully');
         } catch (err) {
             next(err);
         }
     };
 
     // ─────────────────────────────────────────────
-    // GET /promotions
+    // GET /service-packages
     // ─────────────────────────────────────────────
     getList = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
         try {
-            const result = await this.promotionService.getPromotionList(
-                req.query as unknown as IGetPromotionList,
-            );
-            sendPaginated(res, result, 'Promotions fetched successfully');
+            const result = await servicePackageService.getServicePackageList(req.query);
+            sendPaginated(res, result, 'Service packages fetched successfully');
         } catch (err) {
             next(err);
         }
     };
 
     // ─────────────────────────────────────────────
-    // GET /promotions/:id
+    // GET /service-packages/:id
     // ─────────────────────────────────────────────
     getById = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
         try {
-            const { promotion } = await this.promotionService.getPromotionById(req.params.id);
-            sendSuccess(res, promotion, 'Promotion fetched successfully');
+            const { servicePackage } = await servicePackageService.getServicePackageById(req.params.id);
+            sendSuccess(res, servicePackage, 'Service package fetched successfully');
         } catch (err) {
             next(err);
         }
     };
 
     // ─────────────────────────────────────────────
-    // PATCH /promotions/:id
+    // PATCH /service-packages/:id
     // ─────────────────────────────────────────────
     update = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
         try {
-            const { promotion } = await this.promotionService.updatePromotion(
+            const { servicePackage } = await servicePackageService.updateServicePackage(
                 req.params.id,
-                req.body as IUpdatePromotion,
+                req.body,
             );
-            sendSuccess(res, promotion, 'Promotion updated successfully');
+            sendSuccess(res, servicePackage, 'Service package updated successfully');
         } catch (err) {
             next(err);
         }
     };
 
     // ─────────────────────────────────────────────
-    // PATCH /promotions/:id/toggle-active
+    // PATCH /service-packages/:id/toggle-active
     // ─────────────────────────────────────────────
     toggleActive = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
         try {
-            const { is_active } = req.body as IToggleActive;
-            const { promotion } = await this.promotionService.toggleActive(req.params.id, { is_active });
+            const { servicePackage } = await servicePackageService.toggleActive(
+                req.params.id,
+                req.body,
+            );
             sendSuccess(
                 res,
-                promotion,
-                `Promotion ${is_active ? 'activated' : 'deactivated'} successfully`,
+                servicePackage,
+                `Service package ${req.body.is_active ? 'activated' : 'deactivated'} successfully`,
             );
         } catch (err) {
             next(err);
@@ -89,28 +76,17 @@ export class PromotionController {
     };
 
     // ─────────────────────────────────────────────
-    // DELETE /promotions/:id
+    // DELETE /service-packages/:id
     // ─────────────────────────────────────────────
     remove = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
         try {
-            await this.promotionService.deletePromotion(req.params.id);
+            await servicePackageService.deleteServicePackage(req.params.id);
             sendNoContent(res);
-        } catch (err) {
-            next(err);
-        }
-    };
-
-    // ─────────────────────────────────────────────
-    // GET /promotions/validate/:code  (public)
-    // ─────────────────────────────────────────────
-    validateCode = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-        try {
-            const { promotion } = await this.promotionService.validateCode(req.params.code);
-            sendSuccess(res, promotion, 'Promotion code is valid');
         } catch (err) {
             next(err);
         }
     };
 }
 
-export const promotionController = new PromotionController();
+// Singleton instance — không new ở nơi khác
+export const servicePackageController = new ServicePackageController();

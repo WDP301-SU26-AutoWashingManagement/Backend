@@ -6,6 +6,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import mongoSanitize from 'express-mongo-sanitize';
 import rateLimit from 'express-rate-limit';
+import 'reflect-metadata';
 
 import { connectDB } from './configs/db.config';
 import { errorHandler, notFoundHandler } from './common/middleware/error.middleware';
