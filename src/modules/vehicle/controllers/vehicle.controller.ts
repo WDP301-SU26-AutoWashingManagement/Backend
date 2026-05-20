@@ -1,9 +1,9 @@
 ﻿import { Request, Response, NextFunction } from 'express';
-import { VehicleService } from '../services/vehicle.service';
+import { vehicleService, VehicleService } from '../services/vehicle.service';
 import { sendSuccess, sendCreated, sendPaginated } from '../../../common/utils/apiResponse';
 
 export class VehicleController {
-  private service = new VehicleService();
+  private service = vehicleService;
 
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -63,3 +63,5 @@ export class VehicleController {
     }
   };
 }
+
+export const vehicleController = new VehicleController();

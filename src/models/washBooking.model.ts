@@ -2,6 +2,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 import mongoosePaginate from 'mongoose-paginate-v2';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'checked_in' | 'in_progress' | 'completed' | 'cancelled';
+
 export interface IWashBooking extends Document {
   customer_id: mongoose.Types.ObjectId;
   vehicle_id: mongoose.Types.ObjectId;

@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import './tierConfig.model';
 
 export interface ICustomer extends Document {
   tier_id?: mongoose.Types.ObjectId;
@@ -19,8 +20,6 @@ export interface ICustomer extends Document {
   is_phone_verified: boolean;
   last_login_at: Date;
   referral_code: string;
-  created_at: Date;
-  updated_at: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
 

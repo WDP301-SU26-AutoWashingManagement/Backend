@@ -1,4 +1,4 @@
-﻿import { VehicleRepository } from '../repositories/vehicle.repository';
+﻿import { VehicleRepository, vehicleRepository} from '../repositories/vehicle.repository';
 import { CreateVehicleDto, UpdateVehicleDto } from '../interfaces/vehicle.interface';
 import { FilterQuery, PaginateOptions } from 'mongoose';
 import { IVehicle } from '../../../models/vehicle.model';
@@ -6,7 +6,7 @@ import { AppError, BadRequestError, NotFoundError } from '../../../common/utils/
 import Customer from '../../../models/customer.model';
 
 export class VehicleService {
-  private repository = new VehicleRepository();
+  private readonly repository = vehicleRepository;
 
   async create(data: CreateVehicleDto) {
     const customer = await Customer.findById(data.customer_id);
@@ -54,3 +54,5 @@ export class VehicleService {
     return this.repository.findMany(filter);
   }
 }
+
+export const vehicleService = new VehicleService();
