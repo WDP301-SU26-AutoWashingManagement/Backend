@@ -1,10 +1,10 @@
 ﻿import { Router } from 'express';
-import { VehicleController } from '../controllers/vehicle.controller';
+import { vehicleController, VehicleController } from '../controllers/vehicle.controller';
 import { validate } from '../../../common/middleware/validate.middleware';
 import { createVehicleSchema, updateVehicleSchema } from '../dtos/vehicle.dto';
 
 const router = Router();
-const controller = new VehicleController();
+const controller = vehicleController;
 
 router.post('/', validate(createVehicleSchema), controller.create);
 router.get('/', controller.getAll);

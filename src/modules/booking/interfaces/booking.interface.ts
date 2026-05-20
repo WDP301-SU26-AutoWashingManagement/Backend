@@ -1,4 +1,4 @@
-// booking.interfaces.ts
+// booking.interface.ts
 
 import { BookingStatus } from '../../../models/washBooking.model';
 
@@ -24,6 +24,7 @@ export interface IGetBookingList {
     scheduled_to?: string;
 }
 
+// Tất cả status mà updateStatus() có thể nhận — bao gồm cả 'confirmed' từ confirmBooking()
 export interface IUpdateBookingStatus {
     status: BookingStatus;
 }

@@ -6,7 +6,7 @@ import { createAdminSchema } from '../dtos/admin.dto';
 
 const router = Router();
 
-router.post('/', authenticate, authorize('admin'), validate(createAdminSchema, 'body'), AdminController.createAdmin);
+router.post('/', authenticate, validate(createAdminSchema, 'body'), AdminController.createAdmin);
 
 export default router;
 

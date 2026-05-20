@@ -1,41 +1,42 @@
+// booking.service.ts
+
 import { BookingStatus } from '../../../models/washBooking.model';
 import { ServicePackage } from '../../../models/servicePackage.model';
 import { Promotion } from '../../../models/promotion.model';
 import { Vehicle } from '../../../models/vehicle.model';
 import { AppError } from '../../../common/utils/AppError';
 import { MongoId } from '../../../common/types';
-import { BookingRepository } from '../repositories/booking.repository';
+import { bookingRepository, BookingRepository } from '../repositories/booking.repository';
 import { promotionRepository, PromotionRepository } from '@modules/promotion/repositories/promotion.repository';
-import { toObjectId } from '@common/utils/mongo.util';
-import {
-    CreateBookingDto,
-    CancelBookingDto,
-    GetBookingListDto,
-    UpdateBookingStatusDto,
-    FindByPlateNumberDto,
-} from '../dtos/booking.dto';
-import { validateScheduledAt } from '../middlewares/booking-window.middleware';
 import { customerRepository, CustomerRepository } from '@modules/customer/repositories/customer.repository';
+import { toObjectId } from '@common/utils/mongo.util';
+import { validateScheduledAt } from '../middlewares/booking-window.middleware';
 import { DEFAULT_BOOKING_WINDOW_DAYS } from '@common/constants';
+import {
+    ICreateBooking,
+    ICancelBooking,
+    IGetBookingList,
+    IUpdateBookingStatus,
+    IFindByPlateNumber,
+} from '../interfaces/booking.interface';
 
-import { bookingRepository } from '../repositories/booking.repository';
 export class BookingService {
     private readonly bookingRepo: BookingRepository;
     private readonly promotionRepo: PromotionRepository;
     private readonly customerRepo: CustomerRepository;
 
     constructor() {
-        this.bookingRepo = bookingRepository;
-        this.promotionRepo = promotionRepository;
-        this.customerRepo = customerRepository;
+        this.bookingRepo    = bookingRepository;
+        this.promotionRepo  = promotionRepository;
+        this.customerRepo   = customerRepository;
     }
 
     // ─────────────────────────────────────────────
     // POST /bookings
     // ─────────────────────────────────────────────
-    async createBooking(customerId: MongoId, data: CreateBookingDto) {
+    async createBooking(customerId: MongoId, data: ICreateBooking) {
         const vehicle = await Vehicle.findOne({
-            _id: data.vehicle_id,
+            _id:         data.vehicle_id,
             customer_id: customerId,
         });
 
@@ -46,8 +47,7 @@ export class BookingService {
         const bookingWindowDays =
             (await this.customerRepo.findBookingWindowByCustomerId(customerId))
             ?? DEFAULT_BOOKING_WINDOW_DAYS;
-        
-        // Step 3: Validate thời gian đặt lịch
+
         const scheduledAt = new Date(data.scheduled_at);
         await validateScheduledAt(scheduledAt, data.vehicle_id, bookingWindowDays);
 
@@ -58,11 +58,11 @@ export class BookingService {
         }
 
         const basePrice = pkg.service_price;
-        let discount = 0;
+        let discount    = 0;
 
         if (data.promotion_id) {
             const promotion = await Promotion.findOne({
-                _id: data.promotion_id,
+                _id:       data.promotion_id,
                 is_active: true,
             });
 
@@ -70,23 +70,20 @@ export class BookingService {
                 throw new AppError('Mã khuyến mãi không hợp lệ hoặc đã hết hạn', 404);
             }
 
-            discount =
-                promotion.discount_type === 'percentage'
-                    ? basePrice * (promotion.discount_value / 100)
-                    : promotion.discount_value;
+            discount = promotion.discount_type === 'percentage'
+                ? basePrice * (promotion.discount_value / 100)
+                : promotion.discount_value;
         }
-
-        const finalPrice = basePrice - discount;
 
         const booking = await this.bookingRepo.create({
             customer_id:        toObjectId(customerId),
             vehicle_id:         toObjectId(data.vehicle_id),
             service_package_id: toObjectId(data.service_package_id),
             promotion_id:       data.promotion_id ? toObjectId(data.promotion_id) : undefined,
-            scheduled_at:       new Date(data.scheduled_at),
+            scheduled_at:       scheduledAt,
             base_price:         basePrice,
             discount_amount:    discount,
-            final_price:        finalPrice,
+            final_price:        basePrice - discount,
             booking_status:     'pending',
             booking_source:     data.booking_source,
         });
@@ -103,16 +100,16 @@ export class BookingService {
     // ─────────────────────────────────────────────
     // PATCH /bookings/:id/cancel
     // ─────────────────────────────────────────────
-    async cancelBooking(bookingId: string, customerId: MongoId, data: CancelBookingDto) {
+    async cancelBooking(bookingId: string, customerId: MongoId, data: ICancelBooking) {
         const booking = await this.bookingRepo.findOne({
-            _id: bookingId,
+            _id:         bookingId,
             customer_id: customerId,
         });
 
         if (!booking) throw new AppError('Không tìm thấy lịch hẹn', 404);
 
-        const allowedStatuses = ['pending', 'confirmed'];
-        if (!allowedStatuses.includes(booking.booking_status)) {
+        const CANCELLABLE: BookingStatus[] = ['pending', 'confirmed'];
+        if (!CANCELLABLE.includes(booking.booking_status)) {
             throw new AppError(
                 `Không thể hủy lịch hẹn đang ở trạng thái: ${booking.booking_status}`,
                 400,
@@ -123,27 +120,22 @@ export class BookingService {
         booking.cancelled_at        = new Date();
         booking.cancellation_reason = data.reason;
 
-        return await booking.save();
+        return booking.save();
     }
 
     // ─────────────────────────────────────────────
     // GET /bookings
     // ─────────────────────────────────────────────
-    async getBookingList(dto: GetBookingListDto, role: string, requesterId: string) {
+    async getBookingList(dto: IGetBookingList, role: string, requesterId: string) {
         const { page, limit, customer_id, vehicle_id, booking_status, scheduled_from, scheduled_to } = dto;
 
-        // Customer chỉ thấy booking của chính mình
         const filters: Record<string, unknown> = role === 'admin'
             ? {}
             : { customer_id: toObjectId(requesterId) };
 
-        // Admin có thể lọc thêm theo customer cụ thể
-        if (role === 'admin' && customer_id) {
-            filters.customer_id = toObjectId(customer_id);
-        }
-
-        if (vehicle_id)     filters.vehicle_id     = toObjectId(vehicle_id);
-        if (booking_status) filters.booking_status = booking_status;
+        if (role === 'admin' && customer_id) filters.customer_id = toObjectId(customer_id);
+        if (vehicle_id)                       filters.vehicle_id  = toObjectId(vehicle_id);
+        if (booking_status)                   filters.booking_status = booking_status;
 
         if (scheduled_from || scheduled_to) {
             filters.scheduled_at = {
@@ -152,7 +144,7 @@ export class BookingService {
             };
         }
 
-        return await this.bookingRepo.paginateWithDetails(filters, { page, limit });
+        return this.bookingRepo.paginateWithDetails(filters, { page, limit });
     }
 
     // ─────────────────────────────────────────────
@@ -172,9 +164,9 @@ export class BookingService {
     }
 
     // ─────────────────────────────────────────────
-    // PATCH /bookings/:id/status  (admin)
+    // PATCH /bookings/:id/status  (internal — dùng bởi confirm, checkIn, complete...)
     // ─────────────────────────────────────────────
-    async updateStatus(bookingId: string, dto: UpdateBookingStatusDto) {
+    async updateStatus(bookingId: string, dto: IUpdateBookingStatus) {
         const booking = await this.bookingRepo.findById(bookingId);
         if (!booking) throw new AppError('Không tìm thấy lịch hẹn', 404);
 
@@ -196,7 +188,7 @@ export class BookingService {
                 break;
         }
 
-        return await booking.save();
+        return booking.save();
     }
 
     // ─────────────────────────────────────────────
@@ -210,13 +202,13 @@ export class BookingService {
             throw new AppError('Chỉ có thể xác nhận lịch hẹn đang chờ (pending)', 400);
         }
 
-        return await this.updateStatus(bookingId, { status: 'confirmed' });
+        return this.updateStatus(bookingId, { status: 'confirmed' });
     }
 
     // ─────────────────────────────────────────────
-    // GET /bookings/plate/:plateNumber  (staff check-in)
+    // POST /bookings/check-in/plate  (staff)
     // ─────────────────────────────────────────────
-    async findBookingByPlateNumber(dto: FindByPlateNumberDto) {
+    async findBookingByPlateNumber(dto: IFindByPlateNumber) {
         const vehicle = await Vehicle.findOne({
             plate_number: dto.plate_number.toUpperCase(),
         });
