@@ -23,4 +23,4 @@ export class AdminService {
 		return obj;
 	}
 }
-
+export const adminService = new AdminService()
