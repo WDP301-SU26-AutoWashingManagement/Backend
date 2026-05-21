@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import authRoutes from './modules/auth/routes/auth.routes';
 import adminRoutes from './modules/admin/routes/admin.routes';
-// import customerRoutes from './modules/customer/routes/customer.routes';
+import customerRoutes from './modules/customer/routes/customer.routes';
 import bookingRoutes from './modules/booking/routes/booking.routes';
 import serviceRoutes from './modules/service/routes/service-package.routes';
 import promotionRoutes from './modules/promotion/routes/promotion.routes';
@@ -19,7 +19,7 @@ const router = Router();
 
 router.use('/auth', authRoutes);
 router.use('/admins', adminRoutes);
-// router.use('/customers', customerRoutes);
+router.use('/customers', customerRoutes);
 router.use('/bookings', bookingRoutes);
 router.use('/services', serviceRoutes);
 router.use('/promotions', promotionRoutes);

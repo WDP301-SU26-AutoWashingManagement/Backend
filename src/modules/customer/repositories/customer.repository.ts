@@ -30,6 +30,10 @@ export class CustomerRepository extends BaseRepository<ICustomer> {
 
         return result?.tier_id?.booking_window_days ?? null;
     }
+
+    async findByIdWithPassword(id: string): Promise<ICustomer | null> {
+        return this.model.findById(id).select('+password').exec();
+    }
 }
 
 export const customerRepository = new CustomerRepository(); // Singleton instance

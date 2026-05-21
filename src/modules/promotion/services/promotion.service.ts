@@ -2,11 +2,11 @@ import { FilterQuery, PaginateResult } from 'mongoose';
 import { IPromotion } from '../../../models/promotion.model';
 import { promotionRepository } from '../repositories/promotion.repository';
 import {
-    CreatePromotionDto,
-    UpdatePromotionDto,
-    ToggleActiveDto,
-    GetPromotionListDto,
-} from '../dtos/promotion.dto';
+    ICreatePromotion,
+    IUpdatePromotion,
+    IToggleActive,
+    IGetPromotionList,
+} from '../interfaces/promotion.interface';
 import {
     ConflictError,
     NotFoundError,
@@ -21,7 +21,7 @@ export class PromotionService {
     // ─────────────────────────────────────────────
     // POST /promotions
     // ─────────────────────────────────────────────
-    async createPromotion(adminId: string, dto: CreatePromotionDto): Promise<PromotionResponse> {
+    async createPromotion(adminId: string, dto: ICreatePromotion): Promise<PromotionResponse> {
         const exists = await this.promotionRepo.findByCode(dto.promotion_code);
         if (exists) {
             throw new ConflictError(
@@ -49,7 +49,7 @@ export class PromotionService {
     // ─────────────────────────────────────────────
     // GET /promotions
     // ─────────────────────────────────────────────
-    async getPromotionList(dto: GetPromotionListDto): Promise<PaginateResult<IPromotion>> {
+    async getPromotionList(dto: IGetPromotionList): Promise<PaginateResult<IPromotion>> {
         const {
             page = 1,
             limit = 10,
@@ -98,7 +98,7 @@ export class PromotionService {
     // ─────────────────────────────────────────────
     // PATCH /promotions/:id
     // ─────────────────────────────────────────────
-    async updatePromotion(id: string, dto: UpdatePromotionDto): Promise<PromotionResponse> {
+    async updatePromotion(id: string, dto: IUpdatePromotion): Promise<PromotionResponse> {
         const promotion = await this.promotionRepo.findById(id);
         if (!promotion) throw new NotFoundError('Promotion not found');
 
@@ -123,7 +123,7 @@ export class PromotionService {
     // ─────────────────────────────────────────────
     // PATCH /promotions/:id/toggle-active
     // ─────────────────────────────────────────────
-    async toggleActive(id: string, dto: ToggleActiveDto): Promise<PromotionResponse> {
+    async toggleActive(id: string, dto: IToggleActive): Promise<PromotionResponse> {
         const promotion = await this.promotionRepo.findById(id);
         if (!promotion) throw new NotFoundError('Promotion not found');
 
