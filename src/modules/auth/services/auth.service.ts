@@ -21,7 +21,7 @@ export class AuthService {
     data.registration_channel = 'admin';
     const customer = await authRepository.create(data);
     
-    const tokens = generateTokenPair(customer.id as string, UserRole.STAFF);
+    const tokens = generateTokenPair(customer.id as string, customer.role);
     return { user: this.sanitizeUser(customer), tokens };
   }
 
@@ -39,7 +39,7 @@ export class AuthService {
     customer.last_login_at = new Date();
     await customer.save();
 
-    const tokens = generateTokenPair(customer.id as string, UserRole.STAFF);
+    const tokens = generateTokenPair(customer.id as string, customer.role);
     return { user: this.sanitizeUser(customer), tokens };
   }
 
@@ -71,7 +71,7 @@ export class AuthService {
     customer.last_login_at = new Date();
     await customer.save();
 
-    const tokens = generateTokenPair(customer.id as string, UserRole.STAFF);
+    const tokens = generateTokenPair(customer.id as string, customer.role);
     return { user: this.sanitizeUser(customer), tokens };
   }
 

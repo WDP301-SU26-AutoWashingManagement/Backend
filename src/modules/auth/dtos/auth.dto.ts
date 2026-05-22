@@ -1,3 +1,4 @@
+import { UserRole } from '@common/types';
 import Joi from 'joi';
 
 export const registerSchema = Joi.object({
@@ -10,7 +11,7 @@ export const registerSchema = Joi.object({
 export const loginSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().required(),
-  type: Joi.string().valid('customer', 'admin', 'staff', 'manager').default('customer')
+  type: Joi.string().valid(...Object.values(UserRole)).default('customer')
 });
 
 export const googleLoginSchema = Joi.object({
