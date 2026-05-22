@@ -4,6 +4,7 @@ import { IRegisterData, ILoginData, IAuthResponse } from '../interfaces/auth.int
 import { AppError } from '../../../common/utils/AppError';
 import { generateTokenPair, verifyRefreshToken } from '../../../common/utils/jwt.util';
 import { env } from '../../../configs/env.config';
+import { UserRole } from '@common/types';
 
 const client = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
@@ -17,10 +18,10 @@ export class AuthService {
       throw new AppError('Email is already registered', 400);
     }
     
-    data.registration_channel = 'app';
+    data.registration_channel = 'admin';
     const customer = await authRepository.create(data);
     
-    const tokens = generateTokenPair(customer.id as string, 'customer');
+    const tokens = generateTokenPair(customer.id as string, customer.role);
     return { user: this.sanitizeUser(customer), tokens };
   }
 
@@ -38,7 +39,7 @@ export class AuthService {
     customer.last_login_at = new Date();
     await customer.save();
 
-    const tokens = generateTokenPair(customer.id as string, 'customer');
+    const tokens = generateTokenPair(customer.id as string, customer.role);
     return { user: this.sanitizeUser(customer), tokens };
   }
 
@@ -56,16 +57,12 @@ export class AuthService {
     }
 
     let customer = await authRepository.findOne({ email: payload.email });
-    if (customer && customer.registration_channel === 'app') {
-      throw new AppError('Email already registered with password. Please login normally.', 400);
-    }
     
     if (!customer) {
       customer = await authRepository.create({
         email: payload.email,
         full_name: payload.name || 'Google User',
         avatar_url: payload.picture,
-        registration_channel: 'google',
         password: Math.random().toString(36).slice(-10), // Random placeholder password
         is_email_verified: payload.email_verified || false,
       });
@@ -74,7 +71,7 @@ export class AuthService {
     customer.last_login_at = new Date();
     await customer.save();
 
-    const tokens = generateTokenPair(customer.id as string, 'customer');
+    const tokens = generateTokenPair(customer.id as string, customer.role);
     return { user: this.sanitizeUser(customer), tokens };
   }
 

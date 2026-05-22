@@ -9,7 +9,7 @@ import {
   IResetPasswordData,
   IChangePasswordData,
 } from '../interfaces/password.interface';
-import Customer from '../../../models/customer.model';
+import {User} from '../../../models/user.model';
 
 const OTP_TYPE = 'forgot_password';
 
@@ -52,10 +52,6 @@ export class PasswordService {
     // Không tiết lộ email có tồn tại hay không
     if (!customer) return;
 
-    if (customer.registration_channel === 'google') {
-      throw new AppError('Tài khoản đăng nhập qua Google không có mật khẩu để đặt lại.', 400);
-    }
-
     const otp = await passwordRepository.createOtp(email, OTP_TYPE, 5);
     await sendEmail(email, 'Mã OTP đặt lại mật khẩu - AutoWash', otpEmailHtml(otp));
   }
@@ -70,7 +66,7 @@ export class PasswordService {
     const valid = await passwordRepository.findValidOtp(email, otp, OTP_TYPE);
     if (!valid) throw new AppError('Mã OTP không hợp lệ hoặc đã hết hạn.', 400);
 
-    const customer = await Customer.findOne({ email }).select('+password');
+    const customer = await User.findOne({ email }).select('+password');
     if (!customer) throw new AppError('Tài khoản không tồn tại.', 404);
 
     customer.password = new_password;
@@ -83,12 +79,8 @@ export class PasswordService {
     userId: string,
     { current_password, new_password }: IChangePasswordData,
   ): Promise<void> {
-    const customer = await Customer.findById(userId).select('+password');
+    const customer = await User.findById(userId).select('+password');
     if (!customer) throw new AppError('Tài khoản không tồn tại.', 404);
-
-    if (customer.registration_channel === 'google') {
-      throw new AppError('Tài khoản đăng nhập qua Google không hỗ trợ đổi mật khẩu.', 400);
-    }
 
     const isMatch = await customer.comparePassword(current_password);
     if (!isMatch) throw new AppError('Mật khẩu hiện tại không đúng.', 401);
