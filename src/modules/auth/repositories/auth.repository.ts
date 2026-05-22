@@ -1,12 +1,13 @@
 import { BaseRepository } from '../../../common/repositories/base.repository';
-import Customer, { ICustomer } from '../../../models/customer.model';
-import Admin, { IAdmin } from '../../../models/admin.model';
-export class AuthRepository extends BaseRepository<ICustomer> {
+import {Customer, ICustomer } from '../../../models/customer.model';
+import {Admin, IAdmin } from '../../../models/admin.model';
+import { IUser, User } from 'src/models/user.model';
+export class AuthRepository extends BaseRepository<IUser> {
   constructor() {
-    super(Customer);
+    super(User);
   }
 
-  async findByEmailWithPassword(email: string): Promise<ICustomer | null> {
+  async findByEmailWithPassword(email: string): Promise<IUser | null> {
     return this.model.findOne({ email }).select('+password').exec();
   }
 }

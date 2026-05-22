@@ -3,6 +3,15 @@ import { AuthService } from '../services/auth.service';
 import { sendSuccess } from '../../../common/utils/apiResponse';
 
 export class AuthController {
+  static async register(req: Request, res: Response, next: NextFunction) {
+    try {
+      const data = await AuthService.register(req.body);
+      sendSuccess(res, data, 'Register successful', 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async login(req: Request, res: Response, next: NextFunction) {
     try {
       const data = await AuthService.login(req.body);
@@ -11,7 +20,7 @@ export class AuthController {
       next(error);
     }
   }
-
+  
   static async googleLogin(req: Request, res: Response, next: NextFunction) {
     try {
       const { idToken } = req.body;
