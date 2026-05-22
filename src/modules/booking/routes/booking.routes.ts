@@ -11,6 +11,7 @@ import {
 } from '../dtos/booking.dto';
 import { authenticate } from '../../../common/middleware/auth.middleware';
 import { authorize } from '../../../common/middleware/auth.middleware';
+import { UserRole } from '@common/types';
 
 const router = Router();
 
@@ -22,13 +23,11 @@ router.patch('/:id/cancel',         validate(cancelBookingSchema),    bookingCon
 router.get('/',                     validate(getBookingListSchema, 'query'), bookingController.getHistory);
 router.get('/:id',                                                    bookingController.getById);
 
-// Admin
-router.post('/:id/confirm',         authorize('admin'),               bookingController.confirm);
 
 // Staff
-router.patch('/:id/check-in',       authorize('admin'),      bookingController.checkIn);
-router.patch('/:id/start',          authorize('admin'),      bookingController.startWashing);
-router.patch('/:id/complete',       authorize('admin'),      bookingController.complete);
+router.patch('/:id/check-in',       authorize(UserRole.STAFF),      bookingController.checkIn);
+router.patch('/:id/start',          authorize(UserRole.STAFF),      bookingController.startWashing);
+router.patch('/:id/complete',       authorize(UserRole.STAFF),      bookingController.complete);
 
 // Gate scanner
 router.post('/check-in/plate',      validate(findByPlateNumberSchema), bookingController.checkInByPlate);
