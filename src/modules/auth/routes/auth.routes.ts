@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { AuthController } from '../controllers/auth.controller';
 import { PasswordController } from '../controllers/password.controller';
 import { validate } from '../../../common/middleware/validate.middleware';
-import { authenticate } from '../../../common/middleware/auth.middleware';
 import { registerSchema, loginSchema, googleLoginSchema } from '../dtos/auth.dto';
 import {
   forgotPasswordSchema,

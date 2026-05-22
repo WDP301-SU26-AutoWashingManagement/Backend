@@ -1,6 +1,5 @@
 import { BaseRepository } from '../../../common/repositories/base.repository';
-import {Customer, ICustomer } from '../../../models/customer.model';
-import {Admin, IAdmin } from '../../../models/admin.model';
+import { Admin, IAdmin } from '../../../models/admin.model';
 import { IUser, User } from 'src/models/user.model';
 export class AuthRepository extends BaseRepository<IUser> {
   constructor() {

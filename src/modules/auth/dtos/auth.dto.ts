@@ -10,7 +10,7 @@ export const registerSchema = Joi.object({
 export const loginSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().required(),
-  type: Joi.string().valid('customer', 'admin').default('customer')
+  type: Joi.string().valid('customer', 'admin', 'staff', 'manager').default('customer')
 });
 
 export const googleLoginSchema = Joi.object({
