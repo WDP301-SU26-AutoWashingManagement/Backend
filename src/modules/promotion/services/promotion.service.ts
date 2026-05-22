@@ -37,11 +37,9 @@ export class PromotionService {
             ...dto,
             start_at: new Date(dto.start_at),
             end_at:   new Date(dto.end_at),
-            usage_limit: Number(dto.usage_limit) ?? null,
             promotion_code: dto.promotion_code.toUpperCase().trim(),
-            created_by:     adminId as unknown as IPromotion['created_by'],
-            used_count:     0,
-        });
+            admin_id:     adminId as unknown as IPromotion['admin_id'],
+        } as Partial<IPromotion>);
 
         return { promotion };
     }
@@ -108,7 +106,7 @@ export class PromotionService {
             throw new BadRequestError('end_at must be after start_at');
         }
 
-        if (dto.discount_value !== undefined && promotion.used_count > 0) {
+        if (dto.discount_value !== undefined) {
             throw new BadRequestError(
                 'Cannot change discount_value after the promotion has been used',
             );
@@ -141,12 +139,6 @@ export class PromotionService {
     async deletePromotion(id: string): Promise<void> {
         const promotion = await this.promotionRepo.findById(id);
         if (!promotion) throw new NotFoundError('Promotion not found');
-
-        if (promotion.used_count > 0) {
-            throw new BadRequestError(
-                'Cannot delete a promotion that has already been used. Deactivate it instead.',
-            );
-        }
 
         await this.promotionRepo.deleteById(id);
     }

@@ -8,10 +8,10 @@ import { AppError } from '../../../common/utils/AppError';
 import { MongoId } from '../../../common/types';
 import { bookingRepository, BookingRepository } from '../repositories/booking.repository';
 import { promotionRepository, PromotionRepository } from '@modules/promotion/repositories/promotion.repository';
-import { customerRepository, CustomerRepository } from '@modules/customer/repositories/customer.repository';
+import { customerRoleRepository, CustomerRoleRepository} from '@modules/userProfile/repositories/userProfile.repository'
 import { toObjectId } from '@common/utils/mongo.util';
 import { validateScheduledAt } from '../middlewares/booking-window.middleware';
-import { DEFAULT_BOOKING_WINDOW_DAYS } from '@common/constants';
+import { DEFAULT_BOOKING_WINDOW_DAYS, MAX_PRICE_DISCOUNT_PERCENTAGE } from '@common/constants';
 import {
     ICreateBooking,
     ICancelBooking,
@@ -23,12 +23,12 @@ import {
 export class BookingService {
     private readonly bookingRepo: BookingRepository;
     private readonly promotionRepo: PromotionRepository;
-    private readonly customerRepo: CustomerRepository;
+    private readonly customerRoleRepo: CustomerRoleRepository;
 
     constructor() {
         this.bookingRepo    = bookingRepository;
         this.promotionRepo  = promotionRepository;
-        this.customerRepo   = customerRepository;
+        this.customerRoleRepo = customerRoleRepository;
     }
 
     // ─────────────────────────────────────────────
@@ -45,7 +45,7 @@ export class BookingService {
         }
 
         const bookingWindowDays =
-            (await this.customerRepo.findBookingWindowByCustomerId(customerId))
+            (await this.customerRoleRepo.findBookingWindowByUserId(customerId))
             ?? DEFAULT_BOOKING_WINDOW_DAYS;
 
         const scheduledAt = new Date(data.scheduled_at);
@@ -73,6 +73,10 @@ export class BookingService {
             discount = promotion.discount_type === 'percentage'
                 ? basePrice * (promotion.discount_value / 100)
                 : promotion.discount_value;
+        }
+        
+        if (discount > basePrice * MAX_PRICE_DISCOUNT_PERCENTAGE / 100) {
+            throw new AppError(`Giảm giá không được vượt quá ${MAX_PRICE_DISCOUNT_PERCENTAGE}% so với giá gốc`, 400);
         }
 
         const booking = await this.bookingRepo.create({
@@ -108,7 +112,7 @@ export class BookingService {
 
         if (!booking) throw new AppError('Không tìm thấy lịch hẹn', 404);
 
-        const CANCELLABLE: BookingStatus[] = ['pending', 'confirmed'];
+        const CANCELLABLE: BookingStatus[] = ['pending', 'checked_in'];
         if (!CANCELLABLE.includes(booking.booking_status)) {
             throw new AppError(
                 `Không thể hủy lịch hẹn đang ở trạng thái: ${booking.booking_status}`,
@@ -189,20 +193,6 @@ export class BookingService {
         }
 
         return booking.save();
-    }
-
-    // ─────────────────────────────────────────────
-    // POST /bookings/:id/confirm  (admin)
-    // ─────────────────────────────────────────────
-    async confirmBooking(bookingId: string) {
-        const booking = await this.bookingRepo.findById(bookingId);
-        if (!booking) throw new AppError('Không tìm thấy lịch hẹn', 404);
-
-        if (booking.booking_status !== 'pending') {
-            throw new AppError('Chỉ có thể xác nhận lịch hẹn đang chờ (pending)', 400);
-        }
-
-        return this.updateStatus(bookingId, { status: 'confirmed' });
     }
 
     // ─────────────────────────────────────────────

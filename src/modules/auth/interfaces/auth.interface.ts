@@ -1,3 +1,4 @@
+import { UserRole } from '@common/types';
 import { ICustomer } from '../../../models/customer.model';
 import { IAdmin } from 'src/models/admin.model';
 export interface IRegisterData {
@@ -5,7 +6,7 @@ export interface IRegisterData {
   password: string;
   full_name: string;
   phone?: string;
-  registration_channel?: 'app' | 'google' | 'admin';
+  registration_channel?: 'google' | 'admin';      // Chỗ này cân nhắc lại cái admin, ko thì bỏ lun registration_channel
   avatar_url?: string;
   is_email_verified?: boolean;
 }
@@ -13,7 +14,7 @@ export interface IRegisterData {
 export interface ILoginData {
   email: string;
   password?: string;
-  type?: 'customer' | 'admin';
+  type?: UserRole; // 'customer' | 'admin' | 'staff' | 'manager'
 }
 
 export interface ITokenResponse {

@@ -29,7 +29,7 @@ export const cancelBookingSchema = Joi.object({
 // BookingService.getBookingList()
 // ─────────────────────────────────────────────
 const BOOKING_STATUSES: BookingStatus[] = [
-    'pending', 'confirmed', 'checked_in', 'in_progress', 'completed', 'cancelled',
+    'pending', 'checked_in', 'in_progress', 'completed', 'cancelled',
 ];
 
 export const getBookingListSchema = Joi.object({
@@ -44,7 +44,7 @@ export const getBookingListSchema = Joi.object({
 
 
 const UPDATABLE_STATUSES: BookingStatus[] = [
-    'confirmed', 'checked_in', 'in_progress', 'completed', 'cancelled',
+    'checked_in', 'in_progress', 'completed', 'cancelled',
 ];
 
 export const updateBookingStatusSchema = Joi.object({
