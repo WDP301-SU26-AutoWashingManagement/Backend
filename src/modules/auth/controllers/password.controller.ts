@@ -24,12 +24,4 @@ static async verifyOtp(req: Request, res: Response, next: NextFunction) {
       sendSuccess(res, null, 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.');
     } catch (error) { next(error); }
   }
-
-  static async changePassword(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { id } = (req as AuthenticatedRequest).user;
-      await PasswordService.changePassword(id, req.body);
-      sendSuccess(res, null, 'Đổi mật khẩu thành công.');
-    } catch (error) { next(error); }
-  }
 }

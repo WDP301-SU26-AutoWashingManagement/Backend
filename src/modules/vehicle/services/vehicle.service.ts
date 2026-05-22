@@ -3,7 +3,7 @@ import { CreateVehicleDto, UpdateVehicleDto } from '../interfaces/vehicle.interf
 import { FilterQuery, PaginateOptions } from 'mongoose';
 import { IVehicle } from '../../../models/vehicle.model';
 import { AppError, BadRequestError, NotFoundError } from '../../../common/utils/AppError';
-import Customer from '../../../models/customer.model';
+import { Customer } from '../../../models/customer.model';
 
 export class VehicleService {
   private readonly repository = vehicleRepository;

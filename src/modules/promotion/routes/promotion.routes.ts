@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { promotionController } from '../controllers/promotion.controller';
 import { authenticate, authorize } from '../../../common/middleware/auth.middleware';
+import { UserRole } from '@common/types';
 
 const router     = Router();
 const controller = promotionController
@@ -14,11 +15,11 @@ router.get('/validate/:code', controller.validateCode);
 router.use(authenticate);
 
 // ─── Admin only ───────────────────────────────────────────────────────────────
-router.post('/', authorize('admin'), controller.create);
-router.get('/', authorize('admin'), controller.getList);
-router.get('/:id', authorize('admin'), controller.getById);
-router.patch('/:id', authorize('admin'), controller.update);
-router.patch('/:id/toggle-active', authorize('admin'), controller.toggleActive);
-router.delete('/:id', authorize('admin'), controller.remove);
+router.post('/', authorize(UserRole.ADMIN), controller.create);
+router.get('/', authorize(UserRole.ADMIN), controller.getList);
+router.get('/:id', authorize(UserRole.ADMIN), controller.getById);
+router.patch('/:id', authorize(UserRole.ADMIN), controller.update);
+router.patch('/:id/toggle-active', authorize(UserRole.ADMIN), controller.toggleActive);
+router.delete('/:id', authorize(UserRole.ADMIN), controller.remove);
 
 export default router;

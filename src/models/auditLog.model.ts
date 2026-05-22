@@ -1,8 +1,12 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import mongoosePaginate from 'mongoose-paginate-v2';
 
+// ERD: AuditLog { audit_log_id PK, user_id FK → User,
+//                 action, target_entities, target_id,
+//                 diff_information, ip_address, created_at }
+
 export interface IAuditLog extends Document {
-  admin_id: mongoose.Types.ObjectId;
+  user_id: mongoose.Types.ObjectId;
   action: string;
   target_entities: string;
   target_id?: string;
@@ -13,7 +17,7 @@ export interface IAuditLog extends Document {
 
 const auditLogSchema = new Schema<IAuditLog>(
   {
-    admin_id:         { type: Schema.Types.ObjectId, ref: 'Admin', required: true },
+    user_id:          { type: Schema.Types.ObjectId, ref: 'User', required: true },
     action:           { type: String, required: true },
     target_entities:  { type: String, required: true },
     target_id:        { type: String, default: null },
@@ -22,7 +26,8 @@ const auditLogSchema = new Schema<IAuditLog>(
   },
   { timestamps: { createdAt: 'created_at', updatedAt: false } },
 );
-auditLogSchema.index({ admin_id: 1, created_at: -1 });
+
+auditLogSchema.index({ user_id: 1, created_at: -1 });
 
 auditLogSchema.plugin(mongoosePaginate);
 

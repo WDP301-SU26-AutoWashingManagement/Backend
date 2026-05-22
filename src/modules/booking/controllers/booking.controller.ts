@@ -67,15 +67,6 @@ export class BookingController {
         }
     };
 
-    confirm = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-        try {
-            const result = await this.bookingService.confirmBooking(req.params.id);
-            sendSuccess(res, result, 'Đã xác nhận lịch hẹn');
-        } catch (error) {
-            next(error);
-        }
-    };
-
     checkIn = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
         try {
             const result = await this.bookingService.updateStatus(
