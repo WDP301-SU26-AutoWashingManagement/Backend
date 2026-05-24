@@ -1,11 +1,11 @@
-import { User, IUser }         from '../../../models/user.model';
+import { User, IUser } from '../../../models/user.model';
 import { Customer, ICustomer } from '../../../models/customer.model';
-import { Staff, IStaff }       from '../../../models/staff.model';
-import { Manager, IManager }   from '../../../models/manager.model';
-import { Admin, IAdmin }       from '../../../models/admin.model';
-import { BaseRepository }      from '../../../common/repositories/base.repository';
-import { UserRole }            from '@common/types';
-import { MongoId }             from '../../../common/types';
+import { Staff, IStaff } from '../../../models/staff.model';
+import { Manager, IManager } from '../../../models/manager.model';
+import { Admin, IAdmin } from '../../../models/admin.model';
+import { BaseRepository } from '../../../common/repositories/base.repository';
+import { UserRole } from '@common/types';
+import { MongoId } from '../../../common/types';
 
 // ─── User repository ──────────────────────────────────────────────────────────
 export class UserRepository extends BaseRepository<IUser> {
@@ -76,9 +76,9 @@ export class AdminRoleRepository extends BaseRepository<IAdmin> {
 
 
 const customerRoleRepo = new CustomerRoleRepository();
-const staffRoleRepo    = new StaffRoleRepository();
-const managerRoleRepo  = new ManagerRoleRepository();
-const adminRoleRepo    = new AdminRoleRepository();
+const staffRoleRepo = new StaffRoleRepository();
+const managerRoleRepo = new ManagerRoleRepository();
+const adminRoleRepo = new AdminRoleRepository();
 
 export async function findRoleDocByUserId(
   userId: MongoId,
@@ -86,10 +86,10 @@ export async function findRoleDocByUserId(
 ): Promise<ICustomer | IStaff | IManager | IAdmin | null> {
   switch (role) {
     case 'customer': return customerRoleRepo.findByUserIdWithTier(userId);
-    case 'staff':    return staffRoleRepo.findByUserId(userId);
-    case 'manager':  return managerRoleRepo.findByUserId(userId);
-    case 'admin':    return adminRoleRepo.findByUserId(userId);
-    default:         return null;
+    case 'staff': return staffRoleRepo.findByUserId(userId);
+    case 'manager': return managerRoleRepo.findByUserId(userId);
+    case 'admin': return adminRoleRepo.findByUserId(userId);
+    default: return null;
   }
 }
 
@@ -111,6 +111,6 @@ export async function updateRoleDoc(
 // ─── Singleton exports ────────────────────────────────────────────────────────
 export const userRepository = new UserRepository();
 export const customerRoleRepository = new CustomerRoleRepository();
-export const staffRoleRepository    = new StaffRoleRepository();
-export const managerRoleRepository  = new ManagerRoleRepository();
-export const adminRoleRepository    = new AdminRoleRepository();
+export const staffRoleRepository = new StaffRoleRepository();
+export const managerRoleRepository = new ManagerRoleRepository();
+export const adminRoleRepository = new AdminRoleRepository();

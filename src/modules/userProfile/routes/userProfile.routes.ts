@@ -10,6 +10,7 @@ import { changePasswordSchema,
 import { AuthenticatedRequest }  from '../../../common/types';
 import { UserRole }              from '@common/types';
 import Joi                       from 'joi';
+import { upload } from '@common/utils/imageFile';
 
 const router = Router();
 
@@ -36,6 +37,7 @@ router.get(
 router.put(
   '/profile',
   validateUpdateProfile,
+  upload.single('avatar'),
   userProfileController.updateProfile.bind(userProfileController),
 );
 

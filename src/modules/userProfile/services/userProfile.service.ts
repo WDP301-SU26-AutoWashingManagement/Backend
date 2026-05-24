@@ -18,7 +18,7 @@ const CUSTOMER_ROLE_FIELDS = new Set(['has_online_access']);
 export class UserProfileService {
   // ─── getProfile ─────────────────────────────────────────────────────────────
   static async getProfile(userId: MongoId): Promise<IUserProfileResponse> {
-    const user = await userRepository.findById(userId);
+    const user = await userRepository.findById(userId.toString());
     if (!user) throw new NotFoundError('User not found');
 
     const roleDoc = await findRoleDocByUserId(userId, user.role as UserRole);
@@ -32,9 +32,19 @@ export class UserProfileService {
     role: UserRole,
     data: IUpdateProfileData,
   ): Promise<IUserProfileResponse> {
-    const user = await userRepository.findById(userId);
+    const user = await userRepository.findById(userId.toString());
     if (!user) throw new NotFoundError('User not found');
 
+    if ((data as any).file) {
+      const file = (data as any).file;
+
+      const base64 = file.buffer.toString('base64');
+
+      data.avatar_url =
+        `data:${file.mimetype};base64,${base64}`;
+
+      delete (data as any).file;
+    }
     // Split payload: User fields vs role-specific fields
     const userFields: Record<string, unknown>     = {};
     const roleFields: Record<string, unknown>     = {};
@@ -56,7 +66,7 @@ export class UserProfileService {
 
     // Update User document
     if (Object.keys(userFields).length > 0) {
-      await userRepository.updateById(userId, userFields);
+      await userRepository.updateById(userId.toString(), userFields);
     }
 
     // Update role document (only customer has extra fields here)
