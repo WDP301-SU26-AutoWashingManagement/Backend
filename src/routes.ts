@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import authRoutes from './modules/auth/routes/auth.routes';
+import adminRoutes from './modules/admin/routes/admin.routes';
 import bookingRoutes from './modules/booking/routes/booking.routes';
 import serviceRoutes from './modules/service/routes/service-package.routes';
 import promotionRoutes from './modules/promotion/routes/promotion.routes';
@@ -15,6 +16,7 @@ import userRoutes from './modules/userProfile/routes/userProfile.routes';
 const router = Router();
 
 router.use('/auth', authRoutes);
+router.use('/admin', adminRoutes);
 router.use('/bookings', bookingRoutes);
 router.use('/services', serviceRoutes);
 router.use('/promotions', promotionRoutes);
