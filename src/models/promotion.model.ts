@@ -1,15 +1,18 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import mongoosePaginate from 'mongoose-paginate-v2';
+import { VehicleType } from './vehicle.model';
 
 // ERD: Promotion { promotion_id PK, admin_id FK → Admin,
 //                  promotion_code, promotion_objects JSON { tiers, vehicle_types, services },
 //                  discount_type, discount_value, bonus_reward_point,
 //                  auto_post, start_at, end_at, is_active, timestamps }
 
+
+
 export interface IPromotionObjects {
   tiers?: string[];
-  vehicle_types?: string[];
-  services?: string[];
+  vehicle_types?: VehicleType[];
+    services?: string[];
 }
 
 export interface IPromotion extends Document {
@@ -44,7 +47,6 @@ const promotionSchema = new Schema<IPromotion>(
   { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } },
 );
 
-promotionSchema.index({ promotion_code: 1 });
 promotionSchema.index({ is_active: 1, start_at: 1, end_at: 1 });
 
 promotionSchema.methods.isValid = function (): boolean {

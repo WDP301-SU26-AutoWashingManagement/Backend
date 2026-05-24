@@ -31,4 +31,6 @@ const tierConfigSchema = new Schema<ITierConfig>(
 
 tierConfigSchema.plugin(mongoosePaginate);
 
-export const TierConfig = mongoose.model<ITierConfig>('TierConfig', tierConfigSchema);
+export const TierConfig =
+  mongoose.models.TierConfig ??
+  mongoose.model<ITierConfig>('TierConfig', tierConfigSchema);

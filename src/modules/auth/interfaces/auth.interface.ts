@@ -9,6 +9,7 @@ export interface IRegisterData {
   registration_channel?: 'google' | 'admin';      // Chỗ này cân nhắc lại cái admin, ko thì bỏ lun registration_channel
   avatar_url?: string;
   is_email_verified?: boolean;
+  role: UserRole;
 }
 
 export interface ILoginData {

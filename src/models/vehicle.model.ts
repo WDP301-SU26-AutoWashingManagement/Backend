@@ -5,11 +5,10 @@ import mongoosePaginate from 'mongoose-paginate-v2';
 //                plate_number unique, vehicle_type,
 //                brand, vehicle_model, timestamps }
 
+//vehicle.model.ts
 export enum VehicleType {
   MOTORBIKE = 'motorbike',
   CAR = 'car',
-  TRUCK = 'truck',
-  BUS = 'bus',
 }
 
 export interface IVehicle extends Document {
