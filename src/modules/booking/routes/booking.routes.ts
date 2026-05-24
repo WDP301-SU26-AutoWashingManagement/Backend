@@ -12,16 +12,18 @@ import {
 import { authenticate } from '../../../common/middleware/auth.middleware';
 import { authorize } from '../../../common/middleware/auth.middleware';
 import { UserRole } from '@common/types';
+import { validatePromotionForBooking } from '../middlewares/promotion-validate.middleware';
+import { validateServicePackageForBooking } from '../middlewares/servicePackage-validate.middleware';
 
 const router = Router();
 
 router.use(authenticate);
 
 // Customer
-router.post('/',                    validate(createBookingSchema),    bookingController.create);
-router.patch('/:id/cancel',         validate(cancelBookingSchema),    bookingController.cancel);
-router.get('/',                     validate(getBookingListSchema, 'query'), bookingController.getHistory);
-router.get('/:id',                                                    bookingController.getById);
+router.post('/', authorize(UserRole.CUSTOMER), validate(createBookingSchema), validatePromotionForBooking, validateServicePackageForBooking, bookingController.create);
+router.patch('/:id/cancel', authorize(UserRole.CUSTOMER), validate(cancelBookingSchema), bookingController.cancel);
+router.get('/', authorize(UserRole.CUSTOMER), validate(getBookingListSchema, 'query'), bookingController.getHistory);
+router.get('/:id', authorize(UserRole.CUSTOMER), bookingController.getById);
 
 
 // Staff
