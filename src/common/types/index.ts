@@ -1,7 +1,12 @@
 import { Request } from 'express';
 import { Types } from 'mongoose';
 
-export type UserRole = 'customer' | 'admin';
+export enum UserRole {
+  CUSTOMER = 'customer',
+  ADMIN = 'admin',
+  STAFF = 'staff',
+  MANAGER = 'manager'
+}
 
 export interface JwtPayload {
   id: string;
@@ -22,4 +27,11 @@ export interface PaginationQuery {
   search?: string;
 }
 
+declare global {
+  namespace Express {
+    interface Request {
+      user: JwtPayload; 
+    }
+  }
+}
 export type MongoId = Types.ObjectId | string;

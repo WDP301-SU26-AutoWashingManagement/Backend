@@ -12,8 +12,9 @@
     "skipLibCheck": true,
     "declaration": true,
     "sourceMap": true,
-    "baseUrl": ".",
-    "ignoreDeprecations": "6.0",
+    "baseUrl": "./",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
 
     "paths": {
       "@modules/*": ["src/modules/*"],
