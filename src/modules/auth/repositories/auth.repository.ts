@@ -1,5 +1,5 @@
 import { BaseRepository } from '../../../common/repositories/base.repository';
-import { IUser, User } from 'src/models/user.model';
+import { IUser, User } from '../../../models/user.model';
 export class AuthRepository extends BaseRepository<IUser> {
   constructor() {
     super(User);

@@ -18,7 +18,8 @@ export class UserProfileController {
   async updateProfile(req: Request, res: Response, next: NextFunction) {
     try {
       const { id, role } = (req as AuthenticatedRequest).user;
-      const updated = await UserProfileService.updateProfile(id, role as UserRole, req.body);
+      const data = { ...req.body, file: (req as any).file};
+      const updated = await UserProfileService.updateProfile(id, role as UserRole, data);
       sendSuccess(res, updated, 'Profile updated successfully');
     } catch (error) {
       next(error);
