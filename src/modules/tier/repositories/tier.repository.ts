@@ -17,7 +17,7 @@ export class TierRepository extends BaseRepository<ITierConfig> {
   ): Promise<PaginateResult<ITierConfig>> {
     return this.paginate(filter, {
       ...options,
-      populate: { path: 'admin_id', select: 'full_name email' },
+      populate: { path: 'admin_id', select: 'full_name email', model: 'User' },
       sort: { created_at: -1 },
     });
   }

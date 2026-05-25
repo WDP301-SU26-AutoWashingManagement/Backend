@@ -9,7 +9,7 @@
     "start": "node dist/app.js",
     "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/app.ts",
     "lint": "eslint src --ext .ts",
-    "seed": "ts-node scripts/seed.ts",
+    "seed": "ts-node -r tsconfig-paths/register scripts/seed.ts",
     "test": "jest --runInBand --forceExit"
   },
   "dependencies": {
