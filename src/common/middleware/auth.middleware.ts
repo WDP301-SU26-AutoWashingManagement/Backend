@@ -17,6 +17,9 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction): 
 export const authorize = (...roles: UserRole[]) =>
   (req: Request, _res: Response, next: NextFunction): void => {
     const { user } = req as AuthenticatedRequest;
+      console.log('req.user:', req.user);
+      console.log('allowed roles:', roles);
+      console.log('user role:', req.user?.role);
     if (!roles.includes(user?.role)) return next(new ForbiddenError());
     next();
   };

@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import { VehicleType } from 'src/models/vehicle.model';
 
 // ─────────────────────────────────────────────
 // Joi Schemas — dùng trong validate() middleware
@@ -7,6 +8,11 @@ import Joi from 'joi';
 export const createServicePackageSchema = Joi.object({
     service_name:     Joi.string().min(2).max(100).trim().required(),
     description:      Joi.string().max(500).trim().optional().allow(''),
+
+    vehicle_type: Joi.string()
+        .valid(...Object.values(VehicleType))
+        .required(),
+
     service_price:    Joi.number().min(0).required(),
     duration_minutes: Joi.number().integer().min(1).required(),
     is_active:        Joi.boolean().optional(),
@@ -15,6 +21,11 @@ export const createServicePackageSchema = Joi.object({
 export const updateServicePackageSchema = Joi.object({
     service_name:     Joi.string().min(2).max(100).trim().optional(),
     description:      Joi.string().max(500).trim().optional().allow(''),
+
+    vehicle_type: Joi.string()
+        .valid(...Object.values(VehicleType))
+        .optional(),
+
     service_price:    Joi.number().min(0).optional(),
     duration_minutes: Joi.number().integer().min(1).optional(),
     is_active:        Joi.boolean().optional(),
@@ -30,4 +41,3 @@ export const getServicePackageListSchema = Joi.object({
     is_active: Joi.boolean().optional(),
     search:    Joi.string().trim().optional(),
 });
-

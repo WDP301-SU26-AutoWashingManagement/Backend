@@ -21,7 +21,10 @@ const app = express();
 // ── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet());
 app.use(mongoSanitize());
-app.use(cors({ /* TODO: load from env.config */ }));
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true,
+}));
 app.use(rateLimiter);
 
 // ── Parsing & Logging ─────────────────────────────────────────────────────────

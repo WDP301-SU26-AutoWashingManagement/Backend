@@ -3,7 +3,7 @@ import { AuthController } from '../controllers/auth.controller';
 import { PasswordController } from '../controllers/password.controller';
 import { validate } from '../../../common/middleware/validate.middleware';
 import { registerSchema, loginSchema, googleLoginSchema } from '../dtos/auth.dto';
-import { authorize } from '../../../common/middleware/auth.middleware';
+import { authorize, authenticate } from '../../../common/middleware/auth.middleware';
 import {
   forgotPasswordSchema,
   verifyOtpSchema,
@@ -14,7 +14,7 @@ import { UserRole } from '@common/types';
 const router = Router();
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
-router.post('/register', authorize(UserRole.ADMIN), validate(registerSchema, 'body'), AuthController.register);
+router.post('/register', authenticate, authorize(UserRole.ADMIN), validate(registerSchema, 'body'), AuthController.register);
 router.post('/login', validate(loginSchema, 'body'), AuthController.login);
 router.post('/google', validate(googleLoginSchema, 'body'), AuthController.googleLogin);
 router.post('/google/code', AuthController.googleCode);

@@ -39,7 +39,8 @@ export class BookingService {
             _id:         data.vehicle_id,
             customer_id: customerId,
         });
-
+        
+        console.log(vehicle?._id)
         if (!vehicle) {
             throw new AppError('Phương tiện không hợp lệ hoặc không thuộc quyền sở hữu của bạn', 403);
         }
