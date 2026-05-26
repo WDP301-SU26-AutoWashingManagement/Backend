@@ -22,7 +22,8 @@ class ServicePackageService {
     // POST /service-packages
     // ─────────────────────────────────────────────
     async createServicePackage(dto: ICreateServicePackage): Promise<ServicePackageResponse> {
-        const exists = await this.servicePackageRepo.findByName(dto.service_name);
+        const normalizedName = dto.service_name.trim();
+        const exists = await this.servicePackageRepo.findByName(normalizedName);
         if (exists) {
             throw new ConflictError(
                 `Service package with name "${dto.service_name}" already exists`,
@@ -73,19 +74,33 @@ class ServicePackageService {
         dto: IUpdateServicePackage,
     ): Promise<ServicePackageResponse> {
         const servicePackage = await this.servicePackageRepo.findById(id);
-        if (!servicePackage) throw new NotFoundError('Service package not found');
 
-        if (dto.service_name && dto.service_name.trim() !== servicePackage.service_name) {
-            const nameConflict = await this.servicePackageRepo.findByName(dto.service_name);
+        if (!servicePackage) {
+            throw new NotFoundError('Service package not found');
+        }
+
+        const normalizedName = dto.service_name?.trim();
+
+        if (normalizedName && normalizedName !== servicePackage.service_name) {
+            const nameConflict = await this.servicePackageRepo.findByName(normalizedName);
+
             if (nameConflict) {
                 throw new ConflictError(
-                    `Service package with name "${dto.service_name}" already exists`,
+                    `Service package with name "${normalizedName}" already exists`,
                 );
             }
         }
 
-        const updated = await this.servicePackageRepo.updateById(id, { $set: dto });
-        if (!updated) throw new NotFoundError('Service package not found');
+        const updated = await this.servicePackageRepo.updateById(id, {
+            $set: {
+                ...dto,
+                ...(normalizedName && { service_name: normalizedName }),
+            },
+        });
+
+        if (!updated) {
+            throw new NotFoundError('Service package not found');
+        }
 
         return { servicePackage: updated };
     }
