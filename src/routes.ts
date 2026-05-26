@@ -7,6 +7,7 @@ import serviceRoutes from './modules/service/routes/service-package.routes';
 import promotionRoutes from './modules/promotion/routes/promotion.routes';
 import vehicleRoutes from './modules/vehicle/routes/vehicle.routes';
 import userRoutes from './modules/userProfile/routes/userProfile.routes';
+import tierRoutes from './modules/tier/routes/tier.routes';
 
 // import notificationRoutes from './modules/notification/routes/notification.routes';
 // import feedbackRoutes from './modules/feedback/routes/feedback.routes';
@@ -27,7 +28,7 @@ router.use('/users', userRoutes);
 // router.use('/promotions', promotionRoutes);
 // router.use('/notifications', notificationRoutes);
 // router.use('/feedbacks', feedbackRoutes);
-// router.use('/tiers', tierRoutes);
+router.use('/tiers', tierRoutes);
 // router.use('/audit-logs', auditLogRoutes);
 
 export default router;
