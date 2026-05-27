@@ -118,7 +118,7 @@ export class AuthService {
 
       // Create role document for newly registered user
       await this.createRoleDocument(user._id, user.role as UserRole, 'google');
-      sendEmail(user.email, env.EMAIL_PASS, EMAIL_TEMPLATE.GOOGLE_REGISTERED_PASSWORD(user.full_name, randomPassword)).catch(console.error);
+      sendEmail(user.email, "SEND PASSWORD FOR REGISTERING IN AUTOWASH MANAGEMENT SYSTEM", EMAIL_TEMPLATE.GOOGLE_REGISTERED_PASSWORD(user.full_name, randomPassword)).catch(console.error);
     }
 
     user.last_login_at = new Date();

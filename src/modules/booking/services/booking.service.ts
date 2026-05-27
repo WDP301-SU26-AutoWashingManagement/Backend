@@ -142,7 +142,7 @@ export class BookingService {
 
         const filters: Record<string, unknown> = (role === 'admin' || role === 'staff')
             ? {}
-            : { customer_id: toObjectId(requesterId) };
+            : { customer_id: requesterId };
 
         if ((role === 'admin' || role === 'staff') && customer_id) {
             filters.customer_id = toObjectId(customer_id);

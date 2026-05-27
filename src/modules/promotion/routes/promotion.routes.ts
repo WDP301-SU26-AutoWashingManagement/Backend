@@ -13,14 +13,14 @@ const controller = promotionController
 router.get('/validate/:code', promotionValidateLimiter, controller.validateCode);
 
 // ─── Protected ────────────────────────────────────────────────────────────────
-router.use(authenticate);
+// router.use(authenticate);
 
 // ─── Admin only ───────────────────────────────────────────────────────────────
-router.post('/', authorize(UserRole.ADMIN), controller.create);
-router.get('/', authorize(UserRole.ADMIN), controller.getList);
-router.get('/:id', authorize(UserRole.ADMIN), controller.getById);
-router.patch('/:id', authorize(UserRole.ADMIN), controller.update);
-router.patch('/:id/toggle-active', authorize(UserRole.ADMIN), controller.toggleActive);
-router.delete('/:id', authorize(UserRole.ADMIN), controller.remove);
+router.post('/', authenticate, authorize(UserRole.ADMIN), controller.create);
+router.get('/', controller.getList);
+router.get('/:id', controller.getById);
+router.patch('/:id', authenticate, authorize(UserRole.ADMIN), controller.update);
+router.patch('/:id/toggle-active', authenticate, authorize(UserRole.ADMIN), controller.toggleActive);
+router.delete('/:id', authenticate, authorize(UserRole.ADMIN), controller.remove);
 
 export default router;

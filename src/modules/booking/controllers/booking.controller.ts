@@ -33,9 +33,14 @@ export class BookingController {
 
     cancel = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
         try {
+            const customer = await this.customerRepo.findByUserId(req.user.id)
+            if (!customer){
+                 throw new NotFoundError(`Customer not found for user "${req.user.id}"`);
+            }
+            
             const result = await this.bookingService.cancelBooking(
                 req.params.id,
-                req.user.id,
+                customer._id,
                 req.body as ICancelBooking,
             );
             sendSuccess(res, result, 'Đã hủy lịch hẹn');

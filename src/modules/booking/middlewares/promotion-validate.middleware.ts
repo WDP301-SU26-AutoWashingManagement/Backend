@@ -3,7 +3,9 @@ import { Promotion } from '../../../models/promotion.model';
 import { Vehicle } from '../../../models/vehicle.model';
 import { ServicePackage } from '../../../models/servicePackage.model';
 import { Customer } from '../../../models/customer.model';
-import { AppError } from '../../../common/utils/AppError';
+import { AppError, NotFoundError } from '../../../common/utils/AppError';
+import { customerRoleRepository } from '../../userProfile/repositories/userProfile.repository';
+import { AuthenticatedRequest } from '@common/types';
 
 export const validatePromotionForBooking = async (
     req: Request,
@@ -16,15 +18,21 @@ export const validatePromotionForBooking = async (
             vehicle_id,
             service_package_id,
         } = req.body;
+        console.log(req.body)
+        console.log(vehicle_id)
 
         // không dùng promo -> skip
         if (!promotion_id) {
             return next();
         }
+        
+        const customer = await customerRoleRepository.findByUserId((req as AuthenticatedRequest).user.id);
+        if (!customer){
+            throw new NotFoundError(`Customer not found for user "${(req as AuthenticatedRequest).user.id}"`);
+        }
+        const customerId = customer._id;
 
-        const customerId = (req as any).user.id;
-
-        const [promotion, vehicle, pkg, customer] = await Promise.all([
+        const [promotion, vehicle, pkg] = await Promise.all([
             Promotion.findOne({
                 _id: promotion_id,
                 is_active: true,
@@ -36,10 +44,6 @@ export const validatePromotionForBooking = async (
             }),
 
             ServicePackage.findById(service_package_id),
-
-            Customer.findOne({
-                user_id: customerId,
-            }),
         ]);
 
         if (!promotion) {
@@ -95,17 +99,17 @@ export const validatePromotionForBooking = async (
         }
 
         // tier
-        if ( objects.tiers?.length &&
-            (
-                !customer?.tier_id ||
-                !objects.tiers.includes(customer.tier_id.toString())
-            )
-        ) {
-            throw new AppError(
-                'Khuyến mãi không áp dụng cho hạng thành viên này',
-                400,
-            );
-        }
+        // if ( objects.tiers?.length &&
+        //     (
+        //         !customer?.tier_id ||
+        //         !objects.tiers.includes(customer.tier_id.toString())
+        //     )
+        // ) {
+        //     throw new AppError(
+        //         'Khuyến mãi không áp dụng cho hạng thành viên này',
+        //         400,
+        //     );
+        // }
 
         // attach promotion vào req để khỏi query lại
         (req as any).promotion = promotion;

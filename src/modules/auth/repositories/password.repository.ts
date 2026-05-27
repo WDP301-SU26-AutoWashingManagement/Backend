@@ -19,6 +19,7 @@ export class PasswordRepository {
   async findValidOtp(email: string, otp: string, type: string): Promise<boolean> {
     const key = this.key(email, type);
     const stored = await redisClient.get(key);
+    console.log(key, stored)
     if (!stored) return false;
     return stored === otp;
   }
