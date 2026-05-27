@@ -12,27 +12,37 @@ import {
     NotFoundError,
     BadRequestError,
 } from '../../../common/utils/AppError';
+import { adminRoleRepository } from '@modules/userProfile/repositories/userProfile.repository';
 
 export type ServicePackageResponse = { servicePackage: IServicePackage };
 
 class ServicePackageService {
     private readonly servicePackageRepo = servicePackageRepository;
+    private readonly adminRepo = adminRoleRepository;
 
     // ─────────────────────────────────────────────
     // POST /service-packages
     // ─────────────────────────────────────────────
-    async createServicePackage(dto: ICreateServicePackage): Promise<ServicePackageResponse> {
+    async createServicePackage(dto: ICreateServicePackage, userId: string): Promise<ServicePackageResponse> {
         const normalizedName = dto.service_name.trim();
-        const exists = await this.servicePackageRepo.findByName(normalizedName);
+        const [exists, admin] = await Promise.all([
+            this.servicePackageRepo.findByName(normalizedName),
+            this.adminRepo.findByUserId(userId),
+        ]);
         if (exists) {
             throw new ConflictError(
                 `Service package with name "${dto.service_name}" already exists`,
             );
         }
 
+        if (!admin) {
+            throw new NotFoundError(`Admin not found for user "${userId}"`);
+        }
+
         const servicePackage = await this.servicePackageRepo.create({
             ...dto,
             service_name: dto.service_name.trim(),
+            admin_id: admin._id
         });
 
         return { servicePackage };

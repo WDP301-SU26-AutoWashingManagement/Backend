@@ -1,6 +1,7 @@
-import { VehicleType } from "src/models/vehicle.model";
+import { VehicleType } from "../../../models/vehicle.model";
 
 export interface ICreateServicePackage {
+    admin_id:         string;
     service_name:     string;
     description?:     string;
     vehicle_type:     VehicleType;
@@ -10,6 +11,7 @@ export interface ICreateServicePackage {
 }
 
 export interface IUpdateServicePackage {
+    admin_id:          string;
     service_name?:     string;
     description?:      string;
     vehicle_type?:     VehicleType;

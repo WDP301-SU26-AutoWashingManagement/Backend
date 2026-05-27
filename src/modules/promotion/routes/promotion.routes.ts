@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { promotionController } from '../controllers/promotion.controller';
 import { authenticate, authorize } from '../../../common/middleware/auth.middleware';
 import { UserRole } from '@common/types';
+import { promotionValidateLimiter } from '../../../configs/rateLimit.config';
 
 const router     = Router();
 const controller = promotionController
@@ -9,7 +10,7 @@ const controller = promotionController
 // ─── Public ───────────────────────────────────────────────────────────────────
 // Validate promotion code (customer dùng trước khi đặt lịch)
 // Phải đăng ký trước /:id để không bị shadow
-router.get('/validate/:code', controller.validateCode);
+router.get('/validate/:code', promotionValidateLimiter, controller.validateCode);
 
 // ─── Protected ────────────────────────────────────────────────────────────────
 router.use(authenticate);

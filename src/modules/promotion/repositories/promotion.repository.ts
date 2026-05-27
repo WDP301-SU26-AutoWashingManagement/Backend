@@ -40,7 +40,7 @@ export class PromotionRepository extends BaseRepository<IPromotion> {
   ): Promise<PaginateResult<IPromotion>> {
     return this.paginate(filter, {
       ...options,
-      populate: { path: 'created_by', select: 'full_name email avatar_url' },
+      populate: { path: 'admin_id', select: 'full_name email avatar_url' },
       sort: { created_at: -1 },
     });
   }

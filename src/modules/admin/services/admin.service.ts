@@ -1,4 +1,4 @@
-import { WashBooking } from 'src/models/washBooking.model';
+import { WashBooking } from '../../../models/washBooking.model';
 import { Customer } from '../../../models/customer.model';
 import { IBookingCount, IProfitQuery, IDailyProfit, ITopService } from '../interfaces/admin.interface';
 

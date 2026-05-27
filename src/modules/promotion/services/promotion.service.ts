@@ -12,21 +12,31 @@ import {
     NotFoundError,
     BadRequestError,
 } from '../../../common/utils/AppError';
+import { adminRoleRepository } from '@modules/userProfile/repositories/userProfile.repository';
 
 export type PromotionResponse = { promotion: IPromotion };
 
 export class PromotionService {
     private readonly promotionRepo = promotionRepository;
+    private readonly adminRepo = adminRoleRepository;
 
     // ─────────────────────────────────────────────
     // POST /promotions
     // ─────────────────────────────────────────────
-    async createPromotion(adminId: string, dto: ICreatePromotion): Promise<PromotionResponse> {
-        const exists = await this.promotionRepo.findByCode(dto.promotion_code);
+    async createPromotion(userId: string, dto: ICreatePromotion): Promise<PromotionResponse> {
+        const [exists, admin] = await Promise.all([
+            this.promotionRepo.findByCode(dto.promotion_code),
+            this.adminRepo.findByUserId(userId),
+        ]);
+
         if (exists) {
             throw new ConflictError(
                 `Promotion code "${dto.promotion_code.toUpperCase()}" already exists`,
             );
+        }
+
+        if (!admin) {
+            throw new NotFoundError(`Admin not found for user "${userId}"`);
         }
 
         if (new Date(dto.end_at) <= new Date(dto.start_at)) {
@@ -38,7 +48,7 @@ export class PromotionService {
             start_at: new Date(dto.start_at),
             end_at:   new Date(dto.end_at),
             promotion_code: dto.promotion_code.toUpperCase().trim(),
-            admin_id:     adminId as unknown as IPromotion['admin_id'],
+            admin_id:     admin._id as unknown as IPromotion['admin_id'],
         } as Partial<IPromotion>);
 
         return { promotion };

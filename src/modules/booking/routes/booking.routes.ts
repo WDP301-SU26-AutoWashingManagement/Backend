@@ -32,6 +32,6 @@ router.patch('/:id/start',          authorize(UserRole.STAFF),      bookingContr
 router.patch('/:id/complete',       authorize(UserRole.STAFF),      bookingController.complete);
 
 // Gate scanner
-router.post('/check-in/plate',      validate(findByPlateNumberSchema), bookingController.checkInByPlate);
+router.post('/check-in/plate', authorize(UserRole.STAFF), validate(findByPlateNumberSchema), bookingController.checkInByPlate);
 
 export default router;

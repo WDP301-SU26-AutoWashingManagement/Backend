@@ -10,7 +10,7 @@ class ServicePackageController {
     // ─────────────────────────────────────────────
     create = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
         try {
-            const result = await servicePackageService.createServicePackage(req.body);
+            const result = await servicePackageService.createServicePackage(req.body, req.user.id);
             sendCreated(res, result.servicePackage, 'Service package created successfully');
         } catch (err) {
             next(err);
