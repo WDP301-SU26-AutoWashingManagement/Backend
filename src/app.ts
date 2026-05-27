@@ -5,7 +5,6 @@ import cors from 'cors';
 import compression from 'compression';
 import morgan from 'morgan';
 import mongoSanitize from 'express-mongo-sanitize';
-import rateLimit from 'express-rate-limit';
 import 'reflect-metadata';
 import './models';
 

@@ -134,11 +134,13 @@ export class BookingService {
     async getBookingList(dto: IGetBookingList, role: string, requesterId: string) {
         const { page, limit, customer_id, vehicle_id, booking_status, scheduled_from, scheduled_to } = dto;
 
-        const filters: Record<string, unknown> = role === 'admin'
+        const filters: Record<string, unknown> = (role === 'admin' || role === 'staff')
             ? {}
             : { customer_id: toObjectId(requesterId) };
 
-        if (role === 'admin' && customer_id) filters.customer_id = toObjectId(customer_id);
+        if ((role === 'admin' || role === 'staff') && customer_id) {
+            filters.customer_id = toObjectId(customer_id);
+        }
         if (vehicle_id)                       filters.vehicle_id  = toObjectId(vehicle_id);
         if (booking_status)                   filters.booking_status = booking_status;
 

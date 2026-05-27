@@ -1,5 +1,5 @@
 import Joi from 'joi';
-import { VehicleType } from 'src/models/vehicle.model';
+import { VehicleType } from '../../../models/vehicle.model';
 
 // ─────────────────────────────────────────────
 // Joi Schemas — dùng trong validate() middleware
