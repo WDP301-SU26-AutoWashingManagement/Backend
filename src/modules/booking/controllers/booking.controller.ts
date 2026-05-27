@@ -12,9 +12,12 @@ import {
     IUpdateBookingStatus,
     IFindByPlateNumber,
 } from '../interfaces/booking.interface';
+import { customerRoleRepository } from '@modules/userProfile/repositories/userProfile.repository';
+import { NotFoundError } from '@common/utils/AppError';
 
 export class BookingController {
     private readonly bookingService = bookingService;
+    private readonly customerRepo = customerRoleRepository;
 
     create = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
         try {
@@ -43,10 +46,15 @@ export class BookingController {
 
     getHistory = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
         try {
+            const customer = await this.customerRepo.findByUserId(req.user.id);
+            if (!customer){
+                 throw new NotFoundError(`Customer not found for user "${req.user.id}"`);
+            }
+            
             const result = await this.bookingService.getBookingList(
                 req.query as unknown as IGetBookingList,
                 req.user.role,
-                req.user.id,
+                customer._id.toString()
             );
             sendPaginated(res, result, 'Lấy danh sách lịch hẹn thành công');
         } catch (error) {

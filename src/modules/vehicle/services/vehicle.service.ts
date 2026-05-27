@@ -3,13 +3,14 @@ import { CreateVehicleDto, UpdateVehicleDto } from '../interfaces/vehicle.interf
 import { FilterQuery, PaginateOptions } from 'mongoose';
 import { IVehicle } from '../../../models/vehicle.model';
 import { AppError, BadRequestError, NotFoundError } from '../../../common/utils/AppError';
-import { Customer } from '../../../models/customer.model';
+import { customerRoleRepository } from '@modules/userProfile/repositories/userProfile.repository';
 
 export class VehicleService {
   private readonly repository = vehicleRepository;
+  private readonly customerRepo = customerRoleRepository
 
-  async create(data: CreateVehicleDto) {
-    const customer = await Customer.findById(data.customer_id);
+  async create(data: CreateVehicleDto, userId: string) {
+    const customer = await this.customerRepo.findByUserId(userId);
     if (!customer) {
       throw new NotFoundError('Customer not found');
     }
@@ -18,7 +19,11 @@ export class VehicleService {
     if (existing) {
       throw new BadRequestError('Plate number already registered');
     }
-    return this.repository.create(data as Partial<IVehicle>);
+    const result = {
+      ...data,
+      customer_id: customer._id,
+    };
+    return this.repository.create(result);
   }
 
   async findById(id: string) {
