@@ -4,7 +4,7 @@ import { BookingStatus } from '../../../models/washBooking.model';
 import { ServicePackage } from '../../../models/servicePackage.model';
 import { Promotion } from '../../../models/promotion.model';
 import { Vehicle } from '../../../models/vehicle.model';
-import { AppError } from '../../../common/utils/AppError';
+import { AppError, NotFoundError } from '../../../common/utils/AppError';
 import { MongoId } from '../../../common/types';
 import { bookingRepository, BookingRepository } from '../repositories/booking.repository';
 import { promotionRepository, PromotionRepository } from '@modules/promotion/repositories/promotion.repository';
@@ -34,10 +34,16 @@ export class BookingService {
     // ─────────────────────────────────────────────
     // POST /bookings
     // ─────────────────────────────────────────────
-    async createBooking(customerId: MongoId, data: ICreateBooking) {
+    async createBooking(userId: MongoId, data: ICreateBooking) {
+        const customer = await customerRoleRepository.findByUserId(userId);
+
+        if (!customer){
+            throw new NotFoundError(`Customer not found for user "${userId}"`);
+        }
+
         const vehicle = await Vehicle.findOne({
             _id:         data.vehicle_id,
-            customer_id: customerId,
+            customer_id: customer._id,
         });
         
         console.log(vehicle?._id)
@@ -46,7 +52,7 @@ export class BookingService {
         }
 
         const bookingWindowDays =
-            (await this.customerRoleRepo.findBookingWindowByUserId(customerId))
+            (await this.customerRoleRepo.findBookingWindowByUserId(customer._id))
             ?? DEFAULT_BOOKING_WINDOW_DAYS;
 
         const scheduledAt = new Date(data.scheduled_at);
@@ -81,7 +87,7 @@ export class BookingService {
         }
 
         const booking = await this.bookingRepo.create({
-            customer_id:        toObjectId(customerId),
+            customer_id:        toObjectId(customer._id),
             vehicle_id:         toObjectId(data.vehicle_id),
             service_package_id: toObjectId(data.service_package_id),
             promotion_id:       data.promotion_id ? toObjectId(data.promotion_id) : undefined,
