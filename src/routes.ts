@@ -8,6 +8,7 @@ import promotionRoutes from './modules/promotion/routes/promotion.routes';
 import vehicleRoutes from './modules/vehicle/routes/vehicle.routes';
 import userRoutes from './modules/userProfile/routes/userProfile.routes';
 import tierRoutes from './modules/tier/routes/tier.routes';
+import iotRoutes from './modules/iot/routes/iot.route'; 
 
 // import notificationRoutes from './modules/notification/routes/notification.routes';
 // import feedbackRoutes from './modules/feedback/routes/feedback.routes';
@@ -30,5 +31,6 @@ router.use('/users', userRoutes);
 // router.use('/feedbacks', feedbackRoutes);
 router.use('/tiers', tierRoutes);
 // router.use('/audit-logs', auditLogRoutes);
+router.use('/wash', iotRoutes);
 
 export default router;

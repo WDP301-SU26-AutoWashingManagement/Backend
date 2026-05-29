@@ -4,7 +4,7 @@ import { sendSuccess } from '../../../common/utils/apiResponse';
 import { AuthenticatedRequest } from '../../../common/types';
 import { IBookingCount, IProfitQuery } from '../interfaces/admin.interface';
 
-class AdminController {
+export class AdminController {
   // ─────────────────────────────────────────────
   // GET /admin/customers/count
   // ─────────────────────────────────────────────
@@ -31,12 +31,12 @@ class AdminController {
   };
 
   // ─────────────────────────────────────────────
-  // GET /admin/profit?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+  // POST /admin/profit
+  // Require body startDate and endDate
   // ─────────────────────────────────────────────
   getDailyProfit = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const { startDate, endDate } = req.query as unknown as IProfitQuery;
-      const result = await adminService.getDailyProfit({ startDate, endDate });
+      const result = await adminService.getDailyProfit(req.body as IProfitQuery);
       sendSuccess(res, result, 'Daily profit fetched successfully');
     } catch (err) {
       next(err);

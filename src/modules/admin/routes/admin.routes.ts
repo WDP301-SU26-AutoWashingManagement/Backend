@@ -12,7 +12,7 @@ router.use(authorize(UserRole.ADMIN));
 // ─── Dashboard stats ──────────────────────────────────────────────────────────
 router.get('/customers/count', adminController.getCustomerCount);
 router.post('/bookings/count', adminController.getBookingCount);
-router.get('/profit', adminController.getDailyProfit);
+router.post('/profit', adminController.getDailyProfit);
 router.get('/top-services', adminController.getTopServices);
 
 export default router;
