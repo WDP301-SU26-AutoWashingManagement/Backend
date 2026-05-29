@@ -7,9 +7,6 @@ type Source = 'body' | 'query' | 'params';
 export const validate = (schema: Joi.ObjectSchema, source: Source = 'body') =>
   (req: Request, _res: Response, next: NextFunction): void => {
 
-    console.log('SOURCE:', source);
-    console.log('REQ BODY:', req.body);
-
     const { error, value } = schema.validate(req[source], {
       abortEarly: false,
       stripUnknown: true

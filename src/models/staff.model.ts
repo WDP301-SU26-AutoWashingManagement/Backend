@@ -1,23 +1,59 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import mongoosePaginate from 'mongoose-paginate-v2';
+import { StaffRole } from "../common/types/enum";
+import mongoose, { Document, Schema, Types } from "mongoose";
+import { applyPlugins } from "./global/model.plugin";
 
-// ERD: Staff { staff_id PK, user_id FK → User,
-//              shift_per_week, salary_coefficient }
+export interface IStaff extends Document{
+  user_id: Types.ObjectId;
+  branch_id: Types.ObjectId | null;
 
-export interface IStaff extends Document {
-  user_id: mongoose.Types.ObjectId;
-  shift_per_week: number;
+  staff_type: StaffRole;
+
+  hire_date: Date;
+  hour_per_week: number;           // chỗ này có thể điều chỉnh cho từng loại Staff
   salary_coefficient: number;
+
 }
 
 const staffSchema = new Schema<IStaff>(
-  {
-    user_id:            { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
-    shift_per_week:     { type: Number, required: true, default: 5, min: 0 },
-    salary_coefficient: { type: Number, required: true, default: 1.0, min: 0 },
-  }
+    {
+        user_id: { 
+            type: Schema.Types.ObjectId, required: true, ref: "User" 
+        },
+
+        branch_id: {
+            type: Schema.Types.ObjectId,
+            default: null,
+            ref: "Branch",
+        },
+
+        staff_type: {
+            type: String,
+            enum: Object.values(StaffRole),
+            required: true,
+        },
+
+        hire_date: { 
+            type: Date, 
+            required: true,
+            default: 40 
+        },
+
+        hour_per_week: {
+            type: Number,
+            required: true,
+            min: 0,
+            default: 10
+        },
+
+        salary_coefficient: {
+            type: Number,
+            required: true,
+            min: 0,
+            default: 1,
+        },
+    }
 );
 
-staffSchema.plugin(mongoosePaginate);
+staffSchema.plugin(applyPlugins);
 
 export const Staff = mongoose.model<IStaff>('Staff', staffSchema);

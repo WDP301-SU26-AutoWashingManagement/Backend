@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { AuthController } from '../controllers/auth.controller';
-import { PasswordController } from '../controllers/password.controller';
+import { authController } from '../controllers/auth.controller';
+import { passwordController } from '../controllers/password.controller';
 import { validate } from '../../../common/middleware/validate.middleware';
 import { registerSchema, loginSchema, googleLoginSchema } from '../dtos/auth.dto';
 import { authorize, authenticate } from '../../../common/middleware/auth.middleware';
@@ -9,20 +9,20 @@ import {
   verifyOtpSchema,
   resetPasswordSchema,
 } from '../dtos/password.dto';
-import { UserRole } from '@common/types';
+import { UserRole } from '../../../common/types/enum';
 
 const router = Router();
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
-router.post('/register', authenticate, authorize(UserRole.ADMIN), validate(registerSchema, 'body'), AuthController.register);
-router.post('/login', validate(loginSchema, 'body'), AuthController.login);
-router.post('/google', validate(googleLoginSchema, 'body'), AuthController.googleLogin);
-router.post('/google/code', AuthController.googleCode);
-router.post('/refresh', AuthController.refreshToken);
+router.post('/register', authenticate, authorize(UserRole.ADMIN), validate(registerSchema, 'body'), authController.register);
+router.post('/login', validate(loginSchema, 'body'), authController.login);
+router.post('/google', validate(googleLoginSchema, 'body'), authController.googleLogin);
+router.post('/google/code', authController.googleCode);
+router.post('/refresh', authController.refreshToken);
 
 // ─── Password (public — không cần token) ─────────────────────────────────────
-router.post('/forgot-password', validate(forgotPasswordSchema, 'body'), PasswordController.forgotPassword);
-router.post('/verify-otp',      validate(verifyOtpSchema, 'body'),      PasswordController.verifyOtp);
-router.post('/reset-password',  validate(resetPasswordSchema, 'body'),  PasswordController.resetPassword);
+router.post('/forgot-password', validate(forgotPasswordSchema, 'body'), passwordController.forgotPassword);
+router.post('/verify-otp',      validate(verifyOtpSchema, 'body'),      passwordController.verifyOtp);
+router.post('/reset-password',  validate(resetPasswordSchema, 'body'),  passwordController.resetPassword);
 
 export default router;

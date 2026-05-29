@@ -6,7 +6,7 @@ import compression from 'compression';
 import morgan from 'morgan';
 import mongoSanitize from 'express-mongo-sanitize';
 import 'reflect-metadata';
-import './models';
+// import './models';
 
 import { connectDB } from './configs/db.config';
 import { errorHandler, notFoundHandler } from './common/middleware/error.middleware';
@@ -14,6 +14,7 @@ import { logger } from './common/utils/logger';
 import { connectRedis } from './configs/redis.config';
 import routes from './routes';
 import { rateLimiter } from './configs/rateLimit.config';
+import { loadModels } from './models/global/model.load';
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use(errorHandler);
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 const bootstrap = async (): Promise<void> => {
+  loadModels();
   await connectDB();
   await connectRedis()
   const PORT = process.env.PORT ?? 3000;

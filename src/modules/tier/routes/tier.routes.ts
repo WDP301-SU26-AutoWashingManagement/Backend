@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { tierController } from '../controllers/tier.controller';
 import { authenticate, authorize } from '../../../common/middleware/auth.middleware';
-import { UserRole } from '../../../common/types';
+import { UserRole } from '../../../common/types/enum';
 
 const router = Router();
 const controller = tierController;

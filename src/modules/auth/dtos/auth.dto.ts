@@ -1,4 +1,4 @@
-import { UserRole } from '@common/types';
+import { UserRole } from '../../../common/types/enum';
 import Joi from 'joi';
 
 export const registerSchema = Joi.object({

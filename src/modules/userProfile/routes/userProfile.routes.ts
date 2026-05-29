@@ -1,31 +1,18 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
+
 import { userProfileController } from '../controllers/userProfile.controller';
-import { authenticate }          from '../../../common/middleware/auth.middleware';
-import { validate }              from '../../../common/middleware/validate.middleware';
-import { changePasswordSchema,
-         updateProfileCustomerSchema,
-         updateProfileStaffSchema,
-         updateProfileManagerSchema,
-         updateProfileAdminSchema } from '../dtos/userProfile.dto';
-import { AuthenticatedRequest }  from '../../../common/types';
-import { UserRole }              from '@common/types';
-import Joi                       from 'joi';
+
+import { authenticate } from '../../../common/middleware/auth.middleware';
+import { validate } from '../../../common/middleware/validate.middleware';
+
+import {
+  changePasswordSchema,
+  updateProfileSchema,
+} from '../dtos/userProfile.dto';
+
 import { upload } from '@common/utils/imageFile';
 
 const router = Router();
-
-const UPDATE_SCHEMA_BY_ROLE: Record<UserRole, Joi.ObjectSchema> = {
-  customer: updateProfileCustomerSchema,
-  staff:    updateProfileStaffSchema,
-  manager:  updateProfileManagerSchema,
-  admin:    updateProfileAdminSchema,
-};
-
-function validateUpdateProfile(req: Request, res: Response, next: NextFunction) {
-  const role  = (req as AuthenticatedRequest).user.role as UserRole;
-  const schema = UPDATE_SCHEMA_BY_ROLE[role] ?? updateProfileCustomerSchema;
-  return validate(schema, 'body')(req, res, next);
-}
 
 router.use(authenticate);
 
@@ -36,8 +23,8 @@ router.get(
 
 router.put(
   '/profile',
-  validateUpdateProfile,
   upload.single('avatar'),
+  validate(updateProfileSchema, 'body'),
   userProfileController.updateProfile.bind(userProfileController),
 );
 

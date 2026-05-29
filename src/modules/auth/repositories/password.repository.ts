@@ -11,7 +11,6 @@ export class PasswordRepository {
   async createOtp(email: string, type: string, ttlMinutes = 5): Promise<string> {
     const otp = generateOtp();
     const key = this.key(email, type);
-    // Lưu OTP vào Redis, tự động expire sau ttlMinutes
     await redisClient.set(key, otp, { EX: ttlMinutes * 60 });
     return otp;
   }

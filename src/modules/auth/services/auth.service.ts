@@ -4,10 +4,9 @@ import { IRegisterData, ILoginData, IAuthResponse } from '../interfaces/auth.int
 import { AppError } from '../../../common/utils/AppError';
 import { generateTokenPair, verifyRefreshToken } from '../../../common/utils/jwt.util';
 import { env } from '../../../configs/env.config';
-import { UserRole } from '@common/types';
+import { UserRole } from '../../../common/types/enum';
 import { Customer } from '../../../models/customer.model';
 import { Staff } from '../../../models/staff.model';
-import { Manager } from '../../../models/manager.model';
 import { Admin } from '../../../models/admin.model';
 import { sendEmail } from '@common/utils/email.util';
 import { EMAIL_TEMPLATE } from '@common/constants/emailTemplate';
@@ -21,25 +20,20 @@ export class AuthService {
   /**
    * Create role document based on user role
    */
-  private static async createRoleDocument(userId: any, role: UserRole, registrationChannel?: string): Promise<void> {
+  private readonly authRepo = authRepository;
+
+  private static async createRoleDocument(userId: any, role: UserRole): Promise<void> {
     try {
       switch (role) {
         case UserRole.CUSTOMER:
           await Customer.create({
             user_id: userId,
-            registration_channel: registrationChannel || 'google'
           });
           break;
         case UserRole.STAFF:
           await Staff.create({
             user_id: userId,
-            shift_per_week: 5,
-            salary_coefficient: 1.0
-          });
-          break;
-        case UserRole.MANAGER:
-          await Manager.create({
-            user_id: userId,
+            hour_per_week: 5,
             salary_coefficient: 1.0
           });
           break;
@@ -56,43 +50,40 @@ export class AuthService {
     }
   }
 
-  static async register(data: IRegisterData): Promise<IAuthResponse> {
-    const existingCustomer = await authRepository.findOne({ email: data.email });
+  async register(data: IRegisterData): Promise<IAuthResponse> {
+    const existingCustomer = await this.authRepo.findByEmail(data.email)
     if (existingCustomer) {
-      throw new AppError('Email is already registered', 400);
+      throw new AppError('Tài khoản đã tồn tại. Vui lòng đăng nhập', 400);
     }
 
     // Remove registration_channel from user data (it belongs to Customer, not User)
-    const { registration_channel, ...userData } = data;
-    const user = await authRepository.create(userData);
+    const user = await authRepository.create(data);
 
-    // Create role document for this user (default is CUSTOMER from User model)
-    // Pass 'admin' as the registration_channel for Customer
-    await this.createRoleDocument(user._id, data.role as UserRole, 'admin');
+    // await this.createRoleDocument(user._id, data.role as UserRole);
 
-    const tokens = generateTokenPair(user.id as string, user.role);
+    const tokens = generateTokenPair(user.id as string, user.role as UserRole);
     return { user: this.sanitizeUser(user), tokens };
   }
 
-  static async login(data: ILoginData): Promise<IAuthResponse> {
-    const customer = await authRepository.findByEmailWithPassword(data.email);
-    if (!customer) {
-      throw new AppError('Invalid email or password', 401);
+  async login(data: ILoginData): Promise<IAuthResponse> {
+    const user = await this.authRepo.findByEmail(data.email);
+    if (!user) {
+      throw new AppError('Email hay Password không đúng', 401);
     }
 
-    const isMatch = await customer.comparePassword(data.password!);
+    const isMatch = await user.comparePassword(data.password!);
     if (!isMatch) {
-      throw new AppError('Invalid email or password', 401);
+      throw new AppError('Email hay Password không đúng', 401);
     }
 
-    customer.last_login_at = new Date();
-    await customer.save();
+    user.last_login_at = new Date();
+    await user.save();
 
-    const tokens = generateTokenPair(customer.id as string, customer.role);
-    return { user: this.sanitizeUser(customer), tokens };
+    const tokens = generateTokenPair(user.id as string, user.role as UserRole);
+    return { user: this.sanitizeUser(user), tokens };
   }
 
-  static async googleLogin(idToken: string): Promise<IAuthResponse> {
+  async googleLogin(idToken: string): Promise<IAuthResponse> {
     const ticket = await client.verifyIdToken({
       idToken,
       audience: [
@@ -113,22 +104,21 @@ export class AuthService {
         full_name: payload.name || 'Google User',
         avatar_url: payload.picture,
         password: randomPassword, // Random placeholder password
-        is_email_verified: payload.email_verified || false,
       });
 
       // Create role document for newly registered user
-      await this.createRoleDocument(user._id, user.role as UserRole, 'google');
-      sendEmail(user.email, env.EMAIL_PASS, EMAIL_TEMPLATE.GOOGLE_REGISTERED_PASSWORD(user.full_name, randomPassword)).catch(console.error);
+      // await this.createRoleDocument(user._id, user.role as UserRole);
+      sendEmail(user.email, "SEND PASSWORD FOR REGISTERING IN AUTOWASH MANAGEMENT SYSTEM", EMAIL_TEMPLATE.GOOGLE_REGISTERED_PASSWORD(user.full_name, randomPassword)).catch(console.error);
     }
 
     user.last_login_at = new Date();
     await user.save();
     
-    const tokens = generateTokenPair(user.id as string, user.role);
+    const tokens = generateTokenPair(user.id as string, user.role as UserRole);
     return { user: this.sanitizeUser(user), tokens };
   }
 
-  static async googleLoginByCode(code: string, redirectUri?: string): Promise<IAuthResponse> {
+  async googleLoginByCode(code: string, redirectUri?: string): Promise<IAuthResponse> {
     const res = await serverOAuth2Client.getToken({ code, redirect_uri: redirectUri });
     const tokens = res.tokens;
     const idToken = tokens.id_token;
@@ -136,15 +126,17 @@ export class AuthService {
     return this.googleLogin(idToken);
   }
 
-  private static sanitizeUser(user: any) {
+  private sanitizeUser(user: any) {
     const obj = user.toObject();
     delete obj.password;
     return obj;
   }
 
-  static async refreshToken(token: string) {
+  async refreshToken(token: string) {
     const payload = verifyRefreshToken(token);
     const tokens = generateTokenPair(payload.id, payload.role);
     return { tokens };
   }
 }
+
+export const authService = new AuthService()

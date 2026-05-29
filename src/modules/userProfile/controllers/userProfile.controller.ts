@@ -1,15 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
-import { UserProfileService }              from '../services/userProfile.service';
+import { userProfileService }              from '../services/userProfile.service';
 import { sendSuccess }                     from '../../../common/utils/apiResponse';
-import { AuthenticatedRequest }            from '../../../common/types';
-import { UserRole }                        from '@common/types';
+import { AuthenticatedRequest }            from '../../../common/types/index';
+import { UserRole }                        from '../../../common/types/enum';
 
 export class UserProfileController {
+  private readonly profileService = userProfileService;
   async getProfile(req: Request, res: Response, next: NextFunction) {
     try {
       const userId  = (req as AuthenticatedRequest).user.id;
-      const profile = await UserProfileService.getProfile(userId);
-      sendSuccess(res, profile, 'Profile fetched successfully');
+      const profile = await this.profileService.getProfile(userId);
+      sendSuccess(res, profile, 'Hồ sơ đã được lấy thành công');
     } catch (error) {
       next(error);
     }
@@ -17,10 +18,10 @@ export class UserProfileController {
 
   async updateProfile(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id, role } = (req as AuthenticatedRequest).user;
+      const id = (req as AuthenticatedRequest).user.id;
       const data = { ...req.body, file: (req as any).file};
-      const updated = await UserProfileService.updateProfile(id, role as UserRole, data);
-      sendSuccess(res, updated, 'Profile updated successfully');
+      const updated = await this.profileService.updateProfile(id, data);
+      sendSuccess(res, updated, 'Hồ sơ đã được cập nhật thành công');
     } catch (error) {
       next(error);
     }
@@ -29,7 +30,7 @@ export class UserProfileController {
   async changePassword(req: Request, res: Response, next: NextFunction) {
     try {
       const userId = (req as AuthenticatedRequest).user.id;
-      const result = await UserProfileService.changePassword(userId, req.body);
+      const result = await this.profileService.changePassword(userId, req.body);
       sendSuccess(res, result, result.message);
     } catch (error) {
       next(error);
