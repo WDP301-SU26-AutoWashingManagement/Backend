@@ -1,23 +1,26 @@
 import { StaffRole } from "../common/types/enum";
 import mongoose, { Document, Schema, Types } from "mongoose";
 import { applyPlugins } from "./global/model.plugin";
+import { generateCode } from "./counter.model";
 
 export interface IStaff extends Document{
-  user_id: Types.ObjectId;
-  branch_id: Types.ObjectId | null;
+    user_id: Types.ObjectId;
+    branch_id: Types.ObjectId | null;
+    staff_code: string;
+    staff_type: StaffRole;
 
-  staff_type: StaffRole;
-
-  hire_date: Date;
-  hour_per_week: number;           // chỗ này có thể điều chỉnh cho từng loại Staff
-  salary_coefficient: number;
+    hire_date: Date;
+    hour_per_week: number;           // chỗ này có thể điều chỉnh cho từng loại Staff
+    salary_coefficient: number;
 
 }
 
 const staffSchema = new Schema<IStaff>(
     {
         user_id: { 
-            type: Schema.Types.ObjectId, required: true, ref: "User" 
+            type: Schema.Types.ObjectId, 
+            required: true, 
+            ref: "User" 
         },
 
         branch_id: {
@@ -30,6 +33,11 @@ const staffSchema = new Schema<IStaff>(
             type: String,
             enum: Object.values(StaffRole),
             required: true,
+        },
+
+        staff_code: {
+            type: String,
+            unique: true,
         },
 
         hire_date: { 
@@ -56,4 +64,11 @@ const staffSchema = new Schema<IStaff>(
 
 staffSchema.plugin(applyPlugins);
 
+staffSchema.pre("save", async function (next) {
+    if (!this.isNew) return next();
+
+    this.staff_code = await generateCode("staff_code", "STAFF", 8);
+
+    next();
+});
 export const Staff = mongoose.model<IStaff>('Staff', staffSchema);

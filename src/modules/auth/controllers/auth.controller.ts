@@ -27,7 +27,26 @@ export class AuthController {
       const { idToken } = req.body;
       const data = await this.autService.googleLogin(idToken);
       sendSuccess(res, data, 'Đăng nhập Google thành công');
-    } catch (error) {
+    } catch (error: any) {
+      const isDuplicateReferralCode =
+      error?.code === 11000 &&
+      error?.keyPattern?.referral_code;
+
+      if (isDuplicateReferralCode) {
+        try {
+          const { idToken } = req.body;
+
+          const data = await this.autService.googleLogin(idToken);
+
+          return sendSuccess(
+            res,
+            data,
+            'Đăng nhập Google thành công'
+          );
+        } catch (retryError) {
+          return next(retryError);
+        }
+      }
       next(error);
     }
   }

@@ -2,7 +2,6 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 import { applyPlugins } from "./global/model.plugin";
 
 export interface IBranch extends Document {
-    manager_id?: Types.ObjectId;                        // manager_id này là staff_id mà có StaffRole là Manager
     web_url?: string;
     branch_phone?: string;
     branch_address?: {
@@ -28,19 +27,14 @@ export interface IBranch extends Document {
 
 const branchSchema = new Schema<IBranch>(
     {
-        manager_id: {
-            type: Schema.Types.ObjectId,
-            ref: "Staff",
-            default: null,
-        },
         web_url: {
             type: String,
-            trim: true
         },
+
         branch_phone: {
             type: String,
-            trim: true
         },
+        
         branch_address: {
             street: String,
             ward: String,
@@ -82,4 +76,4 @@ const branchSchema = new Schema<IBranch>(
 
 branchSchema.plugin(applyPlugins);
 
-export const Branch =  mongoose.model<IBranch>("Branch", branchSchema);
+export const Branch = mongoose.model<IBranch>("Branch", branchSchema);

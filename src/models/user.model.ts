@@ -102,7 +102,7 @@ userSchema.plugin(applyPlugins);
 userSchema.pre("save", async function (next) {
     if (!this.isNew) return next();
 
-    this.user_code = await generateCode("user_code", "US", 6);
+    this.user_code = await generateCode("user_code", "US", 8);
 
     next();
 });

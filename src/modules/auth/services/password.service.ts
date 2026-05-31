@@ -8,7 +8,6 @@ import {
   IResetPasswordData,
   IChangePasswordData,
 } from '../interfaces/password.interface';
-import { User } from '../../../models/user.model';
 import { EMAIL_TEMPLATE } from '@common/constants/emailTemplate';
 
 const OTP_TYPE = 'forgot_password';
