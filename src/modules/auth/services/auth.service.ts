@@ -11,9 +11,10 @@ import { Admin } from '../../../models/admin.model';
 import { sendEmail } from '@common/utils/email.util';
 import { EMAIL_TEMPLATE } from '@common/constants/emailTemplate';
 import { Types } from 'mongoose';
-import { TierConfig } from 'src/models/tierConfig.model';
-import { generateCode } from 'src/models/counter.model';
-import { generateReferralCode } from 'src/models/global/model.generate';
+import { TierConfig } from '../../../models/tierConfig.model';
+import { generateCode } from '../../../models/counter.model';
+import { generateReferralCode } from '../../../models/global/model.generate';
+import crypto from 'crypto';
 
 const client = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
@@ -122,6 +123,7 @@ export class AuthService {
     const email = payload.email.toLowerCase().trim();
 
     let userCode = await generateCode("user_code", "US", 8);
+    let randomPassword = crypto.randomBytes(16).toString("hex");
     const user = await this.authRepo.findOneAndUpdate(
       { email },
       {
@@ -129,6 +131,7 @@ export class AuthService {
           last_login_at: new Date(),
           full_name: payload.name || "Google User",
           avatar_url: payload.picture,
+          password: randomPassword
         },
         $setOnInsert: {
           email,
@@ -146,6 +149,7 @@ export class AuthService {
 
     if (!user) throw new AppError("User not found", 500);
     await this.createRoleDocument(user);
+    await sendEmail(email, "Send password for google account" , EMAIL_TEMPLATE.GOOGLE_REGISTERED_PASSWORD(user.full_name, randomPassword));
     const tokens = generateTokenPair(user._id.toString(), user.role);
 
     return {
