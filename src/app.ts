@@ -15,6 +15,8 @@ import { connectRedis } from './configs/redis.config';
 import routes from './routes';
 import { rateLimiter } from './configs/rateLimit.config';
 import { loadModels } from './models/global/model.load';
+import seedBoss from '@common/seeds/seed.boss';
+import mongoose from 'mongoose';
 
 const app = express();
 
@@ -47,7 +49,12 @@ app.use(errorHandler);
 const bootstrap = async (): Promise<void> => {
   loadModels();
   await connectDB();
-  await connectRedis()
+  await connectRedis();
+  if (mongoose.connection.readyState !== 1) {
+    throw new Error("MongoDB not connected");
+  }
+
+  await seedBoss();
   const PORT = process.env.PORT ?? 3000;
   app.listen(PORT, () => logger.info(`🚀 Server running on port ${PORT}`));
 };

@@ -13,6 +13,23 @@ export class AuthRepository extends BaseRepository<IUser> {
   findByIdWithPassword(id: string) {
     return this.model.findById(id).select('+password').exec();
   }
+
+  findOneAndUpdate(
+    filter: Record<string, any>,
+    update: Record<string, any>,
+    options: Record<string, any> = {}
+  ) {
+    return this.model.findOneAndUpdate(
+      filter,
+      update,
+      {
+        new: true,
+        runValidators: true,
+        ...options,
+      }
+  );
+}
+  
 }
 
 export const authRepository = new AuthRepository(User);

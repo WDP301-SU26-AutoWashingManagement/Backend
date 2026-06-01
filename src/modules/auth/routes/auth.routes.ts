@@ -14,7 +14,7 @@ import { UserRole } from '../../../common/types/enum';
 const router = Router();
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
-router.post('/register', authenticate, authorize(UserRole.ADMIN), validate(registerSchema, 'body'), authController.register);
+router.post('/register', authenticate, authorize(UserRole.ADMIN, UserRole.BOSS), validate(registerSchema, 'body'), authController.register);
 router.post('/login', validate(loginSchema, 'body'), authController.login);
 router.post('/google', validate(googleLoginSchema, 'body'), authController.googleLogin);
 router.post('/google/code', authController.googleCode);

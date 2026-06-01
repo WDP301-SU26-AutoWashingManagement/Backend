@@ -8,16 +8,12 @@ export interface IRegisterData {
   phone?: string;
   avatar_url?: string;
   role: UserRole;
-}
-
-export interface IRoleData {
-  
+  branch_id?: string;
 }
 
 export interface ILoginData {
   email: string;
   password?: string;
-  role?: UserRole; // 'customer' | 'admin' | 'staff'
 }
 
 export interface ITokenResponse {

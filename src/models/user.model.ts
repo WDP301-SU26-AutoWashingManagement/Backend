@@ -27,8 +27,9 @@ const userSchema = new Schema<IUser>(
     {
         user_code: {
             type: String,
-            required: true,
+            required: false,
             unique: true,
+            sparse: true,
         },
 
         email: {
@@ -98,21 +99,19 @@ userSchema.index({ email: 1, role: 1 });
 // plugin setup
 userSchema.plugin(applyPlugins);
 
-// constraints
-userSchema.pre("save", async function (next) {
-    if (!this.isNew) return next();
-
-    this.user_code = await generateCode("user_code", "US", 8);
-
-    next();
-});
-
 userSchema.pre("validate", function (next) {
-    if (this.role === "customer") {
-        this.branch_id = null;
-    }
+    const noBranchRequiredRoles = [
+        UserRole.CUSTOMER,
+        UserRole.BOSS,
+    ];
+    console.log(this.role)
 
-    if (this.role !== "customer" && !this.branch_id) {
+    if (noBranchRequiredRoles.includes(this.role)) {
+        this.branch_id = null;
+        return next();
+    }
+    console.log(this, this.branch_id)
+    if (!this.branch_id) {
         return next(new Error("branchId is required for staff/admin"));
     }
 

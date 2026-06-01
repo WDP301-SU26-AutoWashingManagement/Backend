@@ -4,12 +4,16 @@ import { IRegisterData, ILoginData, IAuthResponse } from '../interfaces/auth.int
 import { AppError } from '../../../common/utils/AppError';
 import { generateTokenPair, verifyRefreshToken } from '../../../common/utils/jwt.util';
 import { env } from '../../../configs/env.config';
-import { UserRole } from '../../../common/types/enum';
+import { StaffRole, TierClass, UserRole } from '../../../common/types/enum';
 import { Customer } from '../../../models/customer.model';
 import { Staff } from '../../../models/staff.model';
 import { Admin } from '../../../models/admin.model';
 import { sendEmail } from '@common/utils/email.util';
 import { EMAIL_TEMPLATE } from '@common/constants/emailTemplate';
+import { Types } from 'mongoose';
+import { TierConfig } from 'src/models/tierConfig.model';
+import { generateCode } from 'src/models/counter.model';
+import { generateReferralCode } from 'src/models/global/model.generate';
 
 const client = new OAuth2Client(env.GOOGLE_CLIENT_ID);
 
@@ -22,32 +26,44 @@ export class AuthService {
    */
   private readonly authRepo = authRepository;
 
-  private static async createRoleDocument(userId: any, role: UserRole): Promise<void> {
-    try {
-      switch (role) {
-        case UserRole.CUSTOMER:
-          await Customer.create({
-            user_id: userId,
-          });
-          break;
-        case UserRole.STAFF:
-          await Staff.create({
-            user_id: userId,
-            hour_per_week: 5,
-            salary_coefficient: 1.0
-          });
-          break;
-        case UserRole.ADMIN:
-          await Admin.create({
-            user_id: userId
-          });
-          break;
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`Failed to create ${role} role document for user ${userId}:`, errorMessage);
-      throw new AppError(`Failed to create ${role} role document: ${errorMessage}`, 500);
+  private async createRoleDocument(user: any) {
+    if (user.role === UserRole.STAFF) {
+      await Staff.create({
+        user_id: user._id,
+        branch_id: user.branch_id,
+        staff_type: StaffRole.PHYSICAL,
+        hire_date: new Date(),
+        hour_per_week: 10,
+        salary_coefficient: 1,
+      });
     }
+
+    if (user.role === UserRole.ADMIN) {
+      await Admin.create({
+        user_id: user._id,
+      });
+    }
+
+    if (user.role === UserRole.CUSTOMER) {
+      const tier = await TierConfig.findOne({
+        tier_name: TierClass.MEMBER
+      });
+
+      if (!tier) {
+        throw new AppError("Default tier not found", 500);
+      }
+
+      const referralCode = generateReferralCode();
+      await Customer.create({
+        user_id: user._id,
+        created_at: new Date(),
+        tier_id: tier._id,
+        referral_code: referralCode,
+        total_spent: 0,
+        loyalty_points: 0,
+      });
+    }
+
   }
 
   async register(data: IRegisterData): Promise<IAuthResponse> {
@@ -56,11 +72,12 @@ export class AuthService {
       throw new AppError('Tài khoản đã tồn tại. Vui lòng đăng nhập', 400);
     }
 
-    // Remove registration_channel from user data (it belongs to Customer, not User)
-    const user = await authRepository.create(data);
+    if (data.role !== UserRole.STAFF && data.role !== UserRole.ADMIN) {
+        throw new AppError('Chỉ được đăng ký tài khoản staff hoặc admin', 400);
+    }
+    const user = await authRepository.create({ ...data, branch_id: new Types.ObjectId(data.branch_id), user_code: await generateCode("user_code", "US", 8) });
 
-    // await this.createRoleDocument(user._id, data.role as UserRole);
-
+    await this.createRoleDocument(user);
     const tokens = generateTokenPair(user.id as string, user.role as UserRole);
     return { user: this.sanitizeUser(user), tokens };
   }
@@ -71,7 +88,12 @@ export class AuthService {
       throw new AppError('Email hay Password không đúng', 401);
     }
 
-    const isMatch = await user.comparePassword(data.password!);
+    if (!data.password) {
+      throw new Error('Password is required');
+    }
+
+    const isMatch = await user.comparePassword(data.password);
+    console.log(isMatch)
     if (!isMatch) {
       throw new AppError('Email hay Password không đúng', 401);
     }
@@ -91,31 +113,45 @@ export class AuthService {
         env.GOOGLE_ANDROID_CLIENT_ID
       ]
     });
+
     const payload = ticket.getPayload();
-    if (!payload || !payload.email) {
+    if (!payload?.email) {
       throw new AppError('Invalid Google Token', 401);
     }
 
-    let user = await authRepository.findOne({ email: payload.email });
-    let randomPassword = Math.random().toString(36).slice(-10)
-    if (!user) {
-      user = await authRepository.create({
-        email: payload.email,
-        full_name: payload.name || 'Google User',
-        avatar_url: payload.picture,
-        password: randomPassword, // Random placeholder password
-      });
+    const email = payload.email.toLowerCase().trim();
 
-      // Create role document for newly registered user
-      // await this.createRoleDocument(user._id, user.role as UserRole);
-      sendEmail(user.email, "SEND PASSWORD FOR REGISTERING IN AUTOWASH MANAGEMENT SYSTEM", EMAIL_TEMPLATE.GOOGLE_REGISTERED_PASSWORD(user.full_name, randomPassword)).catch(console.error);
-    }
+    let userCode = await generateCode("user_code", "US", 8);
+    const user = await this.authRepo.findOneAndUpdate(
+      { email },
+      {
+        $set: {
+          last_login_at: new Date(),
+          full_name: payload.name || "Google User",
+          avatar_url: payload.picture,
+        },
+        $setOnInsert: {
+          email,
+          role: UserRole.CUSTOMER,
+          branch_id: null,
+          auth_provider: "google",
+          user_code: userCode
+        }
+      },
+      {
+        new: true,
+        upsert: true
+      }
+    );
 
-    user.last_login_at = new Date();
-    await user.save();
-    
-    const tokens = generateTokenPair(user.id as string, user.role as UserRole);
-    return { user: this.sanitizeUser(user), tokens };
+    if (!user) throw new AppError("User not found", 500);
+    await this.createRoleDocument(user);
+    const tokens = generateTokenPair(user._id.toString(), user.role);
+
+    return {
+      user: this.sanitizeUser(user),
+      tokens
+    };
   }
 
   async googleLoginByCode(code: string, redirectUri?: string): Promise<IAuthResponse> {

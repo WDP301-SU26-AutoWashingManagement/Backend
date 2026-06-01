@@ -17,19 +17,19 @@ const router = Router();
 router.use(authenticate);
 
 router.get(
-  '/profile',
+  '/',
   userProfileController.getProfile.bind(userProfileController),
 );
 
 router.put(
-  '/profile',
+  '/',
   upload.single('avatar'),
   validate(updateProfileSchema, 'body'),
   userProfileController.updateProfile.bind(userProfileController),
 );
 
 router.patch(
-  '/profile/password',
+  '/password',
   validate(changePasswordSchema, 'body'),
   userProfileController.changePassword.bind(userProfileController),
 );

@@ -43,14 +43,14 @@ const staffSchema = new Schema<IStaff>(
         hire_date: { 
             type: Date, 
             required: true,
-            default: 40 
+            default: Date.now 
         },
 
         hour_per_week: {
             type: Number,
             required: true,
             min: 0,
-            default: 10
+            default: 40
         },
 
         salary_coefficient: {

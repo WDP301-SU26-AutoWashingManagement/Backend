@@ -8,6 +8,7 @@ export enum UserRole {
   CUSTOMER = 'customer',
   ADMIN = 'admin',
   STAFF = 'staff',
+  BOSS = 'boss'
 }
 
 export enum TierClass {

@@ -37,6 +37,7 @@ const customerSchema = new Schema<ICustomer>(
         referral_code: {
             type: String,
             unique: true,
+            sparse: true,
         },
 
         membership_points: {

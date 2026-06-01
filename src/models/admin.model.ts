@@ -24,8 +24,6 @@ const adminSchema = new Schema<IAdmin>(
     },
 );
 
-adminSchema.index({ userId: 1 });
-
 adminSchema.plugin(applyPlugins);
 
 adminSchema.pre("save", async function (next) {

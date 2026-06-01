@@ -18,11 +18,19 @@ export async function generateCode(
 ): Promise<string> {
   const counter = await Counter.findOneAndUpdate(
     { key },
-    { $inc: { seq: 1 } },
-    { new: true, upsert: true }
+    {
+      $inc: { seq: 1 },
+      $setOnInsert: { key }
+    },
+    {
+      new: true,
+      upsert: true
+    }
   );
 
-  const number = counter.seq.toString().padStart(padLength, "0");
+  const seq = counter?.seq ?? 0;
+
+  const number = seq.toString().padStart(padLength, "0");
 
   return `${prefix}${number}`;
 }
