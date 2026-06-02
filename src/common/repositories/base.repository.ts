@@ -11,6 +11,7 @@ export abstract class BaseRepository<T extends Document> {
   updateOne   = (filter: FilterQuery<T>, update: UpdateQuery<T>) => this.model.updateOne(filter, update, { runValidators: true }).exec();
   updateMany  = (filter: FilterQuery<T>, update: UpdateQuery<T>) => this.model.updateMany(filter, update, { runValidators: true }).exec();
   deleteById  = (id: string)                                    => this.model.findByIdAndDelete(id).exec();
+  deleteMany  = (filter: FilterQuery<T>): Promise<any>          => this.model.deleteMany(filter).exec();
   exists      = async (filter: FilterQuery<T>)                  => !!(await this.model.exists(filter));
   count       = (filter: FilterQuery<T> = {})                   => this.model.countDocuments(filter).exec();
   paginate    = (filter: FilterQuery<T>, opts: PaginateOptions): Promise<PaginateResult<T>> =>

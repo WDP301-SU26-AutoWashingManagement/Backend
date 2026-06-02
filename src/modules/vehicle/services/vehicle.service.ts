@@ -27,7 +27,7 @@ export class VehicleService {
       vehicle_class_id: new Types.ObjectId(data.vehicle_class_id),
       model_id: new Types.ObjectId(data.model_id),
     });
-    return this.repository.create(vehicle);
+    return vehicle;
   }
 
   async findById(id: string) {

@@ -16,6 +16,7 @@ import routes from './routes';
 import { rateLimiter } from './configs/rateLimit.config';
 import { loadModels } from './models/global/model.load';
 import seedBoss from '@common/seeds/seed.boss';
+import seedVehicle from '@common/seeds/seed.vehicle';
 import mongoose from 'mongoose';
 
 const app = express();
@@ -55,6 +56,7 @@ const bootstrap = async (): Promise<void> => {
   }
 
   await seedBoss();
+  await seedVehicle();
   const PORT = process.env.PORT ?? 3000;
   app.listen(PORT, () => logger.info(`🚀 Server running on port ${PORT}`));
 };

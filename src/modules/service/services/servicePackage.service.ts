@@ -42,6 +42,16 @@ class ServicePackageService {
                 service_group_id: new Types.ObjectId(dto.service_group_id)
             });
 
+        // Thêm danh sách dịch vụ vào Gói
+        if (dto.service_ids && dto.service_ids.length > 0) {
+            for (const serviceId of dto.service_ids) {
+                await this.packageServiceRepo.create({
+                    service_package_id: servicePackage._id,
+                    service_id: new Types.ObjectId(serviceId)
+                } as any);
+            }
+        }
+
         return { servicePackage };
     }
 
@@ -114,6 +124,22 @@ class ServicePackageService {
             throw new NotFoundError(
                 'ServicePackage not found',
             );
+        }
+
+        // Cập nhật lại danh sách dịch vụ
+        if (dto.service_ids && dto.service_ids.length > 0) {
+            // Xóa cũ
+            await this.packageServiceRepo.deleteMany({
+                service_package_id: new Types.ObjectId(id)
+            });
+
+            // Thêm mới
+            for (const serviceId of dto.service_ids) {
+                await this.packageServiceRepo.create({
+                    service_package_id: updated._id,
+                    service_id: new Types.ObjectId(serviceId)
+                } as any);
+            }
         }
 
         return { servicePackage: updated };

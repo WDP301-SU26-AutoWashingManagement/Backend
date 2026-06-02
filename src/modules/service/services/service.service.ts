@@ -29,7 +29,7 @@ class ServiceService {
         }
 
         const service = await this.serviceRepo.create({
-            ...dto,
+            ...(dto as any),
             service_name: dto.service_name.trim(),
         });
 

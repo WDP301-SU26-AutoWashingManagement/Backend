@@ -18,6 +18,11 @@ export const createServicePackageSchema = Joi.object({
         .min(0)
         .max(100)
         .default(1),
+
+    service_ids: Joi.array()
+        .items(Joi.string().regex(/^[0-9a-fA-F]{24}$/))
+        .min(2)
+        .required(),
 });
 
 export const updateServicePackageSchema = Joi.object({
@@ -34,6 +39,10 @@ export const updateServicePackageSchema = Joi.object({
     package_discount_percentage: Joi.number()
         .min(0)
         .max(100),
+
+    service_ids: Joi.array()
+        .items(Joi.string().regex(/^[0-9a-fA-F]{24}$/))
+        .min(2),
 }).min(1);
 
 export const toggleActiveSchema = Joi.object({

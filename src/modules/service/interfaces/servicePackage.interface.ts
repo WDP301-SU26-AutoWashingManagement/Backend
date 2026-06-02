@@ -3,6 +3,7 @@ export interface ICreateServicePackage {
     package_name: string;
     description: string;
     package_discount_percentage?: number;
+    service_ids: string[];
 }
 
 export interface IUpdateServicePackage {
@@ -10,6 +11,7 @@ export interface IUpdateServicePackage {
     package_name?: string;
     description?: string;
     package_discount_percentage?: number;
+    service_ids?: string[];
 }
 
 export interface IToggleActive {

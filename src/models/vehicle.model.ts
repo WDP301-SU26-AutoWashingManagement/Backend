@@ -2,16 +2,16 @@ import mongoose, { Document, Schema, Types } from "mongoose";
 import { applyPlugins } from "./global/model.plugin";
 
 export interface IVehicle extends Document {
-  vehicle_class_id: Types.ObjectId;
-  customer_id: Types.ObjectId;
-  model_id: Types.ObjectId;
+    vehicle_class_id: Types.ObjectId;
+    customer_id: Types.ObjectId;
+    model_id: Types.ObjectId;
 
-  license_plate: string;
+    license_plate: string;
 
-  vehicle_model: string;
+    vehicle_model: string;
 
-  fuel_type: string;
-  color: string;
+    fuel_type: string;
+    color: string;
 }
 
 const vehicleSchema = new Schema<IVehicle>(
