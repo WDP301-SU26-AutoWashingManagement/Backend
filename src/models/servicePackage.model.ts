@@ -1,36 +1,65 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import mongoosePaginate from 'mongoose-paginate-v2';
-import { VehicleType } from './vehicle.model';
-
-// ERD: ServicePackage { service_package_id PK, admin_id FK → Admin,
-//                       service_name, description, service_price,
-//                       duration_minutes, is_active, timestamps }
+import mongoose, { Document, Schema, Types } from "mongoose";
+import { applyPlugins } from "./global/model.plugin";
+import { generateCode } from "./counter.model";
 
 export interface IServicePackage extends Document {
-  admin_id: mongoose.Types.ObjectId;
-  service_name: string;
-  description?: string;
-  vehicle_type: VehicleType;
-  service_price: number;
-  duration_minutes: number;
-  is_active: boolean;
-  created_at: Date;
-  updated_at: Date;
+    service_group_id: Types.ObjectId;
+    package_name: string;
+    package_code: string;
+    description: string;
+    package_discount_percentage: number;
+    is_active: boolean;
 }
 
 const servicePackageSchema = new Schema<IServicePackage>(
-  {
-    admin_id:         { type: Schema.Types.ObjectId, ref: 'Admin', required: true },
-    service_name:     { type: String, required: true, trim: true },
-    description:      { type: String, default: '' },
-    vehicle_type:     { type: String, enum: Object.values(VehicleType), required: true},
-    service_price:    { type: Number, required: true, min: 0 },
-    duration_minutes: { type: Number, required: true, min: 1 },
-    is_active:        { type: Boolean, default: true },
-  },
-  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } },
+    {   
+        service_group_id: { 
+            type: Schema.Types.ObjectId, 
+            required: true, 
+            ref: "ServiceGroup" 
+        },
+        
+        package_name: {
+            type: String,
+            required: true,
+        },
+
+        package_code: {
+            type: String,
+            required: true,
+            unique: true,
+        },
+
+        description: {
+            type: String,
+            required: true,
+        },
+
+        package_discount_percentage: {
+            type: Number,
+            required: true,
+            default: 1          // default giảm 1% so với tổng giá services
+        },
+
+        is_active: {
+            type: Boolean,
+            required: true,
+            default: true
+        },
+    },
+    {
+        timestamps: true,
+    }
 );
 
-servicePackageSchema.plugin(mongoosePaginate);
+servicePackageSchema.plugin(applyPlugins);
 
-export const ServicePackage = mongoose.model<IServicePackage>('ServicePackage', servicePackageSchema);
+servicePackageSchema.pre("save", async function (next) {
+    if (!this.isNew) return next();
+
+    this.package_code = await generateCode("package_code", "PACK", 8);
+
+    next();
+});
+
+export const ServicePackage = mongoose.model<IServicePackage>("ServicePackage", servicePackageSchema);

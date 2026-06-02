@@ -1,18 +1,26 @@
-﻿//vehicle.interface.ts
-import { Types } from 'mongoose';
-import { VehicleType } from '../../../models/vehicle.model';
+﻿import { Types } from "mongoose";
 
 export interface CreateVehicleDto {
-  customer_id: string | Types.ObjectId;
-  plate_number: string;
-  brand: string;
+  vehicle_class_id: string;
+  customer_id: string;
+  model_id: string;
+
+  license_plate: string;
+
   vehicle_model: string;
-  vehicle_type: VehicleType;
+
+  fuel_type: string;
+  color: string;
 }
 
 export interface UpdateVehicleDto {
-  plate_number?: string;
+  vehicle_class_id?: string;
+  model_id?: string;
+  license_plate?: string;
+
   brand?: string;
   vehicle_model?: string;
-  vehicle_type?: VehicleType;
+
+  fuel_type?: string;
+  color?: string;
 }

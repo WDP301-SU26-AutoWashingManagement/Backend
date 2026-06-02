@@ -1,40 +1,69 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import mongoosePaginate from 'mongoose-paginate-v2';
-
-// ERD: Customer { customer_id PK, user_id FK → User, tier_id FK → TierConfig,
-//                 registration_channel, has_online_access,
-//                 membership_points, reward_points, refferal_code unique }
-// Auth/profile fields (email, password, phone, …) live on User.
+import mongoose, { Document, Schema, Types } from "mongoose";
+import { generateCode } from "./counter.model";
+import { generateReferralCode } from "./global/model.generate";
+import { applyPlugins } from "./global/model.plugin";
 
 export interface ICustomer extends Document {
-  user_id: mongoose.Types.ObjectId;
-  tier_id?: mongoose.Types.ObjectId;
-  registration_channel: 'google' | 'admin';
-  has_online_access: boolean;
-  membership_points: number;
-  reward_points: number;
-  referral_code: string;
+    user_id: Types.ObjectId;
+    tier_id: Types.ObjectId;
+
+    customer_code: string;
+    referral_code: string;
+
+    membership_points: number;
+    reward_points: number;
 }
 
 const customerSchema = new Schema<ICustomer>(
-  {
-    user_id:              { type: Schema.Types.ObjectId, ref: 'User',       required: true, unique: true },
-    tier_id:              { type: Schema.Types.ObjectId, ref: 'TierConfig', default: null },
-    registration_channel: { type: String, enum: ['google', 'admin'], default: 'google' },
-    has_online_access:    { type: Boolean, default: false },
-    membership_points:    { type: Number,  default: 0, min: 0 },
-    reward_points:        { type: Number,  default: 0, min: 0 },
-    referral_code:        { type: String,  unique: true, sparse: true },
-  }
+    {
+        user_id: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+            unique: true,
+        },
+
+        tier_id: {
+            type: Schema.Types.ObjectId,
+            ref: "TierConfig",
+            required: true,
+        },
+
+        customer_code: {
+            type: String,
+            unique: true,
+        },
+
+        referral_code: {
+            type: String,
+            unique: true,
+            sparse: true,
+        },
+
+        membership_points: {
+            type: Number,
+            default: 0,
+        },
+
+        reward_points: {
+            type: Number,
+            default: 0,
+        },
+    },
+    {
+        timestamps: false,
+    }
 );
 
-customerSchema.pre('save', function (next) {
-  if (!this.referral_code) {
-    this.referral_code = `CUS${Date.now().toString(36).toUpperCase()}`;
-  }
-  next();
+customerSchema.plugin(applyPlugins);
+
+customerSchema.pre("save", async function (next) {
+    if (!this.isNew) return next();
+
+    this.customer_code = await generateCode("customer_code", "CUS", 6);
+    // this.referral_code = generateReferralCode();
+    // không generate referal code ở đây
+    next();
 });
 
-customerSchema.plugin(mongoosePaginate);
-
-export const Customer = mongoose.model<ICustomer>('Customer', customerSchema);
+export const Customer = mongoose.model<ICustomer>("Customer", customerSchema);

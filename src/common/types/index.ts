@@ -1,12 +1,6 @@
 import { Request } from 'express';
 import { Types } from 'mongoose';
-
-export enum UserRole {
-  CUSTOMER = 'customer',
-  ADMIN = 'admin',
-  STAFF = 'staff',
-  MANAGER = 'manager'
-}
+import { UserRole } from './enum';
 
 export interface JwtPayload {
   id: string;
@@ -34,4 +28,3 @@ declare global {
     }
   }
 }
-export type MongoId = Types.ObjectId | string;

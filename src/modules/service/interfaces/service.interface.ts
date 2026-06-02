@@ -1,12 +1,12 @@
-export interface ICreateServicePackage {
+
+export interface ICreateService {
     service_name:     string;
     description?:     string;
-    service_price:    number;
     duration_minutes: number;
     is_active?:       boolean;
 }
 
-export interface IUpdateServicePackage {
+export interface IUpdateService {
     service_name?:     string;
     description?:      string;
     service_price?:    number;
@@ -18,7 +18,7 @@ export interface IToggleActive {
     is_active: boolean;
 }
 
-export interface IGetServicePackageList{
+export interface IGetServiceList{
     page?:      number;
     limit?:     number;
     is_active?: boolean;

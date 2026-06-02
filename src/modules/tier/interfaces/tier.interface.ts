@@ -1,17 +1,20 @@
+import { Types } from 'mongoose';
+import { TierClass } from '@common/types/enum';
+
 export interface ICreateTier {
-  tier_name: string;
+  tier_name: TierClass;
   min_membership_points: number;
-  booking_window_days?: number;
-  discount_percentage?: number;
-  perks_note?: string;
+  booking_window_days: number;
+  discount_percentage: number;
+  free_features?: Types.ObjectId[];
 }
 
 export interface IUpdateTier {
-  tier_name?: string;
+  tier_name?: TierClass;
   min_membership_points?: number;
   booking_window_days?: number;
   discount_percentage?: number;
-  perks_note?: string;
+  free_features?: Types.ObjectId[];
 }
 
 export interface IGetTierList {

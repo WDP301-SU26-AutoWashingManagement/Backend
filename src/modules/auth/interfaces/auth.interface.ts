@@ -1,21 +1,19 @@
-import { UserRole } from '@common/types';
-import { ICustomer } from '../../../models/customer.model';
-import { IAdmin } from 'src/models/admin.model';
+import { UserRole } from '../../../common/types/enum';
+import { IUser } from '../../../models/user.model';
+
 export interface IRegisterData {
   email: string;
   password: string;
   full_name: string;
   phone?: string;
-  registration_channel?: 'google' | 'admin';      // Chỗ này cân nhắc lại cái admin, ko thì bỏ lun registration_channel
   avatar_url?: string;
-  is_email_verified?: boolean;
   role: UserRole;
+  branch_id?: string;
 }
 
 export interface ILoginData {
   email: string;
   password?: string;
-  type?: UserRole; // 'customer' | 'admin' | 'staff' | 'manager'
 }
 
 export interface ITokenResponse {
@@ -24,6 +22,6 @@ export interface ITokenResponse {
 }
 
 export interface IAuthResponse {
-  user: Partial<ICustomer> | Partial<IAdmin>;
+  user: Partial<IUser>
   tokens: ITokenResponse;
 }

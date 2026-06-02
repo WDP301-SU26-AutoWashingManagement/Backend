@@ -1,26 +1,22 @@
 import Joi from 'joi';
 
-const userFields = {
-  full_name:  Joi.string().trim().min(2).max(100).optional(),
-  phone:      Joi.string().trim().pattern(/^[0-9+]{9,15}$/).optional(),
-  avatar_url: Joi.string().uri().optional().allow(null, ''),
-};
+export const updateProfileSchema = Joi.object({
+  full_name: Joi.string()
+    .trim()
+    .min(2)
+    .max(100)
+    .optional(),
 
-export const updateProfileCustomerSchema = Joi.object({
-  ...userFields,
-  has_online_access: Joi.boolean().optional(),
-});
+  phone: Joi.string()
+    .trim()
+    .pattern(/^[0-9+]{9,15}$/)
+    .optional(),
 
-export const updateProfileStaffSchema = Joi.object({
-  ...userFields,
-});
-
-export const updateProfileManagerSchema = Joi.object({
-  ...userFields,
-});
-
-export const updateProfileAdminSchema = Joi.object({
-  ...userFields,
+  avatar_url: Joi.string()
+    .trim()
+    .uri()
+    .allow(null, '')
+    .optional(),
 });
 
 export const changePasswordSchema = Joi.object({

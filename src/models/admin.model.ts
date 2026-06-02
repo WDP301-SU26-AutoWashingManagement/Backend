@@ -1,16 +1,22 @@
-import mongoose, { Document, Schema } from 'mongoose';
-
-// ERD: Admin { admin_id PK, user_id FK → User }
-// Auth/profile fields (email, password, full_name, …) live on User.
+import mongoose, { Schema, Document, Types } from "mongoose";
+import { applyPlugins } from "./global/model.plugin";
+import { generateCode } from "./counter.model";
 
 export interface IAdmin extends Document {
-  user_id: mongoose.Types.ObjectId;
+  user_id: Types.ObjectId;
 }
 
 const adminSchema = new Schema<IAdmin>(
-  {
-    user_id: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
-  }
+    {
+        user_id: {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+            unique: true, // 1 user chỉ có 1 admin profile
+        },
+    },
 );
 
-export const Admin = mongoose.model<IAdmin>('Admin', adminSchema);
+adminSchema.plugin(applyPlugins);
+
+export const Admin = mongoose.model<IAdmin>("Admin", adminSchema);

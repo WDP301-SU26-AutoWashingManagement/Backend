@@ -1,48 +1,57 @@
-import { VehicleRepository, vehicleRepository} from '../repositories/vehicle.repository';
+import { vehicleRepository} from '../repositories/vehicle.repository';
 import { CreateVehicleDto, UpdateVehicleDto } from '../interfaces/vehicle.interface';
-import { FilterQuery, PaginateOptions } from 'mongoose';
+import { FilterQuery, PaginateOptions, Types } from 'mongoose';
 import { IVehicle } from '../../../models/vehicle.model';
 import { AppError, BadRequestError, NotFoundError } from '../../../common/utils/AppError';
-import { Customer } from '../../../models/customer.model';
+import { customerRoleRepository } from '@modules/userProfile/repositories/userProfile.repository';
+import { vehicleClassRepository } from '../repositories/vehicleClass.repository';
 
 export class VehicleService {
   private readonly repository = vehicleRepository;
+  private readonly customerRepo = customerRoleRepository;
+  private readonly vehicleClassRepo = vehicleClassRepository;
 
-  async create(data: CreateVehicleDto) {
-    const customer = await Customer.findById(data.customer_id);
+  async create(data: CreateVehicleDto, userId: string) {
+    const customer = await this.customerRepo.findByUserId(userId);
     if (!customer) {
-      throw new NotFoundError('Customer not found');
+      throw new NotFoundError('Khách hàng này chưa đăng ký');
     }
 
-    const existing = await this.repository.findOne({ plate_number: data.plate_number.toUpperCase().trim() });
+    const existing = await this.repository.findOne({ license_plate: data.license_plate.toUpperCase().trim() });
     if (existing) {
-      throw new BadRequestError('Plate number already registered');
+      throw new BadRequestError('Biển số xe đã đăng ký');
     }
-    return this.repository.create(data as Partial<IVehicle>);
+    const vehicle = await this.repository.create({
+      ...data,
+      customer_id: customer._id,
+      vehicle_class_id: new Types.ObjectId(data.vehicle_class_id),
+      model_id: new Types.ObjectId(data.model_id),
+    });
+    return this.repository.create(vehicle);
   }
 
   async findById(id: string) {
     const vehicle = await this.repository.findById(id);
-    if (!vehicle) throw new NotFoundError('Vehicle not found');
+    if (!vehicle) throw new NotFoundError('Xe này không tìm thấy');
     return vehicle;
   }
 
   async updateById(id: string, data: UpdateVehicleDto) {
-    if (data.plate_number) {
+    if (data.license_plate) {
       const existing = await this.repository.findOne({ 
-        plate_number: data.plate_number.toUpperCase().trim(),
+        license_plate: data.license_plate.toUpperCase().trim(),
         _id: { $ne: id }
       });
-      if (existing) throw new BadRequestError('Plate number already in use');
+      if (existing) throw new BadRequestError('Biển số xe đã đăng ký');
     }
     const updated = await this.repository.updateById(id, data);
-    if (!updated) throw new NotFoundError('Vehicle not found');
+    if (!updated) throw new NotFoundError('Xe này không tìm thấy');
     return updated;
   }
 
   async deleteById(id: string) {
     const deleted = await this.repository.deleteById(id);
-    if (!deleted) throw new NotFoundError('Vehicle not found');
+    if (!deleted) throw new NotFoundError('Xe này không tìm thấy');
     return deleted;
   }
 
@@ -53,6 +62,24 @@ export class VehicleService {
   async findMany(filter: FilterQuery<IVehicle>) {
     return this.repository.findMany(filter);
   }
+
+  // API tra class cho từng license plate
+  // /vehicles/lookup-class
+  async findClassById(vehicleId: string){
+    const vehicle = await this.findById(vehicleId);
+
+    if (!vehicle){
+      throw new NotFoundError('Xe này không tìm thấy');
+    }
+
+    const vehicleClass = await this.vehicleClassRepo.findById(vehicle.vehicle_class_id.toString());
+    
+    return vehicleClass;
+  }
+
+  // API tra lịch sử bảo dưỡng xe
+  // /vehicles/:id/service-history
+  // API này sẽ được bổ sung sau khi có booking/appointment
 }
 
 export const vehicleService = new VehicleService();

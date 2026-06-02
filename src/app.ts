@@ -5,9 +5,8 @@ import cors from 'cors';
 import compression from 'compression';
 import morgan from 'morgan';
 import mongoSanitize from 'express-mongo-sanitize';
-import rateLimit from 'express-rate-limit';
 import 'reflect-metadata';
-import './models';
+// import './models';
 
 import { connectDB } from './configs/db.config';
 import { errorHandler, notFoundHandler } from './common/middleware/error.middleware';
@@ -15,13 +14,19 @@ import { logger } from './common/utils/logger';
 import { connectRedis } from './configs/redis.config';
 import routes from './routes';
 import { rateLimiter } from './configs/rateLimit.config';
+import { loadModels } from './models/global/model.load';
+import seedBoss from '@common/seeds/seed.boss';
+import mongoose from 'mongoose';
 
 const app = express();
 
 // ── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet());
 app.use(mongoSanitize());
-app.use(cors({ /* TODO: load from env.config */ }));
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true,
+}));
 app.use(rateLimiter);
 
 // ── Parsing & Logging ─────────────────────────────────────────────────────────
@@ -42,8 +47,14 @@ app.use(errorHandler);
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 const bootstrap = async (): Promise<void> => {
+  loadModels();
   await connectDB();
-  await connectRedis()
+  await connectRedis();
+  if (mongoose.connection.readyState !== 1) {
+    throw new Error("MongoDB not connected");
+  }
+
+  await seedBoss();
   const PORT = process.env.PORT ?? 3000;
   app.listen(PORT, () => logger.info(`🚀 Server running on port ${PORT}`));
 };

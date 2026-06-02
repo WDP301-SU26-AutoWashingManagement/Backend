@@ -1,39 +1,68 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import mongoosePaginate from 'mongoose-paginate-v2';
-
-// ERD: Vehicle { vehicle_id PK, customer_id FK → Customer,
-//                plate_number unique, vehicle_type,
-//                brand, vehicle_model, timestamps }
-
-//vehicle.model.ts
-export enum VehicleType {
-  MOTORBIKE = 'motorbike',
-  CAR = 'car',
-}
+import mongoose, { Document, Schema, Types } from "mongoose";
+import { applyPlugins } from "./global/model.plugin";
 
 export interface IVehicle extends Document {
-  customer_id: mongoose.Types.ObjectId;
-  plate_number: string;
-  vehicle_type: VehicleType;
-  brand: string;
+  vehicle_class_id: Types.ObjectId;
+  customer_id: Types.ObjectId;
+  model_id: Types.ObjectId;
+
+  license_plate: string;
+
   vehicle_model: string;
-  created_at: Date;
-  updated_at: Date;
+
+  fuel_type: string;
+  color: string;
 }
 
 const vehicleSchema = new Schema<IVehicle>(
-  {
-    customer_id:   { type: Schema.Types.ObjectId, ref: 'Customer', required: true },
-    plate_number:  { type: String, required: true, unique: true, uppercase: true, trim: true },
-    vehicle_type:  { type: String, required: true, enum: Object.values(VehicleType) },
-    brand:         { type: String, required: true, trim: true },
-    vehicle_model: { type: String, required: true, trim: true },
-  },
-  { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } },
+    {
+        vehicle_class_id: {
+            type: Schema.Types.ObjectId,
+            ref: "VehicleClass",
+            required: true,
+        },
+
+        customer_id: {
+            type: Schema.Types.ObjectId,
+            ref: "Customer",
+            required: true,
+        },
+
+        model_id: {
+            type: Schema.Types.ObjectId,
+            ref: "Model",
+            required: true,
+        },
+
+        license_plate: {
+            type: String,
+            required: true,
+            unique: true,
+        },
+
+        vehicle_model: {
+            type: String,
+            required: true,
+        },
+
+        fuel_type: {
+            type: String,
+            required: true,
+        },
+
+        color: {
+            type: String,
+            required: true,
+        },
+    },
+    {
+        timestamps: true,
+    }
 );
 
+vehicleSchema.plugin(applyPlugins);
+
 vehicleSchema.index({ customer_id: 1 });
+vehicleSchema.index({ vehicle_class_id: 1 });
 
-vehicleSchema.plugin(mongoosePaginate);
-
-export const Vehicle = mongoose.model<IVehicle>('Vehicle', vehicleSchema);
+export const Vehicle = mongoose.model<IVehicle>("Vehicle", vehicleSchema);

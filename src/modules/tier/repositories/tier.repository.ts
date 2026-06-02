@@ -8,7 +8,7 @@ export class TierRepository extends BaseRepository<ITierConfig> {
   }
 
   findByName(name: string): Promise<ITierConfig | null> {
-    return this.model.findOne({ tier_name: name.trim() }).exec();
+    return this.model.findOne({ tier_name: name }).exec();
   }
 
   paginateWithCreator(

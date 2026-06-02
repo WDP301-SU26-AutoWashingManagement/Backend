@@ -1,53 +1,77 @@
 import { Request, Response, NextFunction } from 'express';
-import { AuthService } from '../services/auth.service';
+import { authService } from '../services/auth.service';
 import { sendSuccess } from '../../../common/utils/apiResponse';
+import { AuthenticatedRequest } from '@common/types';
 
 export class AuthController {
-  static async register(req: Request, res: Response, next: NextFunction) {
+  private readonly authService = authService;
+  register = async(req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = await AuthService.register(req.body);
-      sendSuccess(res, data, 'Register successful', 201);
+      const data = await this.authService.register(req.body, (req as AuthenticatedRequest).user.id);
+      sendSuccess(res, data, 'Đăng ký thành công', 201);
     } catch (error) {
       next(error);
     }
   }
 
-  static async login(req: Request, res: Response, next: NextFunction) {
+  login = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = await AuthService.login(req.body);
-      sendSuccess(res, data, 'Login successful');
+      console.log(this)
+      const data = await this.authService.login(req.body);
+      sendSuccess(res, data, 'Đăng nhập thành công');
     } catch (error) {
       next(error);
     }
   }
   
-  static async googleLogin(req: Request, res: Response, next: NextFunction) {
+  googleLogin = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { idToken } = req.body;
-      const data = await AuthService.googleLogin(idToken);
-      sendSuccess(res, data, 'Google login successful');
-    } catch (error) {
+      const data = await this.authService.googleLogin(idToken);
+      sendSuccess(res, data, 'Đăng nhập Google thành công');
+    } catch (error: any) {
+      const isDuplicateReferralCode =
+      error?.code === 11000 &&
+      error?.keyPattern?.referral_code;
+
+      if (isDuplicateReferralCode) {
+        try {
+          const { idToken } = req.body;
+
+          const data = await this.authService.googleLogin(idToken);
+
+          return sendSuccess(
+            res,
+            data,
+            'Đăng nhập Google thành công'
+          );
+        } catch (retryError) {
+          return next(retryError);
+        }
+      }
       next(error);
     }
   }
 
-  static async googleCode(req: Request, res: Response, next: NextFunction) {
+  googleCode = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { code, redirectUri } = req.body;
-      const data = await AuthService.googleLoginByCode(code, redirectUri);
-      sendSuccess(res, data, 'Google login successful');
+      const data = await this.authService.googleLoginByCode(code, redirectUri);
+      sendSuccess(res, data, 'Đăng nhập Google thành công');
     } catch (error) {
       next(error);
     }
   }
 
-  static async refreshToken(req: Request, res: Response, next: NextFunction) {
+  refreshToken = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { refreshToken } = req.body;
-      const data = await AuthService.refreshToken(refreshToken);
-      sendSuccess(res, data, 'Token refreshed successfully');
+      const data = await this.authService.refreshToken(refreshToken);
+      sendSuccess(res, data, 'Quyền truy cập đã được làm mới');
     } catch (error) {
       next(error);
     }
   }
 }
+
+export const authController = new AuthController()

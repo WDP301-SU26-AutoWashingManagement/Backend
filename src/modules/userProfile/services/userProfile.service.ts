@@ -1,39 +1,37 @@
 import { NotFoundError, BadRequestError } from '../../../common/utils/AppError';
 import {
-  userRepository,
   findRoleDocByUserId,
-  updateRoleDoc,
+  userRepository,
 } from '../repositories/userProfile.repository';
 import {
   IUpdateProfileData,
   IChangePasswordData,
   IUserProfileResponse,
 } from '../interfaces/userProfile.interface';
-import { UserRole } from '@common/types';
-import { MongoId }  from '../../../common/types';
+import { UserRole } from '../../../common/types/enum';
 
-// Fields that belong to the Customer role document (not User)
-const CUSTOMER_ROLE_FIELDS = new Set(['has_online_access']);
 
 export class UserProfileService {
-  // ─── getProfile ─────────────────────────────────────────────────────────────
-  static async getProfile(userId: MongoId): Promise<IUserProfileResponse> {
-    const user = await userRepository.findById(userId.toString());
-    if (!user) throw new NotFoundError('User not found');
+  private readonly userRepo = userRepository;
+  async getProfile(userId: string): Promise<IUserProfileResponse> {
+      const user = await this.userRepo.findById(userId);
+      if (!user) throw new NotFoundError('User not found');
 
-    const roleDoc = await findRoleDocByUserId(userId, user.role as UserRole);
+      const roleDoc = await findRoleDocByUserId(userId, user.role as UserRole);
 
-    return UserProfileService.buildProfileResponse(user, roleDoc);
+      return this.buildProfileResponse(user, roleDoc);
   }
 
   // ─── updateProfile ──────────────────────────────────────────────────────────
-  static async updateProfile(
-    userId: MongoId,
-    role: UserRole,
+  async updateProfile(
+    userId: string,
     data: IUpdateProfileData,
   ): Promise<IUserProfileResponse> {
-    const user = await userRepository.findById(userId.toString());
-    if (!user) throw new NotFoundError('User not found');
+    const user = await userRepository.findById(userId);
+
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
 
     if ((data as any).file) {
       const file = (data as any).file;
@@ -45,42 +43,28 @@ export class UserProfileService {
 
       delete (data as any).file;
     }
-    // Split payload: User fields vs role-specific fields
-    const userFields: Record<string, unknown>     = {};
-    const roleFields: Record<string, unknown>     = {};
 
-    for (const [key, value] of Object.entries(data)) {
-      if (value === undefined) continue;
-      if (role === 'customer' && CUSTOMER_ROLE_FIELDS.has(key)) {
-        roleFields[key] = value;
-      } else {
-        userFields[key] = value;
+    if (data.phone) {
+      const taken = await userRepository.isPhoneTaken(
+        data.phone,
+        userId,
+      );
+
+      if (taken) {
+        throw new BadRequestError(
+          'Số điện thoại đã được sử dụng! Vui lòng chọn số điện thoại khác',
+        );
       }
     }
 
-    // Check phone uniqueness on User collection
-    if (userFields.phone) {
-      const taken = await userRepository.isPhoneTaken(userFields.phone as string, userId);
-      if (taken) throw new BadRequestError('Phone number is already in use');
-    }
+    await userRepository.updateById(userId, data);
 
-    // Update User document
-    if (Object.keys(userFields).length > 0) {
-      await userRepository.updateById(userId.toString(), userFields);
-    }
-
-    // Update role document (only customer has extra fields here)
-    if (Object.keys(roleFields).length > 0) {
-      await updateRoleDoc(userId, role, roleFields);
-    }
-
-    // Return fresh profile
-    return UserProfileService.getProfile(userId);
+    return this.getProfile(userId);
   }
 
   // ─── changePassword (all roles share same flow) ──────────────────────────────
-  static async changePassword(
-    userId: MongoId,
+  async changePassword(
+    userId: string,
     data: IChangePasswordData,
   ): Promise<{ message: string }> {
     const user = await userRepository.findByIdWithPassword(userId);
@@ -96,7 +80,7 @@ export class UserProfileService {
   }
 
   // ─── helpers ─────────────────────────────────────────────────────────────────
-  private static buildProfileResponse(user: any, roleDoc: any): IUserProfileResponse {
+  private buildProfileResponse(user: any, roleDoc: any): IUserProfileResponse {
     const {
       password,
       __v,
@@ -114,3 +98,5 @@ export class UserProfileService {
     return { ...safeUser, role_data };
   }
 }
+
+export const userProfileService = new UserProfileService()
