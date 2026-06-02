@@ -1,6 +1,6 @@
 import { FilterQuery, PaginateOptions, PaginateResult } from 'mongoose';
 import { BaseRepository } from '../../../common/repositories/base.repository';
-import { IServiceGroup, ServiceGroup } from 'src/models/serviceGroup.model';
+import { IServiceGroup, ServiceGroup } from '../../../models/serviceGroup.model';
 
 export class ServiceGroupRepository extends BaseRepository<IServiceGroup> {
     constructor() {

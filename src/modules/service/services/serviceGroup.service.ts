@@ -11,7 +11,7 @@ import {
     NotFoundError,
     BadRequestError,
 } from '../../../common/utils/AppError';
-import { IServiceGroup } from 'src/models/serviceGroup.model';
+import { IServiceGroup } from '../../../models/serviceGroup.model';
 
 class ServiceGroupService {
     private readonly serviceGroupRepo = serviceGroupRepository;

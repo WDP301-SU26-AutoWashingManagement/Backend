@@ -1,4 +1,4 @@
-import { IMake, Make } from 'src/models/make.model';
+import { IMake, Make } from '../../../models/make.model';
 import { BaseRepository } from '../../../common/repositories/base.repository';
 
 export class MakeRepository extends BaseRepository<IMake> {

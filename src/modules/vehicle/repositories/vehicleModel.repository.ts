@@ -1,4 +1,4 @@
-import { IVehicleModel, VehicleModel } from 'src/models/vehicleModel.model';
+import { IVehicleModel, VehicleModel } from '../../../models/vehicleModel.model';
 import { BaseRepository } from '../../../common/repositories/base.repository';
 
 export class VehicleModelRepository extends BaseRepository<IVehicleModel> {

@@ -1,5 +1,5 @@
 import { UserRole } from '../../../common/types/enum';
-import { IUser } from 'src/models/user.model';
+import { IUser } from '../../../models/user.model';
 
 export interface IRegisterData {
   email: string;
