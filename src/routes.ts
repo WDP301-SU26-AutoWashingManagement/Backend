@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import authRoutes from './modules/auth/routes/auth.routes';
 import userProfileRoutes from './modules/userProfile/routes/userProfile.routes';
+import branchRoutes from './modules/boss/routes/branch.route';
 // import adminRoutes from './modules/admin/routes/admin.routes';
 // import bookingRoutes from './modules/booking/routes/booking.routes';
 // import serviceRoutes from './modules/service/routes/service-package.routes';
@@ -19,6 +20,7 @@ const router = Router();
 
 router.use('/auth', authRoutes);
 router.use('/profile', userProfileRoutes);
+router.use('/branches', branchRoutes);
 // router.use('/admin', adminRoutes);
 // router.use('/bookings', bookingRoutes);
 // router.use('/services', serviceRoutes);

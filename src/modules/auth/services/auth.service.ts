@@ -27,15 +27,20 @@ export class AuthService {
    */
   private readonly authRepo = authRepository;
 
-  private async createRoleDocument(user: any) {
+  private async createRoleDocument(user: any, owner: any = null) {
     if (user.role === UserRole.STAFF) {
+      const isManager =
+        owner && owner.role === UserRole.BOSS;
+
       await Staff.create({
         user_id: user._id,
         branch_id: user.branch_id,
-        staff_type: StaffRole.PHYSICAL,
+        staff_type: isManager
+          ? StaffRole.MANAGER
+          : StaffRole.PHYSICAL,
         hire_date: new Date(),
-        hour_per_week: 10,
-        salary_coefficient: 1,
+        hour_per_week: isManager ? 60 : 40,
+        salary_coefficient: isManager ? 2 : 1,
       });
     }
 
@@ -67,7 +72,7 @@ export class AuthService {
 
   }
 
-  async register(data: IRegisterData): Promise<IAuthResponse> {
+  async register(data: IRegisterData, userId: string): Promise<IAuthResponse> {
     const existingCustomer = await this.authRepo.findByEmail(data.email)
     if (existingCustomer) {
       throw new AppError('Tài khoản đã tồn tại. Vui lòng đăng nhập', 400);
@@ -76,9 +81,17 @@ export class AuthService {
     if (data.role !== UserRole.STAFF && data.role !== UserRole.ADMIN) {
         throw new AppError('Chỉ được đăng ký tài khoản staff hoặc admin', 400);
     }
-    const user = await authRepository.create({ ...data, branch_id: new Types.ObjectId(data.branch_id), user_code: await generateCode("user_code", "US", 8) });
+    const owner = await this.authRepo.findById(userId);
+    if (!owner) {
+      throw new AppError('Người dùng không tồn tại', 404);
+    }
 
-    await this.createRoleDocument(user);
+    const user = await authRepository.create({ ...data, branch_id: new Types.ObjectId(data.branch_id), user_code: await generateCode("user_code", "US", 6) });
+    if (user.role === UserRole.ADMIN && owner.role !== UserRole.BOSS){
+      throw new AppError('Chỉ Boss mới có quyền tạo tài khoản Admin', 403);
+    }
+
+    await this.createRoleDocument(user, owner);
     const tokens = generateTokenPair(user.id as string, user.role as UserRole);
     return { user: this.sanitizeUser(user), tokens };
   }
@@ -122,34 +135,47 @@ export class AuthService {
 
     const email = payload.email.toLowerCase().trim();
 
-    let userCode = await generateCode("user_code", "US", 8);
-    let randomPassword = crypto.randomBytes(16).toString("hex");
-    const user = await this.authRepo.findOneAndUpdate(
-      { email },
-      {
-        $set: {
-          last_login_at: new Date(),
-          full_name: payload.name || "Google User",
-          avatar_url: payload.picture,
-          password: randomPassword
-        },
-        $setOnInsert: {
-          email,
-          role: UserRole.CUSTOMER,
-          branch_id: null,
-          auth_provider: "google",
-          user_code: userCode
-        }
-      },
-      {
-        new: true,
-        upsert: true
-      }
-    );
+    let user;
+    const existingUser = await this.authRepo.findOne({ email });
 
-    if (!user) throw new AppError("User not found", 500);
-    await this.createRoleDocument(user);
-    await sendEmail(email, "Send password for google account" , EMAIL_TEMPLATE.GOOGLE_REGISTERED_PASSWORD(user.full_name, randomPassword));
+    if (!existingUser) {
+      const userCode = await generateCode("user_code", "US", 6);
+      const randomPassword = crypto.randomBytes(16).toString("hex");
+
+      user = await this.authRepo.create({
+        email,
+        full_name: payload.name || "Google User",
+        avatar_url: payload.picture,
+        password: randomPassword,
+        role: UserRole.CUSTOMER,
+        branch_id: null,
+        user_code: userCode,
+        last_login_at: new Date()
+      });
+
+      await this.createRoleDocument(user);
+
+      await sendEmail(
+        email,
+        "Send password for google account",
+        EMAIL_TEMPLATE.GOOGLE_REGISTERED_PASSWORD(
+          user.full_name,
+          randomPassword
+        )
+      );
+    } else {
+      await this.authRepo.updateById(existingUser._id.toString(), {
+        full_name: payload.name || existingUser.full_name,
+        avatar_url: payload.picture,
+        last_login_at: new Date()
+      });
+
+      user = await this.authRepo.findById(existingUser._id.toString());
+    }
+
+    if (!user) {
+      throw new AppError("User not found", 500);
+    }
     const tokens = generateTokenPair(user._id.toString(), user.role);
 
     return {

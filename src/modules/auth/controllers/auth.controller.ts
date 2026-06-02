@@ -1,12 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
 import { sendSuccess } from '../../../common/utils/apiResponse';
+import { AuthenticatedRequest } from '@common/types';
 
 export class AuthController {
   private readonly authService = authService;
   register = async(req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = await this.authService.register(req.body);
+      const data = await this.authService.register(req.body, (req as AuthenticatedRequest).user.id);
       sendSuccess(res, data, 'Đăng ký thành công', 201);
     } catch (error) {
       next(error);

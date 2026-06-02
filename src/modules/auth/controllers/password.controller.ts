@@ -6,21 +6,21 @@ import { AuthenticatedRequest } from '../../../common/types';
 export class PasswordController {
   private readonly passService = passwordService;
 
-  async forgotPassword(req: Request, res: Response, next: NextFunction) {
+  forgotPassword = async(req: Request, res: Response, next: NextFunction) => {
     try {
       await this.passService.forgotPassword(req.body);
       sendSuccess(res, null, 'Mã OTP đã được gửi');
     } catch (error) { next(error); }
   }
 
- async verifyOtp(req: Request, res: Response, next: NextFunction) {
-  try {
-    await this.passService.verifyOtp(req.body);
-    sendSuccess(res, null, 'OTP hợp lệ');
-  } catch (error) { next(error); }
-}
+  verifyOtp = async(req: Request, res: Response, next: NextFunction) => {
+    try {
+      await this.passService.verifyOtp(req.body);
+      sendSuccess(res, null, 'OTP hợp lệ');
+    } catch (error) { next(error); }
+  }
 
-  async resetPassword(req: Request, res: Response, next: NextFunction) {
+  resetPassword = async(req: Request, res: Response, next: NextFunction) => {
     try {
       await this.passService.resetPassword(req.body);
       sendSuccess(res, null, 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại');
