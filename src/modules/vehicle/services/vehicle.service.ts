@@ -5,6 +5,8 @@ import { IVehicle } from '../../../models/vehicle.model';
 import { AppError, BadRequestError, NotFoundError } from '../../../common/utils/AppError';
 import { customerRoleRepository } from '@modules/userProfile/repositories/userProfile.repository';
 import { vehicleClassRepository } from '../repositories/vehicleClass.repository';
+import { Make } from '../../../models/make.model';
+import { VehicleModel } from '../../../models/vehicleModel.model';
 
 export class VehicleService {
   private readonly repository = vehicleRepository;
@@ -21,11 +23,30 @@ export class VehicleService {
     if (existing) {
       throw new BadRequestError('Biển số xe đã đăng ký');
     }
+    let finalModelId = data.model_id;
+    if ((!finalModelId || finalModelId === 'other') && data.make_name && data.model_name) {
+      const make = await Make.findOneAndUpdate(
+        { make_name: data.make_name.trim() },
+        { make_name: data.make_name.trim() },
+        { upsert: true, new: true }
+      );
+      const model = await VehicleModel.findOneAndUpdate(
+        { model_name: data.model_name.trim(), make_id: make._id },
+        { make_id: make._id, model_name: data.model_name.trim() },
+        { upsert: true, new: true }
+      );
+      finalModelId = model._id.toString();
+    }
+
+    if (!finalModelId || finalModelId === 'other') {
+      throw new BadRequestError('Dòng xe không hợp lệ');
+    }
+
     const vehicle = await this.repository.create({
       ...data,
       customer_id: customer._id,
       vehicle_class_id: new Types.ObjectId(data.vehicle_class_id),
-      model_id: new Types.ObjectId(data.model_id),
+      model_id: new Types.ObjectId(finalModelId),
     });
     return vehicle;
   }
@@ -44,6 +65,27 @@ export class VehicleService {
       });
       if (existing) throw new BadRequestError('Biển số xe đã đăng ký');
     }
+    let finalModelId = data.model_id;
+    if ((!finalModelId || finalModelId === 'other') && data.make_name && data.model_name) {
+      const make = await Make.findOneAndUpdate(
+        { make_name: data.make_name.trim() },
+        { make_name: data.make_name.trim() },
+        { upsert: true, new: true }
+      );
+      const model = await VehicleModel.findOneAndUpdate(
+        { model_name: data.model_name.trim(), make_id: make._id },
+        { make_id: make._id, model_name: data.model_name.trim() },
+        { upsert: true, new: true }
+      );
+      finalModelId = model._id.toString();
+    }
+    
+    if (finalModelId && finalModelId !== 'other') {
+      data.model_id = finalModelId;
+    } else {
+      delete data.model_id;
+    }
+
     const updated = await this.repository.updateById(id, data);
     if (!updated) throw new NotFoundError('Xe này không tìm thấy');
     return updated;
