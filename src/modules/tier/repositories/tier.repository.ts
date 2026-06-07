@@ -21,6 +21,14 @@ export class TierRepository extends BaseRepository<ITierConfig> {
       sort: { created_at: -1 },
     });
   }
+
+  findNextTier(min_membership_points: number): Promise<ITierConfig | null> {
+    return this.model.findOne({ min_membership_points: { $gt: min_membership_points } }).sort({ min_membership_points: 1 }).exec();
+  } 
+
+  findPrevTier(min_membership_points: number): Promise<ITierConfig | null> {
+    return this.model.findOne({ min_membership_points: { $lt: min_membership_points } }).sort({ min_membership_points: -1 }).exec();
+  }   
 }
 
 export const tierRepository = new TierRepository();

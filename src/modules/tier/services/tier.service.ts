@@ -1,13 +1,16 @@
 import { FilterQuery, PaginateResult } from 'mongoose';
 import { ITierConfig, TierConfig } from '../../../models/tierConfig.model';
 import { tierRepository } from '../repositories/tier.repository';
-import { ICreateTier, IGetTierList, IUpdateTier } from '../interfaces/tier.interface';
+import { ICreateTier, IGetTierList, IUpdateTier, TierStatus } from '../interfaces/tier.interface';
 import { ConflictError, NotFoundError } from '../../../common/utils/AppError';
+import { ICustomer } from 'src/models/customer.model';
+import { customerService, CustomerService } from '@modules/customer/services/customer.service';
 
 export type TierResponse = { tier: ITierConfig };
 
 export class TierService {
   private readonly tierRepo = tierRepository;
+  private readonly customerService = customerService;
 
   async createTier(adminId: string, dto: ICreateTier): Promise<TierResponse> {
     const exists = await this.tierRepo.findByName(dto.tier_name);
@@ -28,7 +31,7 @@ export class TierService {
     if (min_points_from || min_points_to) {
       filter.min_membership_points = {} as any;
       if (min_points_from) (filter.min_membership_points as any).$gte = min_points_from;
-      if (min_points_to)   (filter.min_membership_points as any).$lte = min_points_to;
+      if (min_points_to) (filter.min_membership_points as any).$lte = min_points_to;
     }
 
     return this.tierRepo.paginateWithCreator(filter, { page, limit });
@@ -58,6 +61,36 @@ export class TierService {
     const tier = await this.tierRepo.findById(id);
     if (!tier) throw new NotFoundError('Tier not found');
     await this.tierRepo.deleteById(id);
+  }
+
+  async changeTier(customer: ICustomer, status: TierStatus) {
+    const {tier} = await this.getTierById(customer.tier_id!.toString());
+    if(status === TierStatus.UPGRADE) {
+      const nextTier = await this.tierRepo.findNextTier(tier.min_membership_points);
+      if (!nextTier) throw new Error('Tier not found');
+      await this.customerService.updateTier(customer._id!.toString(), nextTier._id!.toString());
+    } else if(status === TierStatus.DOWNGRADE) {
+      const prevTier = await this.tierRepo.findPrevTier(tier.min_membership_points);  
+      if (!prevTier) throw new Error('Tier not found');
+      await this.customerService.updateTier(customer._id!.toString(), prevTier._id!.toString());
+    }
+  } 
+
+  async checkTierIfChange(customer: ICustomer): Promise<string> {
+    const { tier } = await this.getTierById(customer.tier_id!.toString());
+    
+    if(customer.membership_points < tier.min_membership_points) {
+      return TierStatus.DOWNGRADE;
+    }
+
+    const nextTier = await this.tierRepo.findNextTier(tier.min_membership_points);
+    
+    if (!nextTier) return TierStatus.SAME;
+    if (customer.membership_points >= nextTier.min_membership_points) {
+      return TierStatus.UPGRADE;
+    }
+
+    return TierStatus.SAME;
   }
 }
 
