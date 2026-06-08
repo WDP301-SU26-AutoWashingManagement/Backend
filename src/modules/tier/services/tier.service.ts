@@ -4,7 +4,7 @@ import { tierRepository } from '../repositories/tier.repository';
 import { ICreateTier, IGetTierList, IUpdateTier, TierStatus } from '../interfaces/tier.interface';
 import { ConflictError, NotFoundError } from '../../../common/utils/AppError';
 import { ICustomer } from 'src/models/customer.model';
-import { customerService, CustomerService } from '@modules/customer/services/customer.service';
+import { customerService } from '@modules/customer/services/customer.service';
 
 export type TierResponse = { tier: ITierConfig };
 
