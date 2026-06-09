@@ -6,6 +6,7 @@ export interface ITierConfig extends Document {
   admin_id: Types.ObjectId;
   tier_name: TierClass;
   min_membership_points: number;
+  max_membership_points: number;
   booking_window_days: number;
   discount_percentage: number;
   free_features?: Types.ObjectId[];
@@ -27,6 +28,11 @@ const tierConfigSchema = new Schema<ITierConfig>(
         },
 
         min_membership_points: {
+            type: Number,
+            required: true,
+        },
+
+        max_membership_points: {
             type: Number,
             required: true,
         },

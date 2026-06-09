@@ -13,6 +13,9 @@ import vehicleModelRoutes from './modules/vehicle/routes/vehicleModel.route';
 import tierRoutes from './modules/tier/routes/tier.routes';
 import staffAbsentRoutes from './modules/staff-manager/routes/staff-manager.route'
 import scheduleRoutes from './modules/staff-manager/routes/schedule.route'
+import iotRoutes from './modules/iot/routes/iot.route';
+import customerRoutes from './modules/customer/routes/customer.routes';
+import adminRoutes from './modules/admin/routes/admin.route';
 
 // import notificationRoutes from './modules/notification/routes/notification.routes';
 // import feedbackRoutes from './modules/feedback/routes/feedback.routes';
@@ -34,7 +37,9 @@ router.use('/vehicle-models', vehicleModelRoutes);
 router.use('/tiers', tierRoutes);
 router.use('/staff-absent', staffAbsentRoutes);
 router.use('/schedule', scheduleRoutes);
-// router.use('/admin', adminRoutes);
+router.use('/wash', iotRoutes);
+router.use('/customers', customerRoutes);
+router.use('/admin', adminRoutes);
 // router.use('/bookings', bookingRoutes);
 // router.use('/services', serviceRoutes);
 // router.use('/promotions', promotionRoutes);
