@@ -27,8 +27,15 @@ export class AuthRepository extends BaseRepository<IUser> {
         runValidators: true,
         ...options,
       }
-  );
-}
+    );
+  }
+
+  getAdminByBranch(branchId: string) {
+    return this.model.findOne({
+        branchId,
+        role: "ADMIN"
+    }).select("email fullName");
+  }
   
 }
 

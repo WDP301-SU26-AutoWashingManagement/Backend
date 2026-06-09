@@ -6,11 +6,12 @@ export interface ISchedule extends Document {
   branch_id: Types.ObjectId;
   assigned_staff: Types.ObjectId[];
   shift_date: Date;
-  start_time: Date;
-  end_time: Date;
+  start_time: string;
+  end_time: string;
   shift_status: string;
   max_staff: number;
   algorithm: string;
+  shift_minutes: number;
 }
 
 const scheduleSchema = new Schema<ISchedule>(
@@ -35,12 +36,12 @@ const scheduleSchema = new Schema<ISchedule>(
     },
 
     start_time: {
-      type: Date,
+      type: String,
       required: true,
     },
 
     end_time: {
-      type: Date,
+      type: String,
       required: true,
     },
 
@@ -58,6 +59,11 @@ const scheduleSchema = new Schema<ISchedule>(
       type: String,
       required: false,
     },
+    shift_minutes:{
+      type: Number,
+      required: true,
+      default: 120
+    }
   },
   {
     timestamps: true,

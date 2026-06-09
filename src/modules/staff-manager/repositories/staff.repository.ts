@@ -20,10 +20,10 @@ export class StaffRepository extends BaseRepository<IStaff> {
     }
 
     async findManagersByBranch(branchId: string) {
-    return this.model.find({
-        branch_id: branchId,
-        staff_type: StaffRole.MANAGER,
-    }).exec();
+        return this.model.find({
+            branch_id: branchId,
+            staff_type: StaffRole.MANAGER,
+        }).exec();
     }
 
 }
