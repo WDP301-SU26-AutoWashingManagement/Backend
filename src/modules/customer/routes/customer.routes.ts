@@ -46,4 +46,10 @@ router.delete(
   controller.remove
 );
 
+router.get(
+  '/membership',
+  authorize(UserRole.CUSTOMER),
+  controller.getMembershipPoint
+)
+
 export default router;

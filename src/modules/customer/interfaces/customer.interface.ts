@@ -32,3 +32,10 @@ export interface IGetCustomerList {
   tier_id?: string;
   is_active?: boolean;
 }
+
+export interface IMembershipPoint {
+  membership_points: number;
+  membership_tier: string;
+  max_point: number;
+  min_point: number;
+}

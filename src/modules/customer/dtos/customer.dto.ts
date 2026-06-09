@@ -39,3 +39,4 @@ export const getCustomerListSchema = Joi.object({
   tier_id: Joi.string().optional(),
   is_active: Joi.boolean().optional(),
 });
+

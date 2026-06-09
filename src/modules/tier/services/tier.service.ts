@@ -140,6 +140,18 @@ export class TierService {
 
     return TierStatus.SAME;
   }
+
+  async checkTierIfChangeNewPoint(customer: ICustomer, point: number): Promise<string> {
+    const { tier } = await this.getTierById(customer.tier_id!.toString());
+    
+    if(point < tier.min_membership_points || point > tier.max_membership_points) {
+      const newTier = await this.tierRepo.findTier(point, point);
+      if (!newTier) throw new Error('Tier not found');
+      return newTier._id!.toString();
+    }
+
+    return TierStatus.SAME;
+  }
 }
 
 export const tierService = new TierService();

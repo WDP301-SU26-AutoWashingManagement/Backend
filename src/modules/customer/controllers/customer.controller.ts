@@ -52,6 +52,15 @@ export class CustomerController {
       next(err);
     }
   };
+
+  getMembershipPoint = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const result = await this.customerService.getMembershipPoint(req.user!.id);
+      sendSuccess(res, result, 'Customer fetched successfully');
+    } catch (err) {
+      next(err);
+    }
+  } 
 }
 
 export const customerController = new CustomerController();
