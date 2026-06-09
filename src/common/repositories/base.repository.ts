@@ -7,6 +7,7 @@ export abstract class BaseRepository<T extends Document> {
   findOne     = (filter: FilterQuery<T>)                        => this.model.findOne(filter).exec();
   findMany    = (filter: FilterQuery<T> = {})                   => this.model.find(filter).exec();
   create      = (data: Partial<T>)                              => this.model.create(data);
+  insertMany  = (data: Partial<T>[])                            => this.model.insertMany(data);
   updateById  = (id: string, update: UpdateQuery<T>)            => this.model.findByIdAndUpdate(id, update, { new: true, runValidators: true }).exec();
   updateOne   = (filter: FilterQuery<T>, update: UpdateQuery<T>) => this.model.updateOne(filter, update, { runValidators: true }).exec();
   updateMany  = (filter: FilterQuery<T>, update: UpdateQuery<T>) => this.model.updateMany(filter, update, { runValidators: true }).exec();
