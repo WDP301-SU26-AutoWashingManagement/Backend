@@ -3,7 +3,7 @@ import { ITierConfig } from '../../../models/tierConfig.model';
 import { tierRepository } from '../repositories/tier.repository';
 import { ICreateTier, IGetTierList, IUpdateTier, TierStatus } from '../interfaces/tier.interface';
 import { ConflictError, NotFoundError } from '../../../common/utils/AppError';
-import { ICustomer } from 'src/models/customer.model';
+import { ICustomer } from '../../../models/customer.model';
 
 export type TierResponse = { tier: ITierConfig };
 
