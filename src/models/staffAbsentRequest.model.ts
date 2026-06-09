@@ -10,7 +10,7 @@ export interface IStaffAbsentRequest extends Document {
   to_date: Date;
 
   reason: string;
-  reviewer_note: string;
+  reviewer_note?: string;
 
   request_status: RequestStatus;
 }
@@ -46,7 +46,6 @@ const staffAbsentRequestSchema = new Schema<IStaffAbsentRequest>(
 
     reviewer_note: {
         type: String,
-        required: true,
         default: "",
     },
 

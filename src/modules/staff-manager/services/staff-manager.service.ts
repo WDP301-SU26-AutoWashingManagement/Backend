@@ -3,7 +3,7 @@ import {
   staffAbsentRequestRepository,
 } from '../repositories/staffAbsentRequest.repository';
 import { staffRepository } from '../repositories/staff.repository';
-import { IStaffAbsentRequest } from 'src/models/staffAbsentRequest.model';
+import { IStaffAbsentRequest } from '../../../models/staffAbsentRequest.model';
 import { RequestStatus, StaffRole } from '../../../common/types/enum';
 import {Types} from 'mongoose';
 
@@ -16,7 +16,7 @@ export class StaffAbsentRequestService {
     staffId: string,
     data: Partial<IStaffAbsentRequest>,
   ): Promise<IStaffAbsentRequest> {
-    const staff = await this.staffRepo.findById(staffId);
+    const staff = await this.staffRepo.findByUserId(staffId);
 
     if (!staff) throw new NotFoundError('Staff not found');
 

@@ -1,7 +1,6 @@
 import { RequestStatus } from '@common/types/enum';
 import { BaseRepository } from '../../../common/repositories/base.repository';
-import { Staff, IStaff } from 'src/models/staff.model';
-import { IStaffAbsentRequest, StaffAbsentRequest } from 'src/models/staffAbsentRequest.model';
+import { IStaffAbsentRequest, StaffAbsentRequest } from '../../../models/staffAbsentRequest.model';
 
 export class StaffAbsentRequestRepository extends BaseRepository<IStaffAbsentRequest> {
     constructor() {
