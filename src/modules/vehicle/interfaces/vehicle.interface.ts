@@ -1,9 +1,11 @@
-﻿import { Types } from "mongoose";
+import { Types } from "mongoose";
 
 export interface CreateVehicleDto {
   vehicle_class_id: string;
   customer_id: string;
-  model_id: string;
+  model_id?: string;
+  make_name?: string;
+  model_name?: string;
 
   license_plate: string;
 
@@ -16,6 +18,8 @@ export interface CreateVehicleDto {
 export interface UpdateVehicleDto {
   vehicle_class_id?: string;
   model_id?: string;
+  make_name?: string;
+  model_name?: string;
   license_plate?: string;
 
   brand?: string;

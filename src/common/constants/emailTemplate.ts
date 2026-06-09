@@ -124,4 +124,49 @@ export const EMAIL_TEMPLATE = {
         </body>
         </html>
     `,
+    ALERT_RETRY_FAILED: (
+        serviceName: string,
+        errorMessage: string,
+        time: string
+    ): string => `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden;">
+        
+            <div style="background: #dc2626; padding: 20px; text-align: center; color: white;">
+                <h1 style="margin: 0;">SYSTEM ALERT</h1>
+            </div>
+
+            <div style="padding: 30px;">
+                <p>Xin chào <strong>Admin</strong>,</p>
+
+                <p>
+                    Hệ thống đã gặp lỗi lặp lại nhiều lần khi thực thi service:
+                </p>
+
+                <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <p><strong>Service:</strong> ${serviceName}</p>
+                    <p><strong>Time:</strong> ${time}</p>
+                </div>
+
+                <p><strong>Error message:</strong></p>
+
+                <div style="background: #111827; color: #f9fafb; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 13px; overflow-x: auto;">
+                    ${errorMessage}
+                </div>
+
+                <p style="color: #dc2626; margin-top: 20px;">
+                    Hệ thống đã retry hơn 5 lần nhưng vẫn thất bại. Vui lòng kiểm tra ngay.
+                </p>
+
+                <br />
+
+                <p>Best regards,</p>
+                <p><strong>System Monitoring</strong></p>
+            </div>
+
+            <div style="background: #f9fafb; padding: 15px; text-align: center; font-size: 12px; color: #6b7280;">
+                © ${new Date().getFullYear()} Your System. All rights reserved.
+            </div>
+
+        </div>
+    `,
 }

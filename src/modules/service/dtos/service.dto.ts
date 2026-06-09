@@ -5,6 +5,7 @@ import Joi from 'joi';
 // ─────────────────────────────────────────────
 
 export const createServiceSchema = Joi.object({
+    service_group_id: Joi.string().trim().required(),
     service_name:     Joi.string().min(2).max(100).trim().required(),
     description:      Joi.string().max(500).trim().optional().allow(''),
 
@@ -14,6 +15,7 @@ export const createServiceSchema = Joi.object({
 });
 
 export const updateServiceSchema = Joi.object({
+    service_group_id: Joi.string().trim().optional(),
     service_name:     Joi.string().min(2).max(100).trim().optional(),
     description:      Joi.string().max(500).trim().optional().allow(''),
     service_price:    Joi.number().min(0).optional(),

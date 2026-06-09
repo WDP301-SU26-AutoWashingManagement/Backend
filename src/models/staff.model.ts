@@ -12,7 +12,7 @@ export interface IStaff extends Document{
     hire_date: Date;
     hour_per_week: number;           // chỗ này có thể điều chỉnh cho từng loại Staff
     salary_coefficient: number;
-
+    
 }
 
 const staffSchema = new Schema<IStaff>(

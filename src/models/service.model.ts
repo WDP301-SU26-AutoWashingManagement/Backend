@@ -3,12 +3,13 @@ import { applyPlugins } from "./global/model.plugin";
 import { generateCode } from "./counter.model";
 
 export interface IService extends Document {
-  service_group_id: Types.ObjectId;
-  service_name: string;
-  service_code: string;
-  description: string;
-  duration_minutes: number;
-  is_active: boolean;
+    service_group_id: Types.ObjectId;
+    service_name: string;
+    service_code: string;
+    description: string;
+    service_price: number;
+    duration_minutes: number;
+    is_active: boolean;
 }
 
 const serviceSchema = new Schema<IService>(
@@ -35,6 +36,12 @@ const serviceSchema = new Schema<IService>(
             required: true,
         },
 
+        service_price: {
+            type: Number,
+            required: true,
+            min: 0,
+        },
+
         duration_minutes: {
             type: Number,
             required: true,
@@ -54,9 +61,9 @@ const serviceSchema = new Schema<IService>(
 
 serviceSchema.plugin(applyPlugins);
 
-serviceSchema.index({service_group_id: 1});
+serviceSchema.index({ service_group_id: 1 });
 
-serviceSchema.pre("save", async function (next) {
+serviceSchema.pre("validate", async function (next) {
     if (!this.isNew) return next();
 
     this.service_code = await generateCode("service_code", "SERV", 8);

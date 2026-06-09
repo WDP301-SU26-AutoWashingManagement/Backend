@@ -6,6 +6,7 @@ export interface IServiceGroup extends Document {
   group_name: string;
   group_code: string;
   description: string;
+  is_active: boolean;
 }
 
 const serviceGroupSchema = new Schema<IServiceGroup>(
@@ -26,6 +27,12 @@ const serviceGroupSchema = new Schema<IServiceGroup>(
             required: true,
         },
 
+        is_active: {
+            type: Boolean,
+            required: true,
+            default: true,
+        },
+
     },
     {
         timestamps: true,
@@ -34,7 +41,7 @@ const serviceGroupSchema = new Schema<IServiceGroup>(
 
 serviceGroupSchema.plugin(applyPlugins);
 
-serviceGroupSchema.pre("save", async function (next) {
+serviceGroupSchema.pre("validate", async function (next) {
     if (!this.isNew) return next();
 
     this.group_code = await generateCode("group_code", "SERVGR", 8);

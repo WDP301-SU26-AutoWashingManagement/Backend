@@ -7,13 +7,10 @@ import serviceRoutes from './modules/service/routes/service.routes';
 import serviceGroupRoutes from './modules/service/routes/serviceGroup.route';
 import servicePackageRoutes from './modules/service/routes/servicePackage.route';
 import vehicleRoutes from './modules/vehicle/routes/vehicle.routes';
+import makeRoutes from './modules/vehicle/routes/make.route';
+import vehicleClassRoutes from './modules/vehicle/routes/vehicleClass.route';
+import vehicleModelRoutes from './modules/vehicle/routes/vehicleModel.route';
 import tierRoutes from './modules/tier/routes/tier.routes';
-// import adminRoutes from './modules/admin/routes/admin.routes';
-// import bookingRoutes from './modules/booking/routes/booking.routes';
-// import serviceRoutes from './modules/service/routes/service-package.routes';
-// import promotionRoutes from './modules/promotion/routes/promotion.routes';
-// import vehicleRoutes from './modules/vehicle/routes/vehicle.routes';
-// import userRoutes from './modules/userProfile/routes/userProfile.routes';
 
 
 // import notificationRoutes from './modules/notification/routes/notification.routes';
@@ -30,6 +27,9 @@ router.use('/services', serviceRoutes);
 router.use('/service-groups', serviceGroupRoutes);
 router.use('/service-packages', servicePackageRoutes);
 router.use('/vehicles', vehicleRoutes);
+router.use('/makes', makeRoutes);
+router.use('/vehicle-classes', vehicleClassRoutes);
+router.use('/vehicle-models', vehicleModelRoutes);
 router.use('/tiers', tierRoutes);
 // router.use('/admin', adminRoutes);
 // router.use('/bookings', bookingRoutes);

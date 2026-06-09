@@ -54,7 +54,7 @@ const servicePackageSchema = new Schema<IServicePackage>(
 
 servicePackageSchema.plugin(applyPlugins);
 
-servicePackageSchema.pre("save", async function (next) {
+servicePackageSchema.pre("validate", async function (next) {
     if (!this.isNew) return next();
 
     this.package_code = await generateCode("package_code", "PACK", 8);
