@@ -24,3 +24,8 @@ export interface IGetTierList {
   min_points_from?: number;
   min_points_to?: number;
 }
+
+export enum TierStatus {
+  CHANGE = "CHANGE",
+  SAME = "SAME" 
+}

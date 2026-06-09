@@ -1,8 +1,9 @@
 import { FilterQuery, PaginateResult, Types } from 'mongoose';
 import { ITierConfig } from '../../../models/tierConfig.model';
 import { tierRepository } from '../repositories/tier.repository';
-import { ICreateTier, IGetTierList, IUpdateTier } from '../interfaces/tier.interface';
+import { ICreateTier, IGetTierList, IUpdateTier, TierStatus } from '../interfaces/tier.interface';
 import { ConflictError, NotFoundError } from '../../../common/utils/AppError';
+import { ICustomer } from 'src/models/customer.model';
 
 export type TierResponse = { tier: ITierConfig };
 
@@ -126,6 +127,18 @@ export class TierService {
     }
 
     await this.tierRepo.deleteById(id);
+  }
+
+  async checkTierIfChange(customer: ICustomer): Promise<string> {
+    const { tier } = await this.getTierById(customer.tier_id!.toString());
+    
+    if(customer.membership_points < tier.min_membership_points || customer.membership_points > tier.max_membership_points) {
+      const newTier = await this.tierRepo.findTier(customer.membership_points, customer.membership_points);
+      if (!newTier) throw new Error('Tier not found');
+      return newTier._id!.toString();
+    }
+
+    return TierStatus.SAME;
   }
 }
 

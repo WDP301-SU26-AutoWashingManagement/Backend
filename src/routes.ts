@@ -12,6 +12,7 @@ import vehicleClassRoutes from './modules/vehicle/routes/vehicleClass.route';
 import vehicleModelRoutes from './modules/vehicle/routes/vehicleModel.route';
 import tierRoutes from './modules/tier/routes/tier.routes';
 import iotRoutes from './modules/iot/routes/iot.route';
+import customerRoutes from './modules/customer/routes/customer.routes';
 
 // import notificationRoutes from './modules/notification/routes/notification.routes';
 // import feedbackRoutes from './modules/feedback/routes/feedback.routes';
@@ -32,6 +33,7 @@ router.use('/vehicle-classes', vehicleClassRoutes);
 router.use('/vehicle-models', vehicleModelRoutes);
 router.use('/tiers', tierRoutes);
 router.use('/wash', iotRoutes);
+router.use('/customers', customerRoutes);
 // router.use('/admin', adminRoutes);
 // router.use('/bookings', bookingRoutes);
 // router.use('/services', serviceRoutes);
