@@ -1,6 +1,6 @@
 import { StaffRole } from '@common/types/enum';
 import { BaseRepository } from '../../../common/repositories/base.repository';
-import { Staff, IStaff } from 'src/models/staff.model';
+import { Staff, IStaff } from '../../../models/staff.model';
 
 export class StaffRepository extends BaseRepository<IStaff> {
     constructor() {

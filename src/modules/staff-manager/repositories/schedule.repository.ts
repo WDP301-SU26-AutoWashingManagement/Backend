@@ -1,5 +1,5 @@
 import { BaseRepository } from '../../../common/repositories/base.repository';
-import { ISchedule, Schedule } from 'src/models/schedule.model';
+import { ISchedule, Schedule } from '../../../models/schedule.model';
 import { Types } from 'mongoose';
 
 export class ScheduleRepository extends BaseRepository<ISchedule> {
