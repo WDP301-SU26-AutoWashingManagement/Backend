@@ -1,8 +1,9 @@
 import { FilterQuery, PaginateResult, Types } from 'mongoose';
 import { ITierConfig } from '../../../models/tierConfig.model';
 import { tierRepository } from '../repositories/tier.repository';
-import { ICreateTier, IGetTierList, IUpdateTier } from '../interfaces/tier.interface';
+import { ICreateTier, IGetTierList, IUpdateTier, TierStatus } from '../interfaces/tier.interface';
 import { ConflictError, NotFoundError } from '../../../common/utils/AppError';
+import { ICustomer } from 'src/models/customer.model';
 
 export type TierResponse = { tier: ITierConfig };
 
@@ -23,9 +24,10 @@ export class TierService {
       admin_id: new Types.ObjectId(adminId),
       tier_name: dto.tier_name,
       min_membership_points: dto.min_membership_points,
+      max_membership_points: dto.max_membership_points,
       booking_window_days: dto.booking_window_days,
       discount_percentage: dto.discount_percentage,
-      free_features: dto.free_features?.map(
+      free_features: dto.free_features?.map(  
         (id) => new Types.ObjectId(id)
       ) || [],
     });
@@ -42,6 +44,8 @@ export class TierService {
       search,
       min_points_from,
       min_points_to,
+      max_points_from,
+      max_points_to,
     } = dto;
 
     const filter: FilterQuery<ITierConfig> = {};
@@ -65,6 +69,21 @@ export class TierService {
         ...(min_points_to !== undefined && {
           $lte: min_points_to,
         }),
+      };
+    }
+
+    if (
+      max_points_from !== undefined ||
+      max_points_to !== undefined
+    ) {
+      filter.max_membership_points = {
+        ...(max_points_from !== undefined && {
+          $gte: max_points_from,
+        }),
+
+        ...(max_points_to !== undefined && {
+          $lte: max_points_to,
+        }),   
       };
     }
 
@@ -126,6 +145,30 @@ export class TierService {
     }
 
     await this.tierRepo.deleteById(id);
+  }
+
+  async checkTierIfChange(customer: ICustomer): Promise<string> {
+    const { tier } = await this.getTierById(customer.tier_id!.toString());
+    
+    if(customer.membership_points < tier.min_membership_points || customer.membership_points > tier.max_membership_points) {
+      const newTier = await this.tierRepo.findTier(customer.membership_points, customer.membership_points);
+      if (!newTier) throw new NotFoundError('Tier not found');
+      return newTier._id!.toString();
+    }
+
+    return TierStatus.SAME;
+  }
+
+  async checkTierIfChangeNewPoint(customer: ICustomer, point: number): Promise<string> {
+    const { tier } = await this.getTierById(customer.tier_id!.toString());
+    
+    if(point < tier.min_membership_points || point > tier.max_membership_points) {
+      const newTier = await this.tierRepo.findTier(point, point);
+      if (!newTier) throw new NotFoundError('Tier not found');
+      return newTier._id!.toString();
+    }
+
+    return TierStatus.SAME;
   }
 }
 

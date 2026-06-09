@@ -51,7 +51,7 @@ const customerSchema = new Schema<ICustomer>(
         },
     },
     {
-        timestamps: false,
+        timestamps: true,
     }
 );
 
