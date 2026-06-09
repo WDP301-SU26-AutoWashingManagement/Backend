@@ -17,3 +17,9 @@ export enum TierClass {
     GOLD = 'gold',
     PLATINUM = 'platinum'
 }
+
+export enum RequestStatus {
+    PENDING = 'pending',
+    APPROVED = 'approved',
+    REJECTED = 'rejected'
+}
