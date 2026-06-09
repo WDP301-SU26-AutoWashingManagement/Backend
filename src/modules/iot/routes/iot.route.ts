@@ -8,6 +8,6 @@ const router = Router();
 router.use(authenticate);
 router.use(authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF));
 
-router.get('/', iotController.turnOnWater)
+router.post('/', iotController.turnOnWater)
 
 export default router

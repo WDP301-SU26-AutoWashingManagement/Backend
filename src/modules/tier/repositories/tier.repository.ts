@@ -23,7 +23,7 @@ export class TierRepository extends BaseRepository<ITierConfig> {
   }
 
   findTier(max_membership_points: number, min_membership_points: number): Promise<ITierConfig | null> {
-    return this.model.findOne({ max_membership_points: { $gt: max_membership_points }, min_membership_points: { $lte: min_membership_points } }).exec();
+    return this.model.findOne({ max_membership_points: { $gte: max_membership_points }, min_membership_points: { $lte: min_membership_points } }).exec();
   }
 }
 

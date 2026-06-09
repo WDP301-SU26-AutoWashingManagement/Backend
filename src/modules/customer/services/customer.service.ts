@@ -301,7 +301,7 @@ export class CustomerService {
         const newPoint = customer.membership_points + point;
         const newTier = await this.tierService.checkTierIfChangeNewPoint(customer, newPoint);
         if (newTier !== TierStatus.SAME) {
-            await this.customerRepo.updateById(customer_id, { membership_points: tier.max_membership_points, tier_id: new Types.ObjectId(newTier) });
+            await this.customerRepo.updateById(customer_id, { membership_points: newPoint, tier_id: new Types.ObjectId(newTier) });
         } else {
             await this.customerRepo.updateById(customer_id, { membership_points: newPoint });
         }
@@ -318,10 +318,10 @@ export class CustomerService {
         if (!tier) {
             throw new NotFoundError('Tier not found');
         }
-        const newPoint = customer.membership_points - point;
+        const newPoint = Math.max(0, customer.membership_points - point);
         const newTier = await this.tierService.checkTierIfChangeNewPoint(customer, newPoint);
         if (newTier !== TierStatus.SAME) {
-            await this.customerRepo.updateById(customer_id, { membership_points: tier.min_membership_points, tier_id: new Types.ObjectId(newTier) });
+            await this.customerRepo.updateById(customer_id, { membership_points: newPoint, tier_id: new Types.ObjectId(newTier) });
         } else {
             await this.customerRepo.updateById(customer_id, { membership_points: newPoint });
         }

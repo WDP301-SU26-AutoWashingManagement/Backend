@@ -20,6 +20,12 @@ router.get(
 );
 
 router.get(
+  '/me/membership',
+  authorize(UserRole.CUSTOMER),
+  controller.getMembershipPoint
+)
+
+router.get(
   '/:id', 
   authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF), 
   controller.getById
@@ -45,11 +51,5 @@ router.delete(
   authorize(UserRole.ADMIN, UserRole.BOSS), 
   controller.remove
 );
-
-router.get(
-  '/membership',
-  authorize(UserRole.CUSTOMER),
-  controller.getMembershipPoint
-)
 
 export default router;
