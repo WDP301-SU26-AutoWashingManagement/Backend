@@ -23,7 +23,7 @@ export class AppointmentRepository extends BaseRepository<IAppointment> {
         return this.model.countDocuments({
         branch_id     : new Types.ObjectId(branchId),
         booking_status: {
-            $in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN],
+            $in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN, BookingStatus.IN_PROGRESS],
         },
         scheduled_at: { $gte: windowStart, $lt: windowEnd },
         }).exec();
@@ -41,7 +41,7 @@ export class AppointmentRepository extends BaseRepository<IAppointment> {
         return this.model.find({
         branch_id     : new Types.ObjectId(branchId),
         booking_status: {
-            $in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN],
+            $in: [BookingStatus.PENDING, BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN, BookingStatus.IN_PROGRESS],
         },
         scheduled_at: { $gte: dayStart, $lt: dayEnd },
         }).exec();

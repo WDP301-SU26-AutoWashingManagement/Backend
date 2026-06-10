@@ -4,11 +4,12 @@ import { generateCode } from './counter.model';
 
 
 export enum BookingStatus {
-  PENDING    = 'pending',
-  CONFIRMED  = 'confirmed',
-  CHECKED_IN = 'checked_in',
-  COMPLETED  = 'completed',
-  CANCELLED  = 'cancelled',
+  PENDING     = 'pending',
+  CONFIRMED   = 'confirmed',
+  CHECKED_IN  = 'checked_in',
+  IN_PROGRESS = 'in_progress',
+  COMPLETED   = 'completed',
+  CANCELLED   = 'cancelled',
 }
 
 export enum BookingSource {
