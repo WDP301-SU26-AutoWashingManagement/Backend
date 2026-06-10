@@ -1,6 +1,7 @@
 import { Request } from 'express';
 import { Types } from 'mongoose';
 import { UserRole } from './enum';
+export { UserRole, StaffRole, TierClass, RequestStatus } from './enum';
 
 export interface JwtPayload {
   id: string;
