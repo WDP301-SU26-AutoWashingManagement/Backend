@@ -24,8 +24,32 @@ const app = express();
 // ── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet());
 app.use(mongoSanitize());
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.ADMIN_URL,
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:8081',
+].filter(Boolean) as string[];
+
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like native mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    const isAllowed = allowedOrigins.includes(origin) ||
+                      /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+                      /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin) ||
+                      /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin) ||
+                      /^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/.test(origin) ||
+                      /^https?:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+(:\d+)?$/.test(origin);
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
   credentials: true,
 }));
 app.use(rateLimiter);
