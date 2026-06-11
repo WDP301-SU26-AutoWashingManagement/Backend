@@ -16,6 +16,7 @@ import scheduleRoutes from './modules/staff-manager/routes/schedule.route'
 import iotRoutes from './modules/iot/routes/iot.route';
 import customerRoutes from './modules/customer/routes/customer.routes';
 import adminRoutes from './modules/admin/routes/admin.route';
+import promotionRoutes from './modules/promotion/routes/promotion.route';
 
 // import notificationRoutes from './modules/notification/routes/notification.routes';
 // import feedbackRoutes from './modules/feedback/routes/feedback.routes';
@@ -40,9 +41,9 @@ router.use('/schedule', scheduleRoutes);
 router.use('/wash', iotRoutes);
 router.use('/customers', customerRoutes);
 router.use('/admin', adminRoutes);
+router.use('/promotions', promotionRoutes);
 // router.use('/bookings', bookingRoutes);
 // router.use('/services', serviceRoutes);
-// router.use('/promotions', promotionRoutes);
 // router.use('/vehicles', vehicleRoutes);
 // router.use('/users', userRoutes);
 // router.use('/bookings', bookingRoutes);
