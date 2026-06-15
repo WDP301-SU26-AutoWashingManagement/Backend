@@ -12,6 +12,9 @@ router.post('/webhook', ctrl.webhook);
 // ── Các route cần đăng nhập ──────────────────────────────────────────────────
 router.use(authenticate);
 
+// Tạo invoice draft từ appointment
+router.post('/', authorize(UserRole.STAFF, UserRole.ADMIN), ctrl.createInvoice);
+
 // Admin: xem toàn bộ danh sách
 router.get('/', authorize(UserRole.ADMIN), ctrl.getList);
 

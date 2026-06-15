@@ -20,7 +20,7 @@ import seedVehicle from '@common/seeds/seed.vehicle';
 import mongoose from 'mongoose';
 
 const app = express();
-
+app.set('trust proxy', 1);
 // ── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet());
 app.use(mongoSanitize());

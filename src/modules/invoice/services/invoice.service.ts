@@ -12,7 +12,11 @@ import {
 } from '../../../common/utils/AppError';
 import { env } from '../../../configs/env.config';
 import { Appointment } from '../../../models/appointment.model';
+import { AppointmentService } from 'src/models/appointmentService.model';
+import { Customer } from '../../../models/customer.model';
+import { TierConfig } from '../../../models/tierConfig.model';
 import mongoose from 'mongoose';
+import { ICreateInvoiceRequest } from '../interfaces/invoice.interface';
 
 // ─────────────────────────────────────────────────────────────
 // PayOS Client
@@ -24,7 +28,105 @@ const payosClient = new PayOS({
   checksumKey: env.PAYOS_CHECKSUM_KEY,
 });
 
+// ─────────────────────────────────────────────────────────────
+// Hằng số tích điểm: 20.000 VNĐ = 1 membership point
+// ─────────────────────────────────────────────────────────────
+const VND_PER_POINT = 1_000;
+
+/**
+ * Tính số điểm tích luỹ từ số tiền thanh toán.
+ * Làm tròn xuống (floor) — chỉ đủ đơn vị mới được điểm.
+ */
+function calcPoints(totalAmount: number): number {
+  return Math.floor(totalAmount / VND_PER_POINT);
+}
+
+/**
+ * Cộng membership_points cho customer và tự động
+ * upgrade tier nếu điểm mới vượt ngưỡng tier tiếp theo.
+ *
+ * @param customerId  ObjectId của customer
+ * @param earnedPoints  Số điểm cần cộng thêm
+ * @param session  Mongoose session (dùng chung với transaction)
+ */
+async function addMembershipPoints(
+  customerId: mongoose.Types.ObjectId,
+  earnedPoints: number,
+  session: mongoose.ClientSession,
+): Promise<void> {
+  if (earnedPoints <= 0) return;
+
+  // 1. Cộng điểm
+  const customer = await Customer.findByIdAndUpdate(
+    customerId,
+    { $inc: { membership_points: earnedPoints } },
+    { new: true, session },
+  );
+
+  if (!customer) {
+    throw new Error(`Customer ${customerId} not found when adding points`);
+  }
+
+  // 2. Kiểm tra có cần upgrade tier không
+  //    Lấy tier phù hợp với điểm mới (tier có min ≤ points ≤ max)
+  const newTier = await TierConfig.findOne({
+    min_membership_points: { $lte: customer.membership_points },
+    max_membership_points: { $gte: customer.membership_points },
+  }).session(session);
+
+  if (newTier && !newTier._id.equals(customer.tier_id)) {
+    customer.tier_id = newTier._id as mongoose.Types.ObjectId;
+    await customer.save({ session });
+  }
+}
+
 export class InvoiceService {
+  async createInvoice(
+    appointmentId: string,
+    opts: Omit<ICreateInvoiceRequest, 'appointment_id'> = {},
+  ): Promise<IInvoice> {
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      throw new NotFoundError('Appointment not found');
+    }
+
+    // Kiểm tra invoice đã tồn tại chưa (1 appointment → 1 invoice)
+    const existing = await Invoice.findOne({ appointment_id: appointmentId });
+    if (existing) {
+      throw new AppError('Invoice đã tồn tại cho appointment này', 400);
+    }
+
+    // Lấy danh sách dịch vụ và tính subtotal
+    const services = await AppointmentService.find({ appointment_id: appointmentId });
+    if (!services.length) {
+      throw new AppError('Appointment chưa có dịch vụ nào', 400);
+    }
+
+    const subtotal        = services.reduce((sum, s) => sum + s.price_snapshot, 0);
+    const discount_amount = opts.discount_amount ?? 0;
+    const tax_amount      = Math.round((subtotal - discount_amount) * (opts.tax_rate ?? 0));
+    const total           = subtotal - discount_amount + tax_amount;
+
+    if (total <= 0) {
+      throw new AppError('Tổng tiền phải lớn hơn 0', 400);
+    }
+
+    const invoice = await Invoice.create({
+      appointment_id      : appointment._id,
+      customer_id         : appointment.customer_id,
+      subtotal,
+      discount_amount,
+      tax_amount,
+      total,
+      invoice_status      : InvoiceStatus.DRAFT,
+      promotion_id        : opts.promotion_id        ?? null,
+      customer_voucher_id : opts.customer_voucher_id ?? null,
+      vat_requested       : opts.vat_requested       ?? false,
+      tax_code            : opts.tax_code            ?? null,
+    });
+
+    return invoice;
+  }
   // ───────────────────────────────────────────────────────────
   // 1. Create payment link
   // ───────────────────────────────────────────────────────────
@@ -75,49 +177,30 @@ export class InvoiceService {
   }
 
   // ───────────────────────────────────────────────────────────
-  // 2. Webhook
+  // 2. Webhook  ← THÊM: cộng điểm sau khi PayOS xác nhận PAID
   // ───────────────────────────────────────────────────────────
 
-async handleWebhook(payload: any): Promise<void> {
-  const session = await mongoose.startSession();
+  async handleWebhook(payload: any): Promise<void> {
+    const session = await mongoose.startSession();
 
-  try {
-    const data = await payosClient.webhooks.verify(payload);
+    try {
+      const data = await payosClient.webhooks.verify(payload);
 
-    if (data.code !== '00') {
-      return;
-    }
-
-    await session.withTransaction(async () => {
-      const invoice = await Invoice.findOneAndUpdate(
-        {
-          order_code: data.orderCode,
-        },
-        {
-          $set: {
-            invoice_status: InvoiceStatus.PAID,
-            transaction_ref: data.reference,
-            paid_at: new Date(),
-            is_verified: true,
-          },
-        },
-        {
-          new: true,
-          session,
-        }
-      );
-
-      if (!invoice) {
-        throw new Error('Invoice not found');
+      if (data.code !== '00') {
+        return;
       }
 
-      if (invoice.appointment_id) {
-        const appointment = await Appointment.findByIdAndUpdate(
-          invoice.appointment_id,
+      await session.withTransaction(async () => {
+        const invoice = await Invoice.findOneAndUpdate(
+          {
+            order_code: data.orderCode,
+          },
           {
             $set: {
-              booking_status: 'completed',
-              completed_at: new Date(),
+              invoice_status: InvoiceStatus.PAID,
+              transaction_ref: data.reference,
+              paid_at: new Date(),
+              is_verified: true,
             },
           },
           {
@@ -126,18 +209,42 @@ async handleWebhook(payload: any): Promise<void> {
           }
         );
 
-        if (!appointment) {
-          throw new Error('Appointment not found');
+        if (!invoice) {
+          throw new Error('Invoice not found');
         }
-      }
-    });
-  } catch (error) {
-    console.error('Webhook processing failed:', error);
-    throw error;
-  } finally {
-    await session.endSession();
+
+        if (invoice.appointment_id) {
+          const appointment = await Appointment.findByIdAndUpdate(
+            invoice.appointment_id,
+            {
+              $set: {
+                booking_status: 'completed',
+                completed_at: new Date(),
+              },
+            },
+            {
+              new: true,
+              session,
+            }
+          );
+
+          if (!appointment) {
+            throw new Error('Appointment not found');
+          }
+        }
+
+        // ── Cộng membership points ──────────────────────────
+        const earned = calcPoints(invoice.total);
+        await addMembershipPoints(invoice.customer_id, earned, session);
+        // ────────────────────────────────────────────────────
+      });
+    } catch (error) {
+      console.error('Webhook processing failed:', error);
+      throw error;
+    } finally {
+      await session.endSession();
+    }
   }
-}
 
   // ───────────────────────────────────────────────────────────
   // 3. Cancel payment link
@@ -173,7 +280,7 @@ async handleWebhook(payload: any): Promise<void> {
   }
 
   // ───────────────────────────────────────────────────────────
-  // 4. Sync invoice status
+  // 4. Sync invoice status  ← THÊM: cộng điểm nếu vừa PAID
   // ───────────────────────────────────────────────────────────
 
   async syncInvoiceStatus(
@@ -199,12 +306,25 @@ async handleWebhook(payload: any): Promise<void> {
 
     if (info.status === 'PAID') {
       invoice.invoice_status = InvoiceStatus.PAID;
-
       invoice.transaction_ref =
         info.transactions?.[0]?.reference ?? null;
-
       invoice.paid_at = new Date();
       invoice.is_verified = true;
+
+      const saved = await invoice.save();
+
+      // Cộng điểm (invoice trước đó chắc chắn là PENDING nên không lo duplicate)
+      const earned = calcPoints(saved.total);
+      const session = await mongoose.startSession();
+      try {
+        await session.withTransaction(async () => {
+          await addMembershipPoints(saved.customer_id, earned, session);
+        });
+      } finally {
+        await session.endSession();
+      }
+
+      return saved;
     }
 
     if (
@@ -219,7 +339,7 @@ async handleWebhook(payload: any): Promise<void> {
   }
 
   // ───────────────────────────────────────────────────────────
-  // 5. Confirm cash payment
+  // 5. Confirm cash payment  ← THÊM: cộng điểm luôn cho cash
   // ───────────────────────────────────────────────────────────
 
   async confirmCashPayment(
@@ -239,13 +359,30 @@ async handleWebhook(payload: any): Promise<void> {
       );
     }
 
-    invoice.invoice_status = InvoiceStatus.PAID;
-    invoice.payment_method = PaymentMethod.CASH;
-    invoice.staff_id = staffId as any;
-    invoice.paid_at = new Date();
-    invoice.is_verified = true;
+    const session = await mongoose.startSession();
 
-    return invoice.save();
+    try {
+      let savedInvoice!: IInvoice;
+
+      await session.withTransaction(async () => {
+        invoice.invoice_status = InvoiceStatus.PAID;
+        invoice.payment_method = PaymentMethod.CASH;
+        invoice.staff_id = staffId as any;
+        invoice.paid_at = new Date();
+        invoice.is_verified = true;
+
+        savedInvoice = await invoice.save({ session });
+
+        // ── Cộng membership points ──────────────────────────
+        const earned = calcPoints(savedInvoice.total);
+        await addMembershipPoints(savedInvoice.customer_id, earned, session);
+        // ────────────────────────────────────────────────────
+      });
+
+      return savedInvoice;
+    } finally {
+      await session.endSession();
+    }
   }
 
   // ───────────────────────────────────────────────────────────

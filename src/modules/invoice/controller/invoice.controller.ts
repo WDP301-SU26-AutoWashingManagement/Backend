@@ -3,9 +3,38 @@ import { invoiceService } from '../services/invoice.service';
 import { sendSuccess, sendCreated } from '../../../common/utils/apiResponse';
 import { sendPaginated } from '../../../common/utils/paginated.helper';
 import { AuthenticatedRequest } from '../../../common/types';
+import { ICreateInvoiceRequest } from '../interfaces/invoice.interface';
 
 export class InvoiceController {
   private readonly svc = invoiceService;
+
+  /** POST /invoices – tạo invoice draft từ appointment */
+  createInvoice = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const {
+        appointment_id,
+        discount_amount,
+        tax_rate,
+        promotion_id,
+        customer_voucher_id,
+        vat_requested,
+        tax_code,
+      } = req.body as ICreateInvoiceRequest;
+
+      const invoice = await this.svc.createInvoice(appointment_id, {
+        discount_amount,
+        tax_rate,
+        promotion_id,
+        customer_voucher_id,
+        vat_requested,
+        tax_code,
+      });
+
+      sendCreated(res, invoice, 'Tạo invoice thành công');
+    } catch (err) {
+      next(err);
+    }
+  };
 
   /** POST /invoices/:id/payment-link – tạo PayOS link từ invoice draft */
   createPaymentLink = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -28,13 +57,16 @@ export class InvoiceController {
   };
 
   /** POST /invoices/webhook – PayOS gọi vào đây (no auth) */
-  webhook = async (req: Request, res: Response, next: NextFunction) => {
+  webhook = async (req: Request, res: Response, _next: NextFunction) => {
     try {
       await this.svc.handleWebhook(req.body);
-      res.status(200).json({ success: true });
     } catch (err) {
-      next(err);
+      // Log lỗi nhưng KHÔNG trả về lỗi cho PayOS
+      // PayOS yêu cầu luôn nhận HTTP 200, nếu không sẽ báo webhook không hoạt động
+      console.error('[Webhook] Error processing webhook:', err);
     }
+    // Luôn trả 200 để PayOS biết đã nhận được
+    res.status(200).json({ success: true });
   };
 
   /** PATCH /invoices/:id/cancel-payment – huỷ link PayOS */
