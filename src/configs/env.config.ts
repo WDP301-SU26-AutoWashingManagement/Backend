@@ -25,4 +25,9 @@ export const env = {
   REDIS_HOST: process.env.REDIS_HOST ?? 'localhost',
   REDIS_PORT: Number(process.env.REDIS_PORT ?? 6379),
   REDIS_PASSWORD: process.env.REDIS_PASSWORD ?? '',
+  PAYOS_CLIENT_ID   : process.env.PAYOS_CLIENT_ID    ?? '',
+  PAYOS_API_KEY     : process.env.PAYOS_API_KEY      ?? '',
+  PAYOS_CHECKSUM_KEY: process.env.PAYOS_CHECKSUM_KEY ?? '',
+  PAYOS_RETURN_URL  : process.env.PAYOS_RETURN_URL   ?? 'http://localhost:5173/payment/success',
+  PAYOS_CANCEL_URL  : process.env.PAYOS_CANCEL_URL   ?? 'http://localhost:5173/payment/cancel',
 } as const;

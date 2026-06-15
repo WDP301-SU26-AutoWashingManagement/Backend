@@ -4,7 +4,7 @@ import { TierClass } from '@common/types/enum';
 export interface ICreateTier {
   tier_name: TierClass;
   min_membership_points: number;
-  max_membership_points: number;
+  max_membership_points?: number;
   booking_window_days: number;
   discount_percentage: number;
   free_features?: Types.ObjectId[];

@@ -35,6 +35,7 @@ const tierConfigSchema = new Schema<ITierConfig>(
         max_membership_points: {
             type: Number,
             required: true,
+            default:10000000
         },
 
         booking_window_days: {

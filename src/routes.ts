@@ -17,6 +17,7 @@ import iotRoutes from './modules/iot/routes/iot.route';
 import customerRoutes from './modules/customer/routes/customer.routes';
 import adminRoutes from './modules/admin/routes/admin.route';
 import bookingRoutes from './modules/booking/routes/booking.route'
+import invoiceRoutes from './modules/invoice/routes/invoice.routes';
 // import notificationRoutes from './modules/notification/routes/notification.routes';
 // import feedbackRoutes from './modules/feedback/routes/feedback.routes';
 // import tierRoutes from './modules/tier/routes/tier.routes';
@@ -41,6 +42,7 @@ router.use('/wash', iotRoutes);
 router.use('/customers', customerRoutes);
 router.use('/admin', adminRoutes);
 router.use('/bookings', bookingRoutes);
+router.use('/invoices', invoiceRoutes);
 // router.use('/services', serviceRoutes);
 // router.use('/promotions', promotionRoutes);
 // router.use('/vehicles', vehicleRoutes);
