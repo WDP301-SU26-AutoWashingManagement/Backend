@@ -19,6 +19,19 @@ export class AppointmentServiceRepository extends BaseRepository<IAppointmentSer
   }
 
   /**
+   * Lấy tất cả services của nhiều appointments, populate service và package.
+   * Dùng cho list view (chống N+1 query).
+   */
+  findByAppointmentIds(appointmentIds: any[]): Promise<any[]> {
+    return this.model
+      .find({ appointment_id: { $in: appointmentIds } })
+      .populate('service_id',         'service_name service_code duration_minutes service_price service_group_id')
+      .populate('service_package_id', 'package_name package_code package_discount_percentage')
+      .lean()
+      .exec();
+  }
+
+  /**
    * Xoá tất cả service line-items của 1 appointment.
    * Dùng khi cancel appointment để clean up.
    */

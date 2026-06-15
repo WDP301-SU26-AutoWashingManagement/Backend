@@ -265,7 +265,7 @@ export class BookingService {
         dto        : IGetBookingList,
         requesterId: string,
         requesterRole: string,
-    ): Promise<PaginateResult<IAppointment>> {
+    ): Promise<PaginateResult<any>> {
         const { page = 1, limit = 10, from_date, to_date, ...rest } = dto;
 
         const filter: FilterQuery<IAppointment> = {};
@@ -284,7 +284,15 @@ export class BookingService {
         if (rest.branch_id)   filter.branch_id   = new Types.ObjectId(rest.branch_id);
         }
 
-        if (rest.booking_status) filter.booking_status = rest.booking_status;
+        if (rest.booking_status) {
+            if (typeof rest.booking_status === 'string' && rest.booking_status.includes(',')) {
+                filter.booking_status = { $in: rest.booking_status.split(',') };
+            } else if (Array.isArray(rest.booking_status)) {
+                filter.booking_status = { $in: rest.booking_status };
+            } else {
+                filter.booking_status = rest.booking_status;
+            }
+        }
 
         if (from_date || to_date) {
         filter.scheduled_at = {};
@@ -292,7 +300,32 @@ export class BookingService {
         if (to_date)   filter.scheduled_at.$lte = new Date(to_date);
         }
 
-        return this.appointmentRepo.paginateList(filter, { page, limit });
+        const result = await this.appointmentRepo.paginateList(filter, { page, limit });
+
+        const appointmentIds = result.docs.map(doc => doc._id);
+        const services = await this.appointmentServiceRepo.findByAppointmentIds(appointmentIds);
+
+        const docsWithServices = result.docs.map(doc => {
+            const docObj = doc.toObject ? doc.toObject() : doc;
+            const docServices = services.filter(s => s.appointment_id.toString() === doc._id.toString());
+            
+            const final_price = docServices.reduce((sum, s) => sum + s.price_snapshot, 0);
+            const mainPackage = docServices.find(s => s.service_package_id);
+            const mainService = docServices[0];
+
+            return {
+                ...docObj,
+                services: docServices,
+                final_price,
+                // frontend expects service_package_id as object for package name
+                service_package_id: mainPackage ? mainPackage.service_package_id : (mainService ? mainService.service_id : null)
+            };
+        });
+
+        return {
+            ...result,
+            docs: docsWithServices
+        };
     }
 
     // ─── 4. Get By ID ────────────────────────────────────────────────────────
@@ -474,6 +507,7 @@ export class BookingService {
         }
 
         const updated = await this.appointmentRepo.updateById(appointmentId, {
+        booking_status: BookingStatus.IN_PROGRESS,
         started_at: new Date(),
         });
         if (!updated) throw new NotFoundError('Booking not found');
@@ -492,7 +526,7 @@ export class BookingService {
         const appointment = await this.appointmentRepo.findById(appointmentId);
         if (!appointment) throw new NotFoundError('Booking not found');
 
-        if (appointment.booking_status !== BookingStatus.CHECKED_IN) {
+        if (![BookingStatus.CHECKED_IN, BookingStatus.IN_PROGRESS].includes(appointment.booking_status)) {
         throw new BadRequestError(
             `Cannot complete a booking with status "${appointment.booking_status}"`,
         );
