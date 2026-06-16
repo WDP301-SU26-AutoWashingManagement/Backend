@@ -102,7 +102,7 @@ const invoiceSchema = new Schema<IInvoice>(
     },
 
     // ── PayOS ──────────────────────────────────────────────────────────────────
-    order_code      : { type: Number, unique: true, sparse: true, default: null },
+    order_code      : { type: Number, unique: true, sparse: true },
     checkout_url    : { type: String, default: null },
     qr_code         : { type: String, default: null },
     transaction_ref : { type: String, default: null },

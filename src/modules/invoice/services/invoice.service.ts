@@ -93,7 +93,10 @@ export class InvoiceService {
     // Kiểm tra invoice đã tồn tại chưa (1 appointment → 1 invoice)
     const existing = await Invoice.findOne({ appointment_id: appointmentId });
     if (existing) {
-      throw new AppError('Invoice đã tồn tại cho appointment này', 400);
+      if (existing.invoice_status === InvoiceStatus.PAID) {
+        throw new AppError('Đơn này đã được thanh toán', 400);
+      }
+      return existing;
     }
 
     // Lấy danh sách dịch vụ và tính subtotal
@@ -102,27 +105,27 @@ export class InvoiceService {
       throw new AppError('Appointment chưa có dịch vụ nào', 400);
     }
 
-    const subtotal        = services.reduce((sum, s) => sum + s.price_snapshot, 0);
+    const subtotal = services.reduce((sum, s) => sum + s.price_snapshot, 0);
     const discount_amount = opts.discount_amount ?? 0;
-    const tax_amount      = Math.round((subtotal - discount_amount) * (opts.tax_rate ?? 0));
-    const total           = subtotal - discount_amount + tax_amount;
+    const tax_amount = Math.round((subtotal - discount_amount) * (opts.tax_rate ?? 0));
+    const total = subtotal - discount_amount + tax_amount;
 
     if (total <= 0) {
       throw new AppError('Tổng tiền phải lớn hơn 0', 400);
     }
 
     const invoice = await Invoice.create({
-      appointment_id      : appointment._id,
-      customer_id         : appointment.customer_id,
+      appointment_id: appointment._id,
+      customer_id: appointment.customer_id,
       subtotal,
       discount_amount,
       tax_amount,
       total,
-      invoice_status      : InvoiceStatus.DRAFT,
-      promotion_id        : opts.promotion_id        ?? null,
-      customer_voucher_id : opts.customer_voucher_id ?? null,
-      vat_requested       : opts.vat_requested       ?? false,
-      tax_code            : opts.tax_code            ?? null,
+      invoice_status: InvoiceStatus.DRAFT,
+      promotion_id: opts.promotion_id ?? null,
+      customer_voucher_id: opts.customer_voucher_id ?? null,
+      vat_requested: opts.vat_requested ?? false,
+      tax_code: opts.tax_code ?? null,
     });
 
     return invoice;
@@ -139,6 +142,20 @@ export class InvoiceService {
 
     if (!invoice) {
       throw new NotFoundError('Invoice not found');
+    }
+
+    if (invoice.invoice_status === InvoiceStatus.PAID) {
+      throw new AppError('Hóa đơn đã được thanh toán', 400);
+    }
+
+    // Nếu đang chờ thanh toán (đã có link), trả về link cũ để dùng tiếp
+    if (invoice.invoice_status === InvoiceStatus.PENDING && invoice.checkout_url) {
+      return invoice;
+    }
+
+    // Nếu đã huỷ, cho phép tạo link mới bằng cách reset về DRAFT
+    if (invoice.invoice_status === InvoiceStatus.CANCELLED) {
+      invoice.invoice_status = InvoiceStatus.DRAFT;
     }
 
     if (invoice.invoice_status !== InvoiceStatus.DRAFT) {
@@ -313,12 +330,24 @@ export class InvoiceService {
 
       const saved = await invoice.save();
 
-      // Cộng điểm (invoice trước đó chắc chắn là PENDING nên không lo duplicate)
+      // Cộng điểm & Cập nhật trạng thái Appointment
       const earned = calcPoints(saved.total);
       const session = await mongoose.startSession();
       try {
         await session.withTransaction(async () => {
           await addMembershipPoints(saved.customer_id, earned, session);
+          if (saved.appointment_id) {
+            await Appointment.findByIdAndUpdate(
+              saved.appointment_id,
+              {
+                $set: {
+                  booking_status: 'completed',
+                  completed_at: new Date(),
+                },
+              },
+              { session }
+            );
+          }
         });
       } finally {
         await session.endSession();
@@ -352,9 +381,12 @@ export class InvoiceService {
       throw new NotFoundError('Invoice not found');
     }
 
-    if (invoice.invoice_status !== InvoiceStatus.DRAFT) {
+    if (
+      invoice.invoice_status !== InvoiceStatus.DRAFT &&
+      invoice.invoice_status !== InvoiceStatus.CANCELLED
+    ) {
       throw new AppError(
-        `Invoice status is "${invoice.invoice_status}", expected "draft"`,
+        `Invoice status is "${invoice.invoice_status}", expected "draft" or "cancelled"`,
         400
       );
     }
@@ -373,9 +405,22 @@ export class InvoiceService {
 
         savedInvoice = await invoice.save({ session });
 
-        // ── Cộng membership points ──────────────────────────
+        // ── Cộng membership points & Cập nhật Appointment ───
         const earned = calcPoints(savedInvoice.total);
         await addMembershipPoints(savedInvoice.customer_id, earned, session);
+
+        if (savedInvoice.appointment_id) {
+          await Appointment.findByIdAndUpdate(
+            savedInvoice.appointment_id,
+            {
+              $set: {
+                booking_status: 'completed',
+                completed_at: new Date(),
+              },
+            },
+            { session }
+          );
+        }
         // ────────────────────────────────────────────────────
       });
 
@@ -393,7 +438,7 @@ export class InvoiceService {
     const invoice = await Invoice.findById(invoiceId)
       .populate('appointment_id')
       .populate('customer_id', 'customer_code')
-      .populate('promotion_id', 'promotion_code');
+    // .populate('promotion_id', 'promotion_code');
 
     if (!invoice) {
       throw new NotFoundError('Invoice not found');
