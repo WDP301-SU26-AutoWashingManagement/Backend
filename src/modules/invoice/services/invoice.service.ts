@@ -12,7 +12,7 @@ import {
 } from '../../../common/utils/AppError';
 import { env } from '../../../configs/env.config';
 import { Appointment } from '../../../models/appointment.model';
-import { AppointmentService } from 'src/models/appointmentService.model';
+import { AppointmentService } from '../../../models/appointmentService.model';
 import { Customer } from '../../../models/customer.model';
 import { TierConfig } from '../../../models/tierConfig.model';
 import mongoose from 'mongoose';

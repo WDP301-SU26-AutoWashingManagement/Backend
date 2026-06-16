@@ -116,35 +116,6 @@ export class ScheduleRepository extends BaseRepository<ISchedule> {
         ]);
     }
 
-    async getTemplates(): Promise<Partial<ISchedule>[]> {
-        const lastWeek = new Date();
-        lastWeek.setDate(lastWeek.getDate() - 7);
-
-        const schedules = await Schedule.find({
-            shift_date: {
-                $gte: lastWeek
-            }
-        }).lean();
-
-        const map = new Map<string, Partial<ISchedule>>();
-
-        for (const s of schedules) {
-            const key = `${s.branch_id}-${s.start_time}-${s.end_time}`;
-
-            if (!map.has(key)) {
-                map.set(key, {
-                    branch_id: s.branch_id,
-                    start_time: s.start_time,
-                    end_time: s.end_time,
-                    max_staff: s.max_staff,
-                    algorithm: s.algorithm,
-                    shift_minutes: s.shift_minutes, // default vì schedule không có
-                });
-            }
-        }
-
-        return Array.from(map.values());
-    }
 }
 
 export const scheduleRepository = new ScheduleRepository();

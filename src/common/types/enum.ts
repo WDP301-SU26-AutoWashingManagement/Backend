@@ -1,6 +1,5 @@
 export enum StaffRole {
   TECHNICAL = 'technical',
-  PHYSICAL = 'physical',
   MANAGER = 'manager',
 }
 

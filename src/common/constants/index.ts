@@ -1,4 +1,4 @@
-export const BOOKING_STATUSES = ['pending', 'checked_in', 'in_progress', 'completed', 'cancelled'] as const;
+export const BOOKING_STATUSES = ['pending', 'confirmed', 'checked_in', 'in_progress', 'washed', 'completed', 'cancelled'] as const;
 export type BookingStatus = typeof BOOKING_STATUSES[number];
 
 export const POINT_STAGES     = ['earned', 'redeemed', 'expired', 'bonus'] as const;

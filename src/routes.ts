@@ -19,6 +19,7 @@ import adminRoutes from './modules/admin/routes/admin.route';
 import bookingRoutes from './modules/booking/routes/booking.route'
 import invoiceRoutes from './modules/invoice/routes/invoice.routes';
 import promotionRoutes from './modules/promotion/routes/promotion.route';
+import staffRoutes from './modules/staff-manager/routes/staff.route';
 
 // import notificationRoutes from './modules/notification/routes/notification.routes';
 // import feedbackRoutes from './modules/feedback/routes/feedback.routes';
@@ -39,6 +40,7 @@ router.use('/vehicle-classes', vehicleClassRoutes);
 router.use('/vehicle-models', vehicleModelRoutes);
 router.use('/tiers', tierRoutes);
 router.use('/staff-absent', staffAbsentRoutes);
+router.use('/staff', staffRoutes);
 router.use('/schedule', scheduleRoutes);
 router.use('/wash', iotRoutes);
 router.use('/customers', customerRoutes);

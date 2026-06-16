@@ -1,4 +1,4 @@
-import { EPromotionType } from "src/models/promotion.model";
+import { EPromotionType } from "../../../models/promotion.model";
 
 export interface ICreatePromotion {
     promotion_name: string;

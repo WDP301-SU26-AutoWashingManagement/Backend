@@ -169,4 +169,220 @@ export const EMAIL_TEMPLATE = {
 
         </div>
     `,
+    ASSIGNMENT_EMAIL : ({
+        staffName,
+        shiftDate,
+        startTime,
+        endTime,
+        branchName,
+    }: {
+        staffName: string;
+        shiftDate: string;
+        startTime: string;
+        endTime: string;
+        branchName: string;
+    }): string => {
+        return `
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+            <meta charset="UTF-8" />
+            <title>Thông báo phân công ca làm việc</title>
+        </head>
+        <body style="margin:0;padding:0;background:#f5f6fa;font-family:Arial,sans-serif;">
+            <div style="max-width:600px;margin:30px auto;background:#ffffff;border-radius:8px;overflow:hidden;">
+                
+                <div style="background:#2563eb;padding:20px;text-align:center;">
+                    <h1 style="color:#ffffff;margin:0;">
+                        THÔNG BÁO PHÂN CÔNG CA LÀM VIỆC
+                    </h1>
+                </div>
+
+                <div style="padding:30px;">
+                    <p>Xin chào <strong>${staffName}</strong>,</p>
+
+                    <p>
+                        Bạn đã được phân công vào một ca làm việc mới với thông tin như sau:
+                    </p>
+
+                    <table
+                        style="
+                            width:100%;
+                            border-collapse:collapse;
+                            margin:20px 0;
+                        "
+                    >
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                <strong>Ngày làm việc</strong>
+                            </td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                ${shiftDate}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                <strong>Giờ bắt đầu</strong>
+                            </td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                ${startTime}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                <strong>Giờ kết thúc</strong>
+                            </td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                ${endTime}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                <strong>Chi nhánh</strong>
+                            </td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                ${branchName}
+                            </td>
+                        </tr>
+                    </table>
+
+                    <p>
+                        Vui lòng kiểm tra lịch làm việc và có mặt đúng giờ.
+                    </p>
+
+                    <p>
+                        Chúc bạn có một ngày làm việc hiệu quả.
+                    </p>
+
+                    <br />
+
+                    <p>
+                        Trân trọng,<br />
+                        <strong>Phòng Quản Lý Nhân Sự</strong>
+                    </p>
+                </div>
+
+                <div
+                    style="
+                        background:#f3f4f6;
+                        padding:15px;
+                        text-align:center;
+                        color:#6b7280;
+                        font-size:12px;
+                    "
+                >
+                    Đây là email tự động, vui lòng không trả lời email này.
+                </div>
+            </div>
+        </body>
+        </html>
+        `
+    }, 
+
+    SHIFT_SWITCH_EMAIL: ({
+        staffName,
+        oldShiftDate,
+        oldStartTime,
+        oldEndTime,
+        newShiftDate,
+        newStartTime,
+        newEndTime,
+    }: {
+        staffName: string;
+        oldShiftDate: string;
+        oldStartTime: string;
+        oldEndTime: string;
+        newShiftDate: string;
+        newStartTime: string;
+        newEndTime: string;
+    }): string => {
+        return `
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+            <meta charset="UTF-8" />
+            <title>Thông báo thay đổi ca làm việc</title>
+        </head>
+        <body style="margin:0;padding:0;background:#f5f6fa;font-family:Arial,sans-serif;">
+            <div style="max-width:600px;margin:30px auto;background:#ffffff;border-radius:8px;overflow:hidden;">
+
+                <div style="background:#f59e0b;padding:20px;text-align:center;">
+                    <h1 style="color:#ffffff;margin:0;">
+                        THÔNG BÁO THAY ĐỔI CA LÀM VIỆC
+                    </h1>
+                </div>
+
+                <div style="padding:30px;">
+                    <p>Xin chào <strong>${staffName}</strong>,</p>
+
+                    <p>
+                        Ca làm việc của bạn đã được thay đổi. Thông tin chi tiết như sau:
+                    </p>
+
+                    <h3>Ca làm việc cũ</h3>
+
+                    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;"><strong>Ngày</strong></td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">${oldShiftDate}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;"><strong>Bắt đầu</strong></td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">${oldStartTime}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;"><strong>Kết thúc</strong></td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">${oldEndTime}</td>
+                        </tr>
+                    </table>
+
+                    <h3>Ca làm việc mới</h3>
+
+                    <table style="width:100%;border-collapse:collapse;">
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;"><strong>Ngày</strong></td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">${newShiftDate}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;"><strong>Bắt đầu</strong></td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">${newStartTime}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;"><strong>Kết thúc</strong></td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">${newEndTime}</td>
+                        </tr>
+                    </table>
+
+                    <p style="margin-top:20px;">
+                        Vui lòng kiểm tra lại lịch làm việc để tránh nhầm lẫn.
+                    </p>
+
+                    <br />
+
+                    <p>
+                        Trân trọng,<br />
+                        <strong>Phòng Quản Lý Nhân Sự</strong>
+                    </p>
+                </div>
+
+                <div
+                    style="
+                        background:#f3f4f6;
+                        padding:15px;
+                        text-align:center;
+                        color:#6b7280;
+                        font-size:12px;
+                    "
+                >
+                    Đây là email tự động, vui lòng không trả lời email này.
+                </div>
+
+            </div>
+        </body>
+        </html>
+        `
+    },
 }

@@ -12,6 +12,8 @@ export interface IStaff extends Document{
     hire_date: Date;
     hour_per_week: number;           // chỗ này có thể điều chỉnh cho từng loại Staff
     salary_coefficient: number;
+    annual_leave_days: number;      // Tổng số ngày phép được cấp mỗi năm
+    used_leave_days: number;        // Đã sử dụng
     
 }
 
@@ -59,6 +61,21 @@ const staffSchema = new Schema<IStaff>(
             min: 0,
             default: 1,
         },
+
+        annual_leave_days: {
+            type: Number,
+            required: true,
+            min: 0,
+            default: 12,
+        },
+
+        used_leave_days: {
+            type: Number,
+            required: true,
+            min: 0,
+            default: 0,
+        },
+
     }
 );
 

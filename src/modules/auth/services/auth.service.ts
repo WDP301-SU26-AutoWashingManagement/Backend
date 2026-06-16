@@ -37,7 +37,7 @@ export class AuthService {
         branch_id: user.branch_id,
         staff_type: isManager
           ? StaffRole.MANAGER
-          : StaffRole.PHYSICAL,
+          : StaffRole.TECHNICAL,
         hire_date: new Date(),
         hour_per_week: isManager ? 60 : 40,
         salary_coefficient: isManager ? 2 : 1,

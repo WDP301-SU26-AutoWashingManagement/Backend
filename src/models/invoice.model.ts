@@ -124,7 +124,6 @@ const invoiceSchema = new Schema<IInvoice>(
 invoiceSchema.plugin(applyPlugins);
 
 invoiceSchema.index({ customer_id: 1, invoice_status: 1 });
-invoiceSchema.index({ order_code: 1 });
 
 // Tự sinh invoice_number: INV-00000001
 invoiceSchema.pre('validate', async function (next) {

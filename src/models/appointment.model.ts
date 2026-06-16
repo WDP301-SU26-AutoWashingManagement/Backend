@@ -8,6 +8,7 @@ export enum BookingStatus {
   CONFIRMED   = 'confirmed',
   CHECKED_IN  = 'checked_in',
   IN_PROGRESS = 'in_progress',
+  WASHED      = 'washed',
   COMPLETED   = 'completed',
   CANCELLED   = 'cancelled',
 }
@@ -15,7 +16,6 @@ export enum BookingStatus {
 export enum BookingSource {
   APP  = 'app',
   WEB  = 'web',
-  WALK = 'walk_in',
 }
 
 export interface IAppointment extends Document {
