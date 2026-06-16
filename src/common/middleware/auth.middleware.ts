@@ -12,7 +12,15 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction): 
     const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as JwtPayload;
     (req as AuthenticatedRequest).user = decoded;
     next();
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err instanceof jwt.JsonWebTokenError) {
+      return next(new UnauthorizedError(err.message));
+    }
+    if (err instanceof jwt.TokenExpiredError) {
+      return next(new UnauthorizedError('Token expired'));
+    }
+    next(err); 
+  }
 };
 
 export const authorize = (...roles: UserRole[]) =>
