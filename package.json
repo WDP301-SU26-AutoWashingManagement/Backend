@@ -9,7 +9,7 @@
     "start": "node dist/app.js",
     "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/app.ts",
     "lint": "eslint src --ext .ts",
-    "seed": "ts-node scripts/seed.ts",
+    "seed": "ts-node -r tsconfig-paths/register scripts/seed.ts",
     "test": "jest --runInBand --forceExit"
   },
   "dependencies": {
@@ -51,6 +51,7 @@
     "@types/morgan": "^1.9.9",
     "@types/multer": "^2.1.0",
     "@types/node": "^20.10.6",
+    "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^6.4.14",
     "@types/uuid": "^9.0.7",
     "@typescript-eslint/eslint-plugin": "^6.17.0",

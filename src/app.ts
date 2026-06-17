@@ -18,6 +18,7 @@ import { loadModels } from './models/global/model.load';
 import seedBoss from '@common/seeds/seed.boss';
 import seedVehicle from '@common/seeds/seed.vehicle';
 import mongoose from 'mongoose';
+import { scheduleCronService } from '@modules/staff-manager/services/schedule-auto.service';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -81,6 +82,10 @@ const bootstrap = async (): Promise<void> => {
 
   await seedBoss();
   await seedVehicle();
+
+  console.log("[SERVER] Starting cron...");
+  scheduleCronService.init();
+  
   const PORT = process.env.PORT ?? 3000;
   app.listen(PORT, () => logger.info(`🚀 Server running on port ${PORT}`));
 };

@@ -3,7 +3,9 @@ import { ObjectId, Types } from "mongoose";
 import { scheduleRepository } from "../repositories/schedule.repository";
 import { splitTimeRange } from "../utils/slot-separate";
 import { runWithRetry } from "../utils/retry-cron";
-
+import { staffRepository } from "../repositories/staff.repository";
+import { branchRepository } from '../../boss/repositories/branch.repository';
+import { ISchedule } from "src/models/schedule.model";
 type ShiftTemplate = {
     branch_id: string;
     start_time: string;
@@ -15,13 +17,17 @@ type ShiftTemplate = {
 
 export class ScheduleCronService {
     private readonly scheduleRepo = scheduleRepository;
-    private isRunning = false;
+    private readonly staffRepo = staffRepository;
+    private isGenerating = false;
+    private isAssigning = false;
 
     init() {
-        cron.schedule("0 0 * * 0", async () => {
-            if (this.isRunning) return;
+        // Generate schedules
+         console.log("[CRON] ScheduleCronService initialized");
+        cron.schedule("* * * * *", async () => {
+            if (this.isGenerating) return;
 
-            this.isRunning = true;
+            this.isGenerating = true;
 
             try {
                 console.log("[CRON] Start weekly schedule generation");
@@ -32,7 +38,26 @@ export class ScheduleCronService {
             } catch (error) {
                 console.error("[CRON ERROR]", error);
             } finally {
-                this.isRunning = false;
+                this.isGenerating = false;
+            }
+        });
+
+        // Auto assign staff
+        cron.schedule("10 * * * * *", async () => {
+            if (this.isAssigning) return;
+
+            this.isAssigning = true;
+
+            try {
+                console.log("[AUTO ASSIGN] Start");
+
+                await this.assignRandomStaffToSchedules();
+
+                console.log("[AUTO ASSIGN] Done");
+            } catch (error) {
+                console.error("[AUTO ASSIGN ERROR]", error);
+            } finally {
+                this.isAssigning = false;
             }
         });
     }
@@ -41,13 +66,13 @@ export class ScheduleCronService {
         const templates = await this.getShiftTemplates();
         const nextWeekDates = this.getNextWeekDates();
 
-        for (const tpl of templates) {
-            await Promise.allSettled(
-                templates.map(tpl =>
-                    this.processBranchSchedules(tpl, nextWeekDates)
-                )
-            );
-        }
+        console.log('[CRON] Templates:', templates.length);
+
+        await Promise.allSettled(
+            templates.map(tpl =>
+                this.processBranchSchedules(tpl, nextWeekDates)
+            )
+        );
     }
 
     async processBranchSchedules(
@@ -106,7 +131,9 @@ export class ScheduleCronService {
                 });
             }
         }
-
+        console.log(
+            `[CRON] Branch ${branchId} creating ${data.length} schedules`
+        );
         await this.bulkInsert(data);
     }
 
@@ -114,7 +141,13 @@ export class ScheduleCronService {
         const chunkSize = 500;
 
         for (let i = 0; i < data.length; i += chunkSize) {
-            await this.scheduleRepo.insertMany(data.slice(i, i + chunkSize));
+            const chunk = data.slice(i, i + chunkSize);
+
+            const result = await this.scheduleRepo.insertMany(chunk);
+            console.log(
+                '[CRON] Inserted:',
+                result?.length ?? 0
+            );
         }
     }
 
@@ -139,26 +172,115 @@ export class ScheduleCronService {
     }
 
     async getShiftTemplates(): Promise<ShiftTemplate[]> {
-        const templates = await this.scheduleRepo.getTemplates();
+        const totalSchedules = await this.scheduleRepo.countDocuments();
 
-        return templates
-            .filter(
-                (tpl): tpl is typeof tpl & {
-                    branch_id: NonNullable<typeof tpl.branch_id>;
-                    start_time: string;
-                    end_time: string;
-                } =>
-                    !!tpl.branch_id &&
-                    !!tpl.start_time &&
-                    !!tpl.end_time
-            )
-            .map(tpl => ({
-                branch_id: tpl.branch_id.toString(),
-                start_time: tpl.start_time,
-                end_time: tpl.end_time,
-                max_staff: tpl.max_staff ?? 1,
-                algorithm: tpl.algorithm ?? "least_workload",
-                shift_minutes: tpl.shift_minutes ?? 120,
+        // Lần đầu hệ thống chưa có schedule nào
+        if (totalSchedules === 0) {
+            const branches = await branchRepository.find({});
+
+            return branches.map(branch => ({
+                branch_id: branch._id.toString(),
+                start_time: '08:00',
+                end_time: '18:00',
+                max_staff: 5,
+                algorithm: 'least_workload',
+                shift_minutes: 120,
             }));
+        }
+
+        const lastWeek = new Date();
+        lastWeek.setDate(lastWeek.getDate() - 7);
+
+        const schedules = await this.scheduleRepo.find({
+            shift_date: {
+                $gte: lastWeek,
+            },
+        });
+
+        const map = new Map<string, Partial<ISchedule>>();
+
+        for (const s of schedules) {
+            const key = `${s.branch_id}-${s.start_time}-${s.end_time}`;
+
+            if (!map.has(key)) {
+                map.set(key, {
+                    branch_id: s.branch_id,
+                    start_time: s.start_time,
+                    end_time: s.end_time,
+                    max_staff: s.max_staff,
+                    algorithm: s.algorithm,
+                    shift_minutes: s.shift_minutes,
+                });
+            }
+        }
+
+        return Array.from(map.values()).map(tpl => ({
+            branch_id: tpl.branch_id!.toString(),
+            start_time: tpl.start_time!,
+            end_time: tpl.end_time!,
+            max_staff: tpl.max_staff ?? 1,
+            algorithm: tpl.algorithm ?? 'least_workload',
+            shift_minutes: tpl.shift_minutes ?? 120,
+        }));
+    }
+
+    async assignRandomStaffToSchedules() {
+        const schedules = await this.scheduleRepo.find({
+            $expr: {
+                $lt: [
+                    { $size: "$assigned_staff" },
+                    "$max_staff"
+                ]
+            }
+        });
+        console.log('[AUTO ASSIGN] Schedules found:', schedules.length);
+        for (const schedule of schedules) {
+            await this.fillSchedule(schedule);
+        }
+    }
+
+    private async fillSchedule(schedule: any) {
+        const currentStaffIds = schedule.assigned_staff.map(
+            (id: Types.ObjectId) => id.toString()
+        );
+
+        const remainSlot =
+            schedule.max_staff - schedule.assigned_staff.length;
+
+        if (remainSlot <= 0) return;
+
+        const staffs = await this.staffRepo.find({
+            branch_id: schedule.branch_id,
+            _id: {
+                $nin: currentStaffIds,
+            },
+        });
+
+        if (!staffs.length) return;
+
+        const shuffled = staffs.sort(() => Math.random() - 0.5);
+
+        const selected = shuffled
+            .slice(0, remainSlot)
+            .map(staff => staff._id);
+
+        if (!selected.length) return;
+
+        await this.scheduleRepo.updateById(
+            schedule._id.toString(),
+            {
+                $push: {
+                    assigned_staff: {
+                        $each: selected,
+                    },
+                },
+            }
+        );
+
+        console.log(
+            `[AUTO ASSIGN] Schedule ${schedule._id} assigned ${selected.length} staff`
+        );
     }
 }
+
+export const scheduleCronService = new ScheduleCronService();
