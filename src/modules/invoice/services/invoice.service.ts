@@ -11,7 +11,7 @@ import {
   NotFoundError,
 } from '../../../common/utils/AppError';
 import { env } from '../../../configs/env.config';
-import { Appointment } from '../../../models/appointment.model';
+import { Appointment, BookingStatus } from '../../../models/appointment.model';
 import { AppointmentService } from '../../../models/appointmentService.model';
 import { Customer } from '../../../models/customer.model';
 import { TierConfig } from '../../../models/tierConfig.model';
@@ -68,15 +68,21 @@ async function addMembershipPoints(
   }
 
   // 2. Kiểm tra có cần upgrade tier không
-  //    Lấy tier phù hợp với điểm mới (tier có min ≤ points ≤ max)
+  //    Lấy tier cao nhất mà customer đủ điều kiện (min_membership_points <= điểm hiện tại)
+  //    Chỉ upgrade (không bao giờ downgrade)
   const newTier = await TierConfig.findOne({
     min_membership_points: { $lte: customer.membership_points },
-    max_membership_points: { $gte: customer.membership_points },
-  }).session(session);
+  })
+    .sort({ min_membership_points: -1 })
+    .session(session);
 
   if (newTier && !newTier._id.equals(customer.tier_id)) {
-    customer.tier_id = newTier._id as mongoose.Types.ObjectId;
-    await customer.save({ session });
+    // Lấy tier hiện tại để so sánh, chỉ cập nhật nếu tier mới có min cao hơn
+    const currentTier = await TierConfig.findById(customer.tier_id).session(session);
+    if (!currentTier || newTier.min_membership_points > currentTier.min_membership_points) {
+      customer.tier_id = newTier._id as mongoose.Types.ObjectId;
+      await customer.save({ session });
+    }
   }
 }
 
@@ -88,6 +94,13 @@ export class InvoiceService {
     const appointment = await Appointment.findById(appointmentId);
     if (!appointment) {
       throw new NotFoundError('Appointment not found');
+    }
+
+    if (appointment.booking_status !== BookingStatus.WASHED) {
+      throw new AppError(
+        `Chỉ có thể tạo hóa đơn khi xe đã được rửa xong (trạng thái "washed"). Trạng thái hiện tại: "${appointment.booking_status}"`,
+        400,
+      );
     }
 
     // Kiểm tra invoice đã tồn tại chưa (1 appointment → 1 invoice)
@@ -142,6 +155,17 @@ export class InvoiceService {
 
     if (!invoice) {
       throw new NotFoundError('Invoice not found');
+    }
+
+    // Kiểm tra appointment phải ở trạng thái "washed"
+    if (invoice.appointment_id) {
+      const appt = await Appointment.findById(invoice.appointment_id);
+      if (!appt || appt.booking_status !== BookingStatus.WASHED) {
+        throw new AppError(
+          `Chỉ có thể tạo link thanh toán khi xe đã được rửa xong (trạng thái "washed"). Trạng thái hiện tại: "${appt?.booking_status ?? 'không tìm thấy'}"`,
+          400,
+        );
+      }
     }
 
     if (invoice.invoice_status === InvoiceStatus.PAID) {
