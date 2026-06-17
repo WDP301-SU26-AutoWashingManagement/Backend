@@ -48,7 +48,7 @@ class AdminService {
       },
       {
         $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$paid_at' } },
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$paid_at', timezone: '+07:00' } },
           profit: { $sum: '$total' },
         },
       },

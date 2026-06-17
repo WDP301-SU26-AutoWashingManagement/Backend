@@ -95,6 +95,21 @@ export class StaffAbsentRequestService {
     });
   }
 
+  // ─── GET ALL REJECTED (FOR MANAGER) ──────────────────────
+  async getRejectedRequests(staffId: string) {
+    const staff = await this.staffRepo.findByUserId(staffId)
+    if (!staff) {
+        throw new NotFoundError('Nhân viên không được tìm thấy');
+    }
+
+    if (staff.staff_type !== StaffRole.MANAGER) {
+        throw new ForbiddenError('Chỉ có Quản lý (Manager) được cấp quyền');
+    }
+    return this.requestRepo.findMany({
+      request_status: 'rejected',
+    });
+  }
+
   async getStaffOff(
       managerId: string,
       from?: Date,

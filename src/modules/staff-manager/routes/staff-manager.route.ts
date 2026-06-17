@@ -36,6 +36,14 @@ router.get(
   staffAbsentRequestController.getPendingRequests,
 );
 
+// xem danh sách đơn đã từ chối
+router.get(
+  '/rejected',
+  authenticate,
+  authorize(UserRole.STAFF),
+  staffAbsentRequestController.getRejectedRequests,
+);
+
 // duyệt / từ chối đơn
 router.patch(
   '/:requestId/review',

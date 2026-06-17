@@ -43,6 +43,17 @@ export class StaffAbsentRequestController {
         }
     }
 
+    // ─── MANAGER VIEW REJECTED REQUESTS ───────────────────
+    getRejectedRequests = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const staffId = (req as AuthenticatedRequest).user.id
+            const result = await this.service.getRejectedRequests(staffId);
+            sendSuccess(res, result, 'Lấy danh sách đơn từ chối');
+        } catch (error) {
+            next(error);
+        }
+    }
+
     // ─── MANAGER REVIEW REQUEST ───────────────────────────
     reviewRequest = async (req: Request, res: Response, next: NextFunction) => {
         try {
