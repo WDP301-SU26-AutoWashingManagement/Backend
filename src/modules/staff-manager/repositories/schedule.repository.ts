@@ -9,7 +9,13 @@ export class ScheduleRepository extends BaseRepository<ISchedule> {
 
     // ===================== QUERY =====================
     findAll() {
-        return this.model.find().sort({ createdAt: -1 });
+        return this.model.find().populate({
+            path: 'assigned_staff',
+            populate: {
+                path: 'user_id',
+                select: 'full_name email'
+            }
+        }).sort({ createdAt: -1 });
     }
 
     findByBranch(branchId: string) {

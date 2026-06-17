@@ -23,6 +23,17 @@ router.get(
 );
 
 /**
+ * GET /api/schedules/cron-logs
+ * Get recent cron logs
+ * Accessible by: STAFF, ADMIN
+ */
+router.get(
+  '/cron-logs',
+  authorize(UserRole.STAFF, UserRole.ADMIN),
+  scheduleController.getCronLogs
+);
+
+/**
  * GET /api/schedules/:id
  * Get schedule by ID
  * Accessible by: STAFF, ADMIN

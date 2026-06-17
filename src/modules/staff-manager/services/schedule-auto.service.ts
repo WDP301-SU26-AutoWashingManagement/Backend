@@ -6,6 +6,8 @@ import { runWithRetry } from "../utils/retry-cron";
 import { staffRepository } from "../repositories/staff.repository";
 import { branchRepository } from '../../boss/repositories/branch.repository';
 import { ISchedule } from "src/models/schedule.model";
+import { CronLog } from "../../../models/cronLog.model";
+
 type ShiftTemplate = {
     branch_id: string;
     start_time: string;
@@ -21,6 +23,23 @@ export class ScheduleCronService {
     private isGenerating = false;
     private isAssigning = false;
 
+    private async saveLog(message: string, status: 'info' | 'success' | 'warning' | 'error' = 'info') {
+        console.log(`[CRON LOG - ${status.toUpperCase()}] ${message}`);
+        try {
+            await CronLog.create({ message, status, timestamp: new Date() });
+            
+            // Optional: Cleanup old logs (keep only last 100)
+            const count = await CronLog.countDocuments();
+            if (count > 100) {
+                const oldestLogs = await CronLog.find().sort({ timestamp: 1 }).limit(count - 100);
+                const idsToDelete = oldestLogs.map(log => log._id);
+                await CronLog.deleteMany({ _id: { $in: idsToDelete } });
+            }
+        } catch (err) {
+            console.error("Error saving cron log", err);
+        }
+    }
+
     init() {
         // Generate schedules
          console.log("[CRON] ScheduleCronService initialized");
@@ -30,13 +49,13 @@ export class ScheduleCronService {
             this.isGenerating = true;
 
             try {
-                console.log("[CRON] Start weekly schedule generation");
+                await this.saveLog("Bắt đầu tự động tạo khung lịch làm việc cho tuần tới...", "info");
 
                 await this.generateNextWeekSchedules();
 
-                console.log("[CRON] Done weekly schedule generation");
-            } catch (error) {
-                console.error("[CRON ERROR]", error);
+                await this.saveLog("Hoàn tất tạo khung lịch làm việc.", "success");
+            } catch (error: any) {
+                await this.saveLog(`Lỗi khi tạo khung lịch: ${error.message}`, "error");
             } finally {
                 this.isGenerating = false;
             }
@@ -49,13 +68,14 @@ export class ScheduleCronService {
             this.isAssigning = true;
 
             try {
-                console.log("[AUTO ASSIGN] Start");
-
-                await this.assignRandomStaffToSchedules();
-
-                console.log("[AUTO ASSIGN] Done");
-            } catch (error) {
-                console.error("[AUTO ASSIGN ERROR]", error);
+                // To avoid spamming the log every minute, we only log if it actually did something
+                // Let's modify assignRandomStaffToSchedules to return assigned count
+                const assignedCount = await this.assignRandomStaffToSchedules();
+                if (assignedCount > 0) {
+                    await this.saveLog(`Đã tự động xếp ca cho ${assignedCount} lượt nhân viên.`, "success");
+                }
+            } catch (error: any) {
+                await this.saveLog(`Lỗi khi tự động xếp ca: ${error.message}`, "error");
             } finally {
                 this.isAssigning = false;
             }
@@ -64,10 +84,19 @@ export class ScheduleCronService {
 
     async generateNextWeekSchedules() {
         const templates = await this.getShiftTemplates();
+        const currentWeekDates = this.getCurrentWeekDates();
         const nextWeekDates = this.getNextWeekDates();
 
         console.log('[CRON] Templates:', templates.length);
 
+        // Generate for current week
+        await Promise.allSettled(
+            templates.map(tpl =>
+                this.processBranchSchedules(tpl, currentWeekDates)
+            )
+        );
+
+        // Generate for next week
         await Promise.allSettled(
             templates.map(tpl =>
                 this.processBranchSchedules(tpl, nextWeekDates)
@@ -151,6 +180,26 @@ export class ScheduleCronService {
         }
     }
 
+    getCurrentWeekDates(): Date[] {
+        const result: Date[] = [];
+        const now = new Date();
+
+        const day = now.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+
+        const monday = new Date(now);
+        monday.setDate(now.getDate() + diffToMonday);
+        monday.setHours(0, 0, 0, 0);
+
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            result.push(d);
+        }
+
+        return result;
+    }
+
     getNextWeekDates(): Date[] {
         const result: Date[] = [];
         const now = new Date();
@@ -224,7 +273,7 @@ export class ScheduleCronService {
         }));
     }
 
-    async assignRandomStaffToSchedules() {
+    async assignRandomStaffToSchedules(): Promise<number> {
         const schedules = await this.scheduleRepo.find({
             $expr: {
                 $lt: [
@@ -233,13 +282,16 @@ export class ScheduleCronService {
                 ]
             }
         });
-        console.log('[AUTO ASSIGN] Schedules found:', schedules.length);
+        
+        let totalAssigned = 0;
         for (const schedule of schedules) {
-            await this.fillSchedule(schedule);
+            const assigned = await this.fillSchedule(schedule);
+            totalAssigned += assigned;
         }
+        return totalAssigned;
     }
 
-    private async fillSchedule(schedule: any) {
+    private async fillSchedule(schedule: any): Promise<number> {
         const currentStaffIds = schedule.assigned_staff.map(
             (id: Types.ObjectId) => id.toString()
         );
@@ -247,7 +299,7 @@ export class ScheduleCronService {
         const remainSlot =
             schedule.max_staff - schedule.assigned_staff.length;
 
-        if (remainSlot <= 0) return;
+        if (remainSlot <= 0) return 0;
 
         const staffs = await this.staffRepo.find({
             branch_id: schedule.branch_id,
@@ -256,7 +308,7 @@ export class ScheduleCronService {
             },
         });
 
-        if (!staffs.length) return;
+        if (!staffs.length) return 0;
 
         const shuffled = staffs.sort(() => Math.random() - 0.5);
 
@@ -264,7 +316,7 @@ export class ScheduleCronService {
             .slice(0, remainSlot)
             .map(staff => staff._id);
 
-        if (!selected.length) return;
+        if (!selected.length) return 0;
 
         await this.scheduleRepo.updateById(
             schedule._id.toString(),
@@ -277,9 +329,7 @@ export class ScheduleCronService {
             }
         );
 
-        console.log(
-            `[AUTO ASSIGN] Schedule ${schedule._id} assigned ${selected.length} staff`
-        );
+        return selected.length;
     }
 }
 

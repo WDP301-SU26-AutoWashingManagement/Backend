@@ -79,9 +79,9 @@ export class ScheduleController {
             throw new NotFoundError('Không tìm thấy manager');
             }
 
-            if (manager.staff_type !== StaffRole.MANAGER) {
-            throw new ForbiddenError('User không có quyền manager');
-            }
+            // if (manager.staff_type !== StaffRole.MANAGER) {
+            // throw new ForbiddenError('User không có quyền manager');
+            // }
 
             const result = await this.scheduleService.addStaffToSchedule(
                 manager._id.toString(),
@@ -202,6 +202,34 @@ export class ScheduleController {
         }
     };
 
+    /**
+     * GET /api/schedules/cron-logs
+     * Get recent cron logs
+     * Người thực hiện: Manager
+     */
+    getCronLogs = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { CronLog } = await import('../../../models/cronLog.model');
+            const logs = await CronLog.find().sort({ timestamp: 1 }).limit(100);
+            
+            const response: IApiResponse<any> = {
+                success: true,
+                code: 200,
+                message: 'Get cron logs successfully',
+                data: logs,
+            };
+
+            return res.status(200).json(response);
+        } catch (error: any) {
+            const response: IApiResponse<null> = {
+                success: false,
+                code: 500,
+                message: 'Failed to get cron logs',
+                error: error.message,
+            };
+            return res.status(500).json(response);
+        }
+    };
 }
 
 export const scheduleController = new ScheduleController();

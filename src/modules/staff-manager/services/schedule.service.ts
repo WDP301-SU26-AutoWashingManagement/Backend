@@ -33,9 +33,9 @@ export class ScheduleService {
         throw new NotFoundError('Manager không tìm thấy');
         }
 
-        if (manager.staff_type !== StaffRole.MANAGER) {
-        throw new ForbiddenError('Chỉ Manager mới có quyền thực hiện hành động này');
-        }
+        // if (manager.staff_type !== StaffRole.MANAGER) {
+        // throw new ForbiddenError('Chỉ Manager mới có quyền thực hiện hành động này');
+        // }
 
         // Kiểm tra schedule tồn tại
         const schedule = await this.scheduleRepo.findById(scheduleId);
@@ -127,9 +127,9 @@ export class ScheduleService {
         throw new NotFoundError('Manager không tìm thấy');
         }
 
-        if (manager.staff_type !== StaffRole.MANAGER) {
-        throw new ForbiddenError('Chỉ Manager mới có quyền thực hiện hành động này');
-        }
+        // if (manager.staff_type !== StaffRole.MANAGER) {
+        // throw new ForbiddenError('Chỉ Manager mới có quyền thực hiện hành động này');
+        // }
 
         // Kiểm tra schedule 1 tồn tại
         const schedule1 = await this.scheduleRepo.findById(scheduleId1);
