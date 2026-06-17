@@ -5,10 +5,8 @@ export const addStaffToScheduleSchema = Joi.object({
 });
 
 export const switchStaffSchema = Joi.object({
-  body: Joi.object({
-    schedule_id_1: Joi.string().trim().required(),
-    staff_id_1: Joi.string().trim().required(),
-    schedule_id_2: Joi.string().trim().required(),
-    staff_id_2: Joi.string().trim().required(),
-  }).required(),
+  schedule_id_1: Joi.string().trim().required(),
+  staff_id_1: Joi.string().trim().required(),
+  schedule_id_2: Joi.string().trim().required(),
+  staff_id_2: Joi.string().trim().required(),
 });
