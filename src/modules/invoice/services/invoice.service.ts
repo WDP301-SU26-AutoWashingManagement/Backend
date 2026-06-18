@@ -15,6 +15,7 @@ import { Appointment, BookingStatus } from '../../../models/appointment.model';
 import { AppointmentService } from '../../../models/appointmentService.model';
 import { Customer } from '../../../models/customer.model';
 import { TierConfig } from '../../../models/tierConfig.model';
+import { Promotion, EPromotionType } from '../../../models/promotion.model';
 import mongoose from 'mongoose';
 import { ICreateInvoiceRequest } from '../interfaces/invoice.interface';
 
@@ -119,7 +120,59 @@ export class InvoiceService {
     }
 
     const subtotal = services.reduce((sum, s) => sum + s.price_snapshot, 0);
-    const discount_amount = opts.discount_amount ?? 0;
+
+    // ── 1. Giảm giá theo tier của customer ────────────────────
+    let tier_discount = 0;
+    const customer = await Customer.findById(appointment.customer_id);
+    if (customer?.tier_id) {
+      const tier = await TierConfig.findById(customer.tier_id);
+      if (tier && tier.discount_percentage > 0) {
+        tier_discount = Math.round(subtotal * (tier.discount_percentage / 100));
+      }
+    }
+    // Giá sau khi giảm tier — promotion sẽ áp dụng trên mức giá này
+    const price_after_tier = subtotal - tier_discount;
+
+    // ── 2. Áp dụng promotion ──────────────────────────────────
+    let promotion_discount = 0;
+    let resolvedPromotionId: mongoose.Types.ObjectId | null = null;
+
+    if (opts.promotion_id) {
+      const promotion = await Promotion.findById(opts.promotion_id);
+
+      if (!promotion) {
+        throw new NotFoundError('Promotion không tồn tại');
+      }
+      if (!promotion.is_active) {
+        throw new AppError('Promotion đã bị vô hiệu hoá', 400);
+      }
+      const now = new Date();
+      if (now < promotion.start_date || now > promotion.end_date) {
+        throw new AppError('Promotion chưa bắt đầu hoặc đã hết hạn', 400);
+      }
+      // min_order_amount kiểm tra trên subtotal gốc (trước mọi giảm giá)
+      if (subtotal < promotion.min_order_amount) {
+        throw new AppError(
+          `Đơn hàng tối thiểu ${promotion.min_order_amount.toLocaleString('vi-VN')} VNĐ mới được dùng promotion này`,
+          400,
+        );
+      }
+
+      if (promotion.type === EPromotionType.DISCOUNT) {
+        // Tính % trên giá đã giảm tier, capped bởi discount_amount (max cap)
+        const calculated = Math.round(price_after_tier * (promotion.discount_percentage / 100));
+        promotion_discount = promotion.discount_amount
+          ? Math.min(calculated, promotion.discount_amount)
+          : calculated;
+      }
+      // BONUS_SERVICE: không tính tiền, chỉ ghi nhận promotion_id để FE hiển thị
+
+      resolvedPromotionId = promotion._id as mongoose.Types.ObjectId;
+    }
+    // ──────────────────────────────────────────────────────────
+
+    const discount_amount = tier_discount + promotion_discount;
+
     const tax_amount = Math.round((subtotal - discount_amount) * (opts.tax_rate ?? 0));
     const total = subtotal - discount_amount + tax_amount;
 
@@ -135,7 +188,7 @@ export class InvoiceService {
       tax_amount,
       total,
       invoice_status: InvoiceStatus.DRAFT,
-      promotion_id: opts.promotion_id ?? null,
+      promotion_id: resolvedPromotionId,
       customer_voucher_id: opts.customer_voucher_id ?? null,
       vat_requested: opts.vat_requested ?? false,
       tax_code: opts.tax_code ?? null,
