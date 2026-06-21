@@ -13,7 +13,6 @@ export class InvoiceController {
     try {
       const {
         appointment_id,
-        discount_amount,
         tax_rate,
         promotion_id,
         customer_voucher_id,
@@ -22,7 +21,6 @@ export class InvoiceController {
       } = req.body as ICreateInvoiceRequest;
 
       const invoice = await this.svc.createInvoice(appointment_id, {
-        discount_amount,
         tax_rate,
         promotion_id,
         customer_voucher_id,
@@ -44,12 +42,12 @@ export class InvoiceController {
         Number(req.body.expire_minutes) || 30,
       );
       sendCreated(res, {
-        invoice_id    : invoice._id,
+        invoice_id: invoice._id,
         invoice_number: invoice.invoice_number,
-        checkout_url  : invoice.checkout_url,
-        qr_code       : invoice.qr_code,
-        status        : invoice.invoice_status,
-        expired_at    : invoice.expired_at,
+        checkout_url: invoice.checkout_url,
+        qr_code: invoice.qr_code,
+        status: invoice.invoice_status,
+        expired_at: invoice.expired_at,
       }, 'Tạo link thanh toán thành công');
     } catch (err) {
       next(err);
