@@ -30,4 +30,11 @@ export const env = {
   PAYOS_CHECKSUM_KEY: process.env.PAYOS_CHECKSUM_KEY ?? '',
   PAYOS_RETURN_URL  : process.env.PAYOS_RETURN_URL   ?? 'http://localhost:5173/payment/success',
   PAYOS_CANCEL_URL  : process.env.PAYOS_CANCEL_URL   ?? 'http://localhost:5173/payment/cancel',
+
+  // ── Gemini (RAG recommendation) ──────────────────────────────────────────
+  GEMINI_API_KEY        : process.env.GEMINI_API_KEY ?? '',
+  GEMINI_API_BASE        : process.env.GEMINI_API_BASE ?? 'https://generativelanguage.googleapis.com/v1beta',
+  GEMINI_EMBEDDING_MODEL : process.env.GEMINI_EMBEDDING_MODEL ?? 'text-embedding-001',
+  GEMINI_GENERATION_MODEL: process.env.GEMINI_GENERATION_MODEL ?? 'gemini-2.5-flash',
+  RECOMMENDATION_CACHE_TTL_SECONDS: Number(process.env.RECOMMENDATION_CACHE_TTL_SECONDS ?? 21600), // 6h
 } as const;

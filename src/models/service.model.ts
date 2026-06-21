@@ -10,6 +10,8 @@ export interface IService extends Document {
     service_price: number;
     duration_minutes: number;
     is_active: boolean;
+    /** Vector embedding của (service_name + description), dùng cho RAG retrieval. */
+    embedding?: number[];
 }
 
 const serviceSchema = new Schema<IService>(
@@ -52,6 +54,12 @@ const serviceSchema = new Schema<IService>(
             type: Boolean,
             required: true,
             default: true
+        },
+
+        embedding: {
+            type: [Number],
+            default: [],
+            select: false,
         },
     },
     {

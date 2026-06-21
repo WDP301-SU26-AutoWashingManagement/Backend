@@ -9,6 +9,8 @@ export interface IServicePackage extends Document {
     description: string;
     package_discount_percentage: number;
     is_active: boolean;
+    /** Vector embedding của (package_name + description), dùng cho RAG retrieval. */
+    embedding?: number[];
 }
 
 const servicePackageSchema = new Schema<IServicePackage>(
@@ -45,6 +47,12 @@ const servicePackageSchema = new Schema<IServicePackage>(
             type: Boolean,
             required: true,
             default: true
+        },
+
+        embedding: {
+            type: [Number],
+            default: [],
+            select: false,
         },
     },
     {
