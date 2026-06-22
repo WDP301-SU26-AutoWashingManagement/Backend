@@ -21,6 +21,7 @@ import recommendationRoutes from './modules/recommendation/routes/recommendation
 import invoiceRoutes from './modules/invoice/routes/invoice.routes';
 import promotionRoutes from './modules/promotion/routes/promotion.route';
 import staffRoutes from './modules/staff-manager/routes/staff.route';
+import bookingChecklistRoutes from './modules/booking-checklist/routes/bookingChecklist.route';
 
 // import notificationRoutes from './modules/notification/routes/notification.routes';
 // import feedbackRoutes from './modules/feedback/routes/feedback.routes';
@@ -52,6 +53,7 @@ router.use('/bookings/recommendation', recommendationRoutes);
 router.use('/bookings', bookingRoutes);
 router.use('/invoices', invoiceRoutes);
 router.use('/promotions', promotionRoutes);
+router.use('/booking-checklists', bookingChecklistRoutes);
 // router.use('/bookings', bookingRoutes);
 // router.use('/services', serviceRoutes);
 // router.use('/vehicles', vehicleRoutes);
