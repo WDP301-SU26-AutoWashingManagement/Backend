@@ -272,16 +272,28 @@ export class BookingService {
 
         // Customer chỉ thấy booking của mình
         if (requesterRole === UserRole.CUSTOMER) {
-        const customer = await customerRepository.findOne({
-            user_id: new Types.ObjectId(requesterId),
-        });
-        if (!customer) throw new NotFoundError('Customer profile not found');
-        filter.customer_id = customer._id;
+            const customer = await customerRepository.findOne({
+                user_id: new Types.ObjectId(requesterId),
+            });
+            if (!customer) throw new NotFoundError('Customer profile not found');
+            filter.customer_id = customer._id;
         } else {
-        // Staff/Admin/Boss: filter theo params
-        if (rest.customer_id) filter.customer_id = new Types.ObjectId(rest.customer_id);
-        if (rest.staff_id)    filter.staff_id    = new Types.ObjectId(rest.staff_id);
-        if (rest.branch_id)   filter.branch_id   = new Types.ObjectId(rest.branch_id);
+            if (rest.customer_id) filter.customer_id = new Types.ObjectId(rest.customer_id);
+            if (rest.staff_id)    filter.staff_id    = new Types.ObjectId(rest.staff_id);
+
+            // BẮT BUỘC lọc branch_id đối với STAFF và ADMIN
+            if (requesterRole === UserRole.STAFF || requesterRole === UserRole.ADMIN) {
+                const { User } = require('../../../models/user.model');
+                const user = await User.findById(requesterId);
+                if (user && user.branch_id) {
+                    filter.branch_id = user.branch_id;
+                } else if (rest.branch_id) {
+                    filter.branch_id = new Types.ObjectId(rest.branch_id);
+                }
+            } else {
+                // BOSS có thể lọc tự do
+                if (rest.branch_id) filter.branch_id = new Types.ObjectId(rest.branch_id);
+            }
         }
 
         if (rest.booking_status) {
@@ -305,18 +317,31 @@ export class BookingService {
         const appointmentIds = result.docs.map(doc => doc._id);
         const services = await this.appointmentServiceRepo.findByAppointmentIds(appointmentIds);
 
+        // Import Invoice
+        const { Invoice } = require('../../../models/invoice.model');
+        const invoices = await Invoice.find({ appointment_id: { $in: appointmentIds } }).lean();
+
         const docsWithServices = result.docs.map(doc => {
             const docObj = doc.toObject ? doc.toObject() : doc;
             const docServices = services.filter(s => s.appointment_id.toString() === doc._id.toString());
             
-            const final_price = docServices.reduce((sum, s) => sum + s.price_snapshot, 0);
+            const base_price = docServices.reduce((sum, s) => sum + s.price_snapshot, 0);
+            
+            // Tìm hoá đơn tương ứng
+            const invoice = invoices.find((inv: any) => inv.appointment_id.toString() === doc._id.toString());
+            
+            const final_price = invoice ? invoice.total : base_price;
+            const discount_amount = invoice ? invoice.discount_amount : undefined;
+
             const mainPackage = docServices.find(s => s.service_package_id);
             const mainService = docServices[0];
 
             return {
                 ...docObj,
                 services: docServices,
+                base_price,
                 final_price,
+                discount_amount,
                 // frontend expects service_package_id as object for package name
                 service_package_id: mainPackage ? mainPackage.service_package_id : (mainService ? mainService.service_id : null)
             };
@@ -350,7 +375,24 @@ export class BookingService {
         }
 
         const services = await this.appointmentServiceRepo.findByAppointmentId(appointmentId);
-        return { appointment, services };
+
+        // Compute final_price similarly
+        const { Invoice } = require('../../../models/invoice.model');
+        const invoice = await Invoice.findOne({ appointment_id: appointmentId }).lean();
+        
+        const base_price = services.reduce((sum, s: any) => sum + s.price_snapshot, 0);
+        const final_price = invoice ? invoice.total : base_price;
+        const discount_amount = invoice ? invoice.discount_amount : undefined;
+
+        const appointmentObj = appointment.toObject ? appointment.toObject() : appointment;
+        const resultAppt = {
+            ...appointmentObj,
+            base_price,
+            final_price,
+            discount_amount
+        };
+
+        return { appointment: resultAppt as any, services };
     }
 
     // ─── 5. Confirm Booking ──────────────────────────────────────────────────
@@ -518,15 +560,37 @@ export class BookingService {
     // ─── 10. Complete Booking ────────────────────────────────────────────────
 
     /**
+     * Staff đánh dấu rửa xong (nhưng chưa thanh toán).
+     * IN_PROGRESS → WASHED.
+     */
+    async washedBooking(appointmentId: string): Promise<IAppointment> {
+        const appointment = await this.appointmentRepo.findById(appointmentId);
+        if (!appointment) throw new NotFoundError('Booking not found');
+
+        if (appointment.booking_status !== BookingStatus.IN_PROGRESS) {
+            throw new BadRequestError(
+                `Cannot mark as washed from status "${appointment.booking_status}"`,
+            );
+        }
+
+        const updated = await this.appointmentRepo.updateById(appointmentId, {
+            booking_status: BookingStatus.WASHED,
+        });
+        if (!updated) throw new NotFoundError('Booking not found');
+
+        return this.appointmentRepo.findByIdPopulated(appointmentId) as Promise<IAppointment>;
+    }
+
+    /**
      * Staff đánh dấu hoàn thành.
-     * CHECKED_IN → COMPLETED. started_at phải có (service phải đã bắt đầu).
+     * WASHED (hoặc CHECKED_IN/IN_PROGRESS) → COMPLETED. 
      * Tính earned_membership_point từ subtotal.
      */
     async completeBooking(appointmentId: string): Promise<IAppointment> {
         const appointment = await this.appointmentRepo.findById(appointmentId);
         if (!appointment) throw new NotFoundError('Booking not found');
 
-        if (![BookingStatus.CHECKED_IN, BookingStatus.IN_PROGRESS].includes(appointment.booking_status)) {
+        if (![BookingStatus.CHECKED_IN, BookingStatus.IN_PROGRESS, BookingStatus.WASHED].includes(appointment.booking_status)) {
         throw new BadRequestError(
             `Cannot complete a booking with status "${appointment.booking_status}"`,
         );

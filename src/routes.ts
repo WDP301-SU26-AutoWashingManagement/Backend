@@ -17,9 +17,11 @@ import iotRoutes from './modules/iot/routes/iot.route';
 import customerRoutes from './modules/customer/routes/customer.routes';
 import adminRoutes from './modules/admin/routes/admin.route';
 import bookingRoutes from './modules/booking/routes/booking.route'
+import recommendationRoutes from './modules/recommendation/routes/recommendation.route';
 import invoiceRoutes from './modules/invoice/routes/invoice.routes';
 import promotionRoutes from './modules/promotion/routes/promotion.route';
 import staffRoutes from './modules/staff-manager/routes/staff.route';
+import bookingChecklistRoutes from './modules/booking-checklist/routes/bookingChecklist.route';
 
 // import notificationRoutes from './modules/notification/routes/notification.routes';
 // import feedbackRoutes from './modules/feedback/routes/feedback.routes';
@@ -45,9 +47,13 @@ router.use('/schedule', scheduleRoutes);
 router.use('/wash', iotRoutes);
 router.use('/customers', customerRoutes);
 router.use('/admin', adminRoutes);
+// "Auto-Pilot Booking" — phải mount TRƯỚC /bookings vì booking.route.ts có GET /:id
+// sẽ nuốt mất /bookings/recommendation nếu đăng ký sau.
+router.use('/bookings/recommendation', recommendationRoutes);
 router.use('/bookings', bookingRoutes);
 router.use('/invoices', invoiceRoutes);
 router.use('/promotions', promotionRoutes);
+router.use('/booking-checklists', bookingChecklistRoutes);
 // router.use('/bookings', bookingRoutes);
 // router.use('/services', serviceRoutes);
 // router.use('/vehicles', vehicleRoutes);

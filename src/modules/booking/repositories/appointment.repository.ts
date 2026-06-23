@@ -90,7 +90,10 @@ export class AppointmentRepository extends BaseRepository<IAppointment> {
         populate: [
             { path: 'branch_id',   select: 'branch_address operating_time bay_counts' },
             { path: 'vehicle_id',  select: 'license_plate vehicle_model color fuel_type vehicle_class_id model_id' },
-            { path: 'customer_id', populate: { path: 'user_id', select: 'full_name email phone avatar_url' } },
+            { path: 'customer_id', populate: [
+                { path: 'user_id', select: 'full_name email phone avatar_url' },
+                { path: 'tier_id', select: 'tier_name discount_percentage' }
+            ] },
             { path: 'staff_id',    populate: { path: 'user_id', select: 'full_name email phone' }, options: { strictPopulate: false } },
         ],
         });
@@ -105,7 +108,10 @@ export class AppointmentRepository extends BaseRepository<IAppointment> {
         .populate('vehicle_id',  'license_plate vehicle_model color fuel_type vehicle_class_id model_id')
         .populate({
             path    : 'customer_id',
-            populate: { path: 'user_id', select: 'full_name email phone avatar_url' },
+            populate: [
+                { path: 'user_id', select: 'full_name email phone avatar_url' },
+                { path: 'tier_id', select: 'tier_name discount_percentage' }
+            ],
         })
         .populate({
             path    : 'staff_id',

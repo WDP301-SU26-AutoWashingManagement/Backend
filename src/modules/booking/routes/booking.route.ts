@@ -119,8 +119,18 @@ router.patch(
 );
 
 /**
+ * PATCH /bookings/:id/washed
+ * Staff đánh dấu rửa xong, chuẩn bị thanh toán. IN_PROGRESS -> WASHED.
+ */
+router.patch(
+  '/:id/washed',
+  authorize(UserRole.STAFF, UserRole.ADMIN, UserRole.BOSS),
+  ctrl.washed,
+);
+
+/**
  * PATCH /bookings/:id/complete
- * Staff đánh dấu hoàn thành, tính điểm. CHECKED_IN → COMPLETED.
+ * Staff đánh dấu hoàn thành, tính điểm. WASHED → COMPLETED.
  */
 router.patch(
   '/:id/complete',

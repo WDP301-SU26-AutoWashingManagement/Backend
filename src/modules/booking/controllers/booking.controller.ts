@@ -154,6 +154,17 @@ export class BookingController {
         }
     };
 
+    // ─── PATCH /bookings/:id/washed ─────────────────────────────────────────
+
+    washed = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+        try {
+        const appointment = await this.bookingService.washedBooking(req.params.id);
+        sendSuccess(res, appointment, 'Booking marked as washed');
+        } catch (err) {
+        next(err);
+        }
+    };
+
     // ─── PATCH /bookings/:id/complete ─────────────────────────────────────────
 
     complete = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
