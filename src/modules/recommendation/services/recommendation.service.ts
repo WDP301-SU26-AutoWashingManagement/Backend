@@ -68,7 +68,15 @@ export class RecommendationService {
 
     const cacheKey = `reco:${customer._id}:${dto.vehicle_id}:${dto.branch_id ?? 'auto'}`;
     const cached = await this.readCache(cacheKey);
-    if (cached) return cached;
+    if (cached) {
+      // Nếu suggested_scheduled_at đã qua → cache stale, bỏ qua và tính lại slot mới.
+      const slotStillValid =
+        !cached.suggested_scheduled_at ||
+        new Date(cached.suggested_scheduled_at) > new Date();
+      if (slotStillValid) return cached;
+      // Slot đã qua: xóa cache cũ, tiếp tục tính lại (chỉ cần refresh slot, không cần re-run toàn bộ RAG)
+      await this.deleteCache(cacheKey);
+    }
 
     const history = await this.repo.findRecentHistory(dto.vehicle_id, HISTORY_LIMIT);
 
@@ -438,6 +446,14 @@ Yêu cầu:
     } catch (err) {
       logger.warn('[recommendation] redis cache read failed', err);
       return null;
+    }
+  }
+
+  private async deleteCache(key: string): Promise<void> {
+    try {
+      await redisClient.del(key);
+    } catch (err) {
+      logger.warn('[recommendation] redis cache delete failed', err);
     }
   }
 
