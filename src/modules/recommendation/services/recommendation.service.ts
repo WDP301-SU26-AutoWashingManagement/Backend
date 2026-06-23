@@ -422,15 +422,20 @@ Yêu cầu:
     for (let dayOffset = 0; dayOffset < SLOT_LOOKAHEAD_DAYS; dayOffset++) {
       const date = new Date();
       date.setDate(date.getDate() + dayOffset);
-      const dateStr = date.toISOString().slice(0, 10);
+      
+      // Khắc phục lỗi UTC: Lấy chuẩn ngày giờ địa phương (Local Time)
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
 
       try {
         const slots = await bookingService.getAvailableSlots(branchId, { date: dateStr, service_ids: serviceIds });
         if (slots.length) return slots[0].scheduled_at;
-      } catch (err) {
-        // Branch không tồn tại / inactive — dừng thử, để FE tự xử lý (báo chọn branch khác).
-        logger.warn(`[recommendation] getAvailableSlots failed for branch ${branchId} on ${dateStr}`, err);
-        return null;
+      } catch (err: any) {
+        // Bỏ qua lỗi (vd: lệch múi giờ quá khứ) và thử tiếp ngày mai thay vì return null tắt hoàn toàn chức năng
+        logger.warn(`[recommendation] getAvailableSlots failed for branch ${branchId} on ${dateStr}`, err?.message || err);
+        continue;
       }
     }
 
