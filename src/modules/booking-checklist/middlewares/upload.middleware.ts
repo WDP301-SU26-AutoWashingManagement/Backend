@@ -1,39 +1,15 @@
-import multer, { StorageEngine } from 'multer';
-import path from 'path';
-import fs from 'fs';
+import multer from 'multer';
 
-// ─── Ensure upload directory exists ──────────────────────────────────────────
-
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'checklists');
-
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
-
-// ─── Disk storage config ──────────────────────────────────────────────────────
-
-const storage: StorageEngine = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
-  filename: (_req, file, cb) => {
-    const ext       = path.extname(file.originalname).toLowerCase();
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`;
-    cb(null, uniqueName);
-  },
-});
-
-// ─── File filter ──────────────────────────────────────────────────────────────
+// ─── Memory storage — không lưu disk, convert sang base64 ────────────────────
 
 const ALLOWED_MIMETYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const MAX_SIZE_BYTES    = 5 * 1024 * 1024; // 5 MB
 
-// ─── Multer instance ──────────────────────────────────────────────────────────
-
-export const checklistUpload = multer({
-  storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5 MB per file
-    files   : 10,               // max 10 images per request
+const checklistUpload = multer({
+  storage: multer.memoryStorage(),
+  limits : {
+    fileSize: MAX_SIZE_BYTES,
+    files   : 10,
   },
   fileFilter: (_req, file, cb) => {
     if (!ALLOWED_MIMETYPES.includes(file.mimetype)) {
@@ -45,25 +21,19 @@ export const checklistUpload = multer({
 
 /**
  * Middleware upload nhiều ảnh — field name: "images"
- * Tự động lưu file vào /uploads/checklists và thêm đường dẫn vào req.body.images
+ * Convert buffer → base64 data URI và gán vào req.body.images
  */
 export const uploadChecklistImages = [
   checklistUpload.array('images', 10),
 
   (req: any, _res: any, next: any) => {
-
-    console.log('========== AFTER MULTER ==========');
-    console.log('BODY:', req.body);
-    console.log('FILES:', req.files);
-
     if (req.files && Array.isArray(req.files)) {
       req.body.images = (req.files as Express.Multer.File[]).map(
-        (f) => `/uploads/checklists/${f.filename}`,
+        (f) => `data:${f.mimetype};base64,${f.buffer.toString('base64')}`,
       );
     } else {
       req.body.images = req.body.images ?? [];
     }
-
     next();
   },
 ];

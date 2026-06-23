@@ -41,5 +41,5 @@ export const env = {
   GEMINI_API_BASE        : process.env.GEMINI_API_BASE ?? 'https://generativelanguage.googleapis.com/v1beta',
   GEMINI_EMBEDDING_MODEL : process.env.GEMINI_EMBEDDING_MODEL ?? 'gemini-embedding-001',
   GEMINI_GENERATION_MODEL: process.env.GEMINI_GENERATION_MODEL ?? 'gemini-2.0-flash',
-  RECOMMENDATION_CACHE_TTL_SECONDS: Number(process.env.RECOMMENDATION_CACHE_TTL_SECONDS ?? 21600), // 6h
+  RECOMMENDATION_CACHE_TTL_SECONDS: Number(process.env.RECOMMENDATION_CACHE_TTL_SECONDS ?? 1800), // 30phuts
 } as const;

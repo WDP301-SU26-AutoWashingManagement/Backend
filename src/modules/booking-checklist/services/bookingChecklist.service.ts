@@ -23,8 +23,6 @@ import { ConflictError, NotFoundError, BadRequestError } from '../../../common/u
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const UPLOAD_DIR = path.join(process.cwd(), 'uploads', 'checklists');
-
 function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('vi-VN', {
     day  : '2-digit',
@@ -278,10 +276,8 @@ class BookingChecklistService {
       let colIndex    = 0;
       let rowStartY   = doc.y;
 
-      for (const imgUrl of checklist.images) {
-        // imgUrl dạng /uploads/checklists/xxx.jpg
-        const imgPath = path.join(process.cwd(), imgUrl.replace(/^\//, ''));
-
+      for (const imgData of checklist.images) {
+        // imgData là base64 data URI: "data:image/jpeg;base64,..."
         if (doc.y + IMG_H > doc.page.height - 60) {
           doc.addPage();
           rowStartY = doc.y = 60;
@@ -292,13 +288,15 @@ class BookingChecklistService {
         const y = rowStartY;
 
         try {
-          if (fs.existsSync(imgPath)) {
-            doc.image(imgPath, x, y, { width: IMG_W, height: IMG_H, fit: [IMG_W, IMG_H] });
+          const base64Match = imgData.match(/^data:(image\/\w+);base64,(.+)$/);
+          if (base64Match) {
+            const imgBuffer = Buffer.from(base64Match[2], 'base64');
+            doc.image(imgBuffer, x, y, { width: IMG_W, height: IMG_H, fit: [IMG_W, IMG_H] });
           } else {
-            // Placeholder nếu file không còn trên disk
+            // Placeholder nếu không phải base64 data URI hợp lệ
             doc.rect(x, y, IMG_W, IMG_H).stroke('#BDBDBD');
             doc.fillColor(MID_TEXT).fontSize(8)
-              .text('[Ảnh không tìm thấy]', x + 10, y + IMG_H / 2 - 8, { width: IMG_W - 20 });
+              .text('[Ảnh không hợp lệ]', x + 10, y + IMG_H / 2 - 8, { width: IMG_W - 20 });
           }
         } catch {
           doc.rect(x, y, IMG_W, IMG_H).stroke('#BDBDBD');
