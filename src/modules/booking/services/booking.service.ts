@@ -272,16 +272,28 @@ export class BookingService {
 
         // Customer chỉ thấy booking của mình
         if (requesterRole === UserRole.CUSTOMER) {
-        const customer = await customerRepository.findOne({
-            user_id: new Types.ObjectId(requesterId),
-        });
-        if (!customer) throw new NotFoundError('Customer profile not found');
-        filter.customer_id = customer._id;
+            const customer = await customerRepository.findOne({
+                user_id: new Types.ObjectId(requesterId),
+            });
+            if (!customer) throw new NotFoundError('Customer profile not found');
+            filter.customer_id = customer._id;
         } else {
-        // Staff/Admin/Boss: filter theo params
-        if (rest.customer_id) filter.customer_id = new Types.ObjectId(rest.customer_id);
-        if (rest.staff_id)    filter.staff_id    = new Types.ObjectId(rest.staff_id);
-        if (rest.branch_id)   filter.branch_id   = new Types.ObjectId(rest.branch_id);
+            if (rest.customer_id) filter.customer_id = new Types.ObjectId(rest.customer_id);
+            if (rest.staff_id)    filter.staff_id    = new Types.ObjectId(rest.staff_id);
+
+            // BẮT BUỘC lọc branch_id đối với STAFF và ADMIN
+            if (requesterRole === UserRole.STAFF || requesterRole === UserRole.ADMIN) {
+                const { User } = require('../../../models/user.model');
+                const user = await User.findById(requesterId);
+                if (user && user.branch_id) {
+                    filter.branch_id = user.branch_id;
+                } else if (rest.branch_id) {
+                    filter.branch_id = new Types.ObjectId(rest.branch_id);
+                }
+            } else {
+                // BOSS có thể lọc tự do
+                if (rest.branch_id) filter.branch_id = new Types.ObjectId(rest.branch_id);
+            }
         }
 
         if (rest.booking_status) {

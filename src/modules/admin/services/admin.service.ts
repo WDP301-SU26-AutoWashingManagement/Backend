@@ -3,57 +3,97 @@ import { Customer } from '../../../models/customer.model';
 import { Invoice } from '../../../models/invoice.model';
 import { AppointmentService } from '../../../models/appointmentService.model';
 import { IBookingCount, IProfitQuery, IDailyProfit, ITopService } from '../interfaces/admin.interface';
+import { Types } from 'mongoose';
 
 class AdminService {
   /**
    * Get total number of customers.
    */
-  async getCustomerCount(): Promise<{ totalCustomers: number }> {
-    const totalCustomers = await Customer.countDocuments();
+  async getCustomerCount(branchId?: string | null): Promise<{ totalCustomers: number }> {
+    let totalCustomers = 0;
+    if (branchId) {
+        // Find all unique customers who have an appointment at this branch
+        const uniqueCustomers = await Appointment.distinct('customer_id', { branch_id: new Types.ObjectId(branchId) });
+        totalCustomers = uniqueCustomers.length;
+    } else {
+        totalCustomers = await Customer.countDocuments();
+    }
     return { totalCustomers };
   }
 
   /**
    * Get total bookings within startDate and endDate.
    */
-  async getBookingCount(date: IBookingCount): Promise<{ totalBookings: number }> {
+  async getBookingCount(date: IBookingCount, branchId?: string | null): Promise<{ totalBookings: number }> {
     const start = new Date(date.startDate);
     const end = new Date(date.endDate);
     end.setHours(23, 59, 59, 999);
-    const totalBookings = await Appointment.countDocuments({
+    
+    const filter: any = {
       scheduled_at: {
         $gte: start,
         $lte: end,
       }
-    });
+    };
+    if (branchId) {
+        filter.branch_id = new Types.ObjectId(branchId);
+    }
+    
+    const totalBookings = await Appointment.countDocuments(filter);
     return { totalBookings };
   }
 
   /**
    * Get daily profit (sum of total for paid invoices) between startDate and endDate.
    */
-  async getDailyProfit(query: IProfitQuery): Promise<IDailyProfit[]> {
+  async getDailyProfit(query: IProfitQuery, branchId?: string | null): Promise<IDailyProfit[]> {
     const start = new Date(query.startDate);
     const end = new Date(query.endDate);
     // Set end to end-of-day so the entire endDate is included
     end.setHours(23, 59, 59, 999);
 
-    // Aggregate paid invoices, group by day
-    const results = await Invoice.aggregate<{ _id: string; profit: number }>([
-      {
-        $match: {
-          invoice_status: 'paid',
-          paid_at: { $gte: start, $lte: end },
+    // Build match filter for invoices
+    const invoiceMatch: any = {
+      invoice_status: 'paid',
+      paid_at: { $gte: start, $lte: end },
+    };
+
+    // If branchId is provided, we must lookup the appointment and match its branch_id
+    const pipeline: any[] = [
+      { $match: invoiceMatch }
+    ];
+
+    if (branchId) {
+      pipeline.push(
+        {
+          $lookup: {
+            from: 'appointments',
+            localField: 'appointment_id',
+            foreignField: '_id',
+            as: 'appointment'
+          }
         },
-      },
+        { $unwind: '$appointment' },
+        {
+          $match: {
+            'appointment.branch_id': new Types.ObjectId(branchId)
+          }
+        }
+      );
+    }
+
+    pipeline.push(
       {
         $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$paid_at', timezone: '+07:00' } },
           profit: { $sum: '$total' },
         },
       },
-      { $sort: { _id: 1 } },
-    ]);
+      { $sort: { _id: 1 } }
+    );
+
+    // Aggregate paid invoices, group by day
+    const results = await Invoice.aggregate<{ _id: string; profit: number }>(pipeline);
 
     // Build a lookup map from aggregation results
     const profitMap = new Map<string, number>();
@@ -79,10 +119,19 @@ class AdminService {
   /**
    * Get top 3 most selected service packages in the last 30 days.
    */
-  async getTopServices(): Promise<ITopService[]> {
+  async getTopServices(branchId?: string | null): Promise<ITopService[]> {
     const now = new Date();
     const thirtyDaysAgo = new Date(now);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const appointmentMatch: any = {
+      'appointment.createdAt': { $gte: thirtyDaysAgo, $lte: now },
+      'appointment.booking_status': { $ne: 'cancelled' },
+    };
+
+    if (branchId) {
+      appointmentMatch['appointment.branch_id'] = new Types.ObjectId(branchId);
+    }
 
     const results = await AppointmentService.aggregate([
       // Only care about services associated with a service package
@@ -103,10 +152,7 @@ class AdminService {
       { $unwind: '$appointment' },
       // Filter for appointments created in the last 30 days that are not cancelled
       {
-        $match: {
-          'appointment.createdAt': { $gte: thirtyDaysAgo, $lte: now },
-          'appointment.booking_status': { $ne: 'cancelled' },
-        },
+        $match: appointmentMatch,
       },
       // Group by the service package
       {
