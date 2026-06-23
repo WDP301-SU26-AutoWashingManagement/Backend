@@ -3,33 +3,49 @@ import { BaseRepository } from '../../../common/repositories/base.repository';
 import { Staff, IStaff } from '../../../models/staff.model';
 import { IPaginatedStaffResponse, IStaffResponse, SortableStaffField } from '../dto/staff.dto';
 import { Types } from 'mongoose';
+import { IUser } from 'src/models/user.model';
 
 export class StaffRepository extends BaseRepository<IStaff> {
     constructor() {
         super(Staff);
     }
 
+    findById = async (id: string) => {
+        const result = await this.model.findById(id)
+            .populate('user_id', 'email full_name avatar_url phone is_active')
+            .exec();
+        
+        console.log('[DEBUG] staff.user_id after populate:', JSON.stringify(result?.user_id));
+        return result as any;
+    }
+
+    updateById = async (id: string, data: any) => {
+        return this.model.findByIdAndUpdate(id, data, { new: true, runValidators: true })
+            .populate('user_id', 'email full_name avatar_url phone is_active')
+            .exec() as any;
+    }
+
     async findByUserId(userId: string) {
-        return this.model.findOne({ user_id: userId }).exec();
+        return this.model.findOne({ user_id: userId }).populate('user_id', 'email full_name avatar_url phone is_active').exec();
     }
 
     async findByRole(role: string) {
-        return this.model.find({ role }).exec();
+        return this.model.find({ role }).populate('user_id', 'email full_name avatar_url phone is_active').exec();
     }
 
     async findAllActive() {
-        return this.model.find({ is_active: true }).exec();
+        return this.model.find({ is_active: true }).populate('user_id', 'email full_name avatar_url phone is_active').exec();
     }
 
     async findManagersByBranch(branchId: string) {
         return this.model.find({
             branch_id: branchId,
             staff_type: StaffRole.MANAGER,
-        }).exec();
+        }).populate('user_id', 'email full_name avatar_url phone is_active').exec();
     }
 
     async findByStaffCode(staffCode: string): Promise<IStaff | null> {
-        return await Staff.findOne({ staff_code: staffCode });
+        return await Staff.findOne({ staff_code: staffCode }).populate('user_id', 'email full_name avatar_url phone is_active');
     }
 
     async findAll(
@@ -77,6 +93,7 @@ export class StaffRepository extends BaseRepository<IStaff> {
         // Execute queries
         const [data, total] = await Promise.all([
             Staff.find(query)
+                .populate('user_id', 'email full_name avatar_url phone is_active')
                 .sort(sortObj)
                 .skip(skip)
                 .limit(limit)
@@ -121,7 +138,7 @@ export class StaffRepository extends BaseRepository<IStaff> {
         }
         return await Staff.find({
             branch_id: new Types.ObjectId(branchId),
-        });
+        }).populate('user_id', 'email full_name avatar_url phone is_active');
     }
  
     /**
@@ -175,16 +192,17 @@ export class StaffRepository extends BaseRepository<IStaff> {
             staffId,
             { $inc: { used_leave_days: additionalDays } },
             { new: true, runValidators: true }
-        );
+        ).populate('user_id', 'email full_name avatar_url phone is_active');
     }
  
     /**
      * Map staff document to response format
      */
     private mapToResponse(staff: any): IStaffResponse {
+        const user = staff.user_id as Partial<IUser>;
         return {
             _id: staff._id.toString(),
-            user_id: staff.user_id.toString(),
+            user_id: user?._id?.toString() ?? staff.user_id?.toString(),
             branch_id: staff.branch_id ? staff.branch_id.toString() : null,
             staff_code: staff.staff_code,
             staff_type: staff.staff_type,
@@ -195,6 +213,12 @@ export class StaffRepository extends BaseRepository<IStaff> {
             used_leave_days: staff.used_leave_days,
             createdAt: staff.createdAt,
             updatedAt: staff.updatedAt,
+
+            email: user?.email ?? null,
+            full_name: user?.full_name ?? null,
+            avatar_url: user?.avatar_url ?? null,
+            phone: user?.phone ?? null,
+            is_active: user?.is_active ?? null,
         };
     }
 }

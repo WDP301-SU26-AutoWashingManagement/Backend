@@ -11,8 +11,8 @@ router.use(authenticate);
 
 // Admin only
 router.post('/', authorize(UserRole.ADMIN), controller.create);
-router.get('/', authorize(UserRole.ADMIN), controller.getList);
-router.get('/:id', authorize(UserRole.ADMIN), controller.getById);
+router.get('/', authorize(UserRole.ADMIN, UserRole.BOSS), controller.getList);
+router.get('/:id', authorize(UserRole.ADMIN, UserRole.BOSS), controller.getById);
 router.patch('/:id', authorize(UserRole.ADMIN), controller.update);
 router.delete('/:id', authorize(UserRole.ADMIN), controller.remove);
 

@@ -18,3 +18,7 @@ export interface ITopService {
     serviceName: string;
     count: number;
 }
+
+export interface IAdminUpdate {
+    user_id?: string;
+}

@@ -2,10 +2,13 @@ import { Appointment } from '../../../models/appointment.model';
 import { Customer } from '../../../models/customer.model';
 import { Invoice } from '../../../models/invoice.model';
 import { AppointmentService } from '../../../models/appointmentService.model';
-import { IBookingCount, IProfitQuery, IDailyProfit, ITopService } from '../interfaces/admin.interface';
+import { IBookingCount, IProfitQuery, IDailyProfit, ITopService, IAdminUpdate } from '../interfaces/admin.interface';
 import { Types } from 'mongoose';
+import { adminRepository } from '../repositories/admin.repository';
+import { BadRequestError, NotFoundError } from '@common/utils/AppError';
 
 class AdminService {
+  private readonly adminRepo = adminRepository;
   /**
    * Get total number of customers.
    */
@@ -184,6 +187,40 @@ class AdminService {
     ]);
 
     return results as ITopService[];
+  }
+
+  async getAdmins() {
+      return this.adminRepo.findMany();
+  }
+
+  async getAdmin(adminId: string) {
+      const admin = await this.adminRepo.findById(adminId);
+      if (!admin) throw new NotFoundError("Không tìm thấy admin");
+      return admin;
+  }
+
+  async updateAdmin(adminId: string, data: IAdminUpdate) {
+      const admin = await this.adminRepo.findById(adminId);
+      if (!admin) throw new NotFoundError("Không tìm thấy admin");
+
+      if (data.user_id) {
+          const existing = await this.adminRepo.findByUserId(data.user_id);
+          if (existing && existing._id.toString() !== adminId) {
+              throw new BadRequestError("User này đã được gán cho admin khác");
+          }
+      }
+
+      await this.adminRepo.updateById(adminId, data);
+      return this.adminRepo.findById(adminId);
+  }
+
+  async deleteAdmin(adminId: string) {
+      const admin = await this.adminRepo.findById(adminId);
+      if (!admin) throw new NotFoundError("Không tìm thấy admin");
+
+      await this.adminRepo.deleteById(adminId);
+
+      return { message: "Xóa admin thành công" };
   }
 }
 

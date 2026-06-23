@@ -50,6 +50,11 @@ export interface IStaffResponse {
     used_leave_days: number;
     createdAt: Date;
     updatedAt: Date;
+    email: string | null;
+    full_name: string | null;
+    avatar_url?: string | null;
+    phone?: string | null;
+    is_active?: boolean | null;
 }
 
 export interface IStaffDetailResponse extends IStaffResponse {

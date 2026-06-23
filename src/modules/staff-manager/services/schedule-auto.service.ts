@@ -221,56 +221,52 @@ export class ScheduleCronService {
     }
 
     async getShiftTemplates(): Promise<ShiftTemplate[]> {
-        const totalSchedules = await this.scheduleRepo.countDocuments();
+        const branches = await branchRepository.find({});
+        const branchIds = new Set(branches.map(b => b._id.toString()));
 
-        // Lần đầu hệ thống chưa có schedule nào
-        if (totalSchedules === 0) {
-            const branches = await branchRepository.find({});
+        // Build default template cho tất cả branches
+        const defaultTemplates = new Map<string, ShiftTemplate>(
+            branches.map(branch => [
+                branch._id.toString(),
+                {
+                    branch_id: branch._id.toString(),
+                    start_time: '08:00',
+                    end_time: '18:00',
+                    max_staff: 5,
+                    algorithm: 'least_workload',
+                    shift_minutes: 120,
+                }
+            ])
+        );
 
-            return branches.map(branch => ({
-                branch_id: branch._id.toString(),
-                start_time: '08:00',
-                end_time: '18:00',
-                max_staff: 5,
-                algorithm: 'least_workload',
-                shift_minutes: 120,
-            }));
-        }
-
+        // Override bằng template từ schedule thực tế (nếu có)
         const lastWeek = new Date();
         lastWeek.setDate(lastWeek.getDate() - 7);
 
         const schedules = await this.scheduleRepo.find({
-            shift_date: {
-                $gte: lastWeek,
-            },
+            shift_date: { $gte: lastWeek },
         });
 
-        const map = new Map<string, Partial<ISchedule>>();
-
         for (const s of schedules) {
-            const key = `${s.branch_id}-${s.start_time}-${s.end_time}`;
+            const branchId = s.branch_id.toString();
+            if (!branchIds.has(branchId)) continue; // branch đã bị xóa
 
-            if (!map.has(key)) {
-                map.set(key, {
-                    branch_id: s.branch_id,
-                    start_time: s.start_time,
-                    end_time: s.end_time,
-                    max_staff: s.max_staff,
-                    algorithm: s.algorithm,
-                    shift_minutes: s.shift_minutes,
-                });
-            }
+            // Dùng key branch_id-start-end để handle multi-shift per branch
+            const key = `${branchId}-${s.start_time}-${s.end_time}`;
+            defaultTemplates.set(key, {
+                branch_id: branchId,
+                start_time: s.start_time,
+                end_time: s.end_time,
+                max_staff: s.max_staff ?? 5,
+                algorithm: s.algorithm ?? 'least_workload',
+                shift_minutes: s.shift_minutes ?? 120,
+            });
+
+            // Xóa default key (branch_id) nếu đã có template thực
+            defaultTemplates.delete(branchId);
         }
 
-        return Array.from(map.values()).map(tpl => ({
-            branch_id: tpl.branch_id!.toString(),
-            start_time: tpl.start_time!,
-            end_time: tpl.end_time!,
-            max_staff: tpl.max_staff ?? 1,
-            algorithm: tpl.algorithm ?? 'least_workload',
-            shift_minutes: tpl.shift_minutes ?? 120,
-        }));
+        return Array.from(defaultTemplates.values());
     }
 
     async assignRandomStaffToSchedules(): Promise<number> {

@@ -1,4 +1,4 @@
-import { Response, NextFunction } from 'express';
+import {Request, Response, NextFunction } from 'express';
 import { adminService } from '../services/admin.service';
 import { sendSuccess } from '../../../common/utils/apiResponse';
 import { AuthenticatedRequest } from '../../../common/types';
@@ -7,6 +7,7 @@ import { UserRole } from '../../../common/types/enum';
 import { Types } from 'mongoose';
 
 export class AdminController {
+  private readonly adminService = adminService;
   private async getBranchId(req: AuthenticatedRequest): Promise<string | null> {
     if (req.user.role === UserRole.STAFF || req.user.role === UserRole.ADMIN) {
       const { User } = require('../../../models/user.model');
@@ -68,6 +69,85 @@ export class AdminController {
     } catch (err) {
       next(err);
     }
+  };
+
+  getAdmins = async (
+      req: Request,
+      res: Response,
+      next: NextFunction,
+  ) => {
+      try {
+          const admins = await this.adminService.getAdmins();
+
+          sendSuccess(
+              res,
+              admins,
+              "Lấy danh sách admin thành công",
+          );
+      } catch (error) {
+          next(error);
+      }
+  };
+
+  getAdmin = async (
+      req: Request,
+      res: Response,
+      next: NextFunction,
+  ) => {
+      try {
+          const admin = await this.adminService.getAdmin(
+              req.params.id,
+          );
+
+          sendSuccess(
+              res,
+              admin,
+              "Lấy thông tin admin thành công",
+          );
+      } catch (error) {
+          next(error);
+      }
+  };
+
+  updateAdmin = async (
+      req: Request,
+      res: Response,
+      next: NextFunction,
+  ) => {
+      try {
+          const updated = await this.adminService.updateAdmin(
+              req.params.id,
+              req.body,
+          );
+
+          sendSuccess(
+              res,
+              updated,
+              "Cập nhật admin thành công",
+          );
+      } catch (error) {
+          next(error);
+      }
+  };
+
+  deleteAdmin = async (
+      req: Request,
+      res: Response,
+      next: NextFunction,
+  ) => {
+      try {
+          const result = await this.adminService.deleteAdmin(
+              req.params.id,
+          );
+
+          sendSuccess(
+              res,
+              result,
+              result.message,
+          );
+      } catch (error) {
+          next(error);
+      }
   };
 }
 

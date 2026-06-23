@@ -16,7 +16,7 @@ router.use(authenticate);
 router.post('/', authorize(UserRole.STAFF, UserRole.ADMIN), ctrl.createInvoice);
 
 // Admin: xem toàn bộ danh sách
-router.get('/', authorize(UserRole.ADMIN), ctrl.getList);
+router.get('/', authorize(UserRole.ADMIN, UserRole.BOSS), ctrl.getList);
 
 // Chi tiết invoice (customer xem của mình, admin xem tất cả)
 router.get('/:id', ctrl.getById);

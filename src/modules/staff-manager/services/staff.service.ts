@@ -13,6 +13,7 @@ import {
 import { StaffRole } from "../../../common/types/enum";
 import mongoose from "mongoose";
 import { Types } from "mongoose";
+import { IUser } from "src/models/user.model";
 
 export class StaffService {
     /**
@@ -335,9 +336,11 @@ export class StaffService {
      * Map staff document to response
      */
     private mapToResponse(staff: any): IStaffResponse {
+        const user = staff.user_id as Partial<IUser>; // đã populated
+        console.log("DEBUG USER:", user)
         return {
             _id: staff._id.toString(),
-            user_id: staff.user_id.toString(),
+            user_id: user?._id?.toString() ?? staff.user_id?.toString(),
             branch_id: staff.branch_id ? staff.branch_id.toString() : null,
             staff_code: staff.staff_code,
             staff_type: staff.staff_type,
@@ -348,6 +351,12 @@ export class StaffService {
             used_leave_days: staff.used_leave_days,
             createdAt: staff.createdAt,
             updatedAt: staff.updatedAt,
+
+            email: user?.email ?? null,
+            full_name: user?.full_name ?? null,
+            avatar_url: user?.avatar_url ?? null,
+            phone: user?.phone ?? null,
+            is_active: user?.is_active ?? null,
         };
     }
 
