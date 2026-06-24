@@ -12,8 +12,26 @@ export class AdminController {
     if (req.user.role === UserRole.STAFF || req.user.role === UserRole.ADMIN) {
       const { User } = require('../../../models/user.model');
       const user = await User.findById(req.user.id);
+      
+      if (req.user.role === UserRole.STAFF) {
+        const { staffRepository } = require('../../staff-manager/repositories/staff.repository');
+        const staff = await staffRepository.findByUserId(req.user.id);
+        if (staff?.staff_type === 'technical') {
+          const { ForbiddenError } = require('../../../common/utils/AppError');
+          throw new ForbiddenError('Staff technical không có quyền xem thống kê doanh thu');
+        }
+      }
+
       return user?.branch_id ? user.branch_id.toString() : null;
     }
+
+    if (req.user.role === UserRole.BOSS) {
+       const requestedBranchId = req.query.branch_id || req.body.branch_id;
+       if (requestedBranchId && typeof requestedBranchId === 'string' && requestedBranchId !== 'all') {
+         return requestedBranchId;
+       }
+    }
+
     return null;
   }
 

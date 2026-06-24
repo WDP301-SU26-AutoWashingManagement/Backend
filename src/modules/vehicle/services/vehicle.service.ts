@@ -1,4 +1,4 @@
-import { vehicleRepository} from '../repositories/vehicle.repository';
+import { vehicleRepository } from '../repositories/vehicle.repository';
 import { CreateVehicleDto, UpdateVehicleDto } from '../interfaces/vehicle.interface';
 import { FilterQuery, PaginateOptions, Types } from 'mongoose';
 import { IVehicle } from '../../../models/vehicle.model';
@@ -24,21 +24,24 @@ export class VehicleService {
       throw new BadRequestError('Biển số xe đã đăng ký');
     }
     let finalModelId = data.model_id;
-    if ((!finalModelId || finalModelId === 'other') && data.make_name && data.model_name) {
+    if (!finalModelId || finalModelId === 'other') {
+      const makeName = data.make_name?.trim() || 'Khác';
+      const modelName = data.model_name?.trim() || 'Khác';
+
       const make = await Make.findOneAndUpdate(
-        { make_name: data.make_name.trim() },
-        { make_name: data.make_name.trim() },
+        { make_name: makeName },
+        { make_name: makeName },
         { upsert: true, new: true }
       );
       const model = await VehicleModel.findOneAndUpdate(
-        { model_name: data.model_name.trim(), make_id: make._id },
-        { make_id: make._id, model_name: data.model_name.trim() },
+        { model_name: modelName, make_id: make._id },
+        { make_id: make._id, model_name: modelName },
         { upsert: true, new: true }
       );
       finalModelId = model._id.toString();
     }
 
-    if (!finalModelId || finalModelId === 'other') {
+    if (!finalModelId || finalModelId === '') {
       throw new BadRequestError('Dòng xe không hợp lệ');
     }
 
@@ -59,22 +62,25 @@ export class VehicleService {
 
   async updateById(id: string, data: UpdateVehicleDto) {
     if (data.license_plate) {
-      const existing = await this.repository.findOne({ 
+      const existing = await this.repository.findOne({
         license_plate: data.license_plate.toUpperCase().trim(),
         _id: { $ne: id }
       });
       if (existing) throw new BadRequestError('Biển số xe đã đăng ký');
     }
     let finalModelId = data.model_id;
-    if ((!finalModelId || finalModelId === 'other') && data.make_name && data.model_name) {
+    if (finalModelId === 'other') {
+      const makeName = data.make_name?.trim() || 'Khác';
+      const modelName = data.model_name?.trim() || 'Khác';
+
       const make = await Make.findOneAndUpdate(
-        { make_name: data.make_name.trim() },
-        { make_name: data.make_name.trim() },
+        { make_name: makeName },
+        { make_name: makeName },
         { upsert: true, new: true }
       );
       const model = await VehicleModel.findOneAndUpdate(
-        { model_name: data.model_name.trim(), make_id: make._id },
-        { make_id: make._id, model_name: data.model_name.trim() },
+        { model_name: modelName, make_id: make._id },
+        { make_id: make._id, model_name: modelName },
         { upsert: true, new: true }
       );
       finalModelId = model._id.toString();
@@ -107,15 +113,15 @@ export class VehicleService {
 
   // API tra class cho từng license plate
   // /vehicles/lookup-class
-  async findClassById(vehicleId: string){
+  async findClassById(vehicleId: string) {
     const vehicle = await this.findById(vehicleId);
 
-    if (!vehicle){
+    if (!vehicle) {
       throw new NotFoundError('Xe này không tìm thấy');
     }
 
     const vehicleClass = await this.vehicleClassRepo.findById(vehicle.vehicle_class_id.toString());
-    
+
     return vehicleClass;
   }
 

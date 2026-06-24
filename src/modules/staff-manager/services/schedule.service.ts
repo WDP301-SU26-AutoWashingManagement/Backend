@@ -4,6 +4,7 @@ import { NotFoundError, BadRequestError, ForbiddenError } from '../../../common/
 import { StaffRole } from '../../../common/types/enum';
 import { Types } from 'mongoose';
 import { sendEmail } from '../../../common/utils/email.util';
+import { authRepository } from '../../auth/repositories/auth.repository';
 import {
   IAddStaffToScheduleResponse,
   ISwitchStaffResponse,
@@ -30,12 +31,13 @@ export class ScheduleService {
         // Kiểm tra manager
         const manager = await this.staffRepo.findByUserId(managerId);
         if (!manager) {
-        throw new NotFoundError('Manager không tìm thấy');
+            const user = await authRepository.findById(managerId);
+            if (!user || (user.role !== 'admin' && user.role !== 'boss')) {
+                throw new NotFoundError('Người dùng không có quyền quản lý lịch');
+            }
+        } else if (manager.staff_type === StaffRole.TECHNICAL) {
+            throw new ForbiddenError('Staff technical không có quyền thêm nhân viên vào lịch');
         }
-
-        // if (manager.staff_type !== StaffRole.MANAGER) {
-        // throw new ForbiddenError('Chỉ Manager mới có quyền thực hiện hành động này');
-        // }
 
         // Kiểm tra schedule tồn tại
         const schedule = await this.scheduleRepo.findById(scheduleId);
@@ -124,12 +126,13 @@ export class ScheduleService {
         // Kiểm tra manager
         const manager = await this.staffRepo.findByUserId(managerId);
         if (!manager) {
-        throw new NotFoundError('Manager không tìm thấy');
+            const user = await authRepository.findById(managerId);
+            if (!user || (user.role !== 'admin' && user.role !== 'boss')) {
+                throw new NotFoundError('Người dùng không có quyền hoán đổi lịch');
+            }
+        } else if (manager.staff_type === StaffRole.TECHNICAL) {
+            throw new ForbiddenError('Staff technical không có quyền thực hiện hoán đổi lịch');
         }
-
-        // if (manager.staff_type !== StaffRole.MANAGER) {
-        // throw new ForbiddenError('Chỉ Manager mới có quyền thực hiện hành động này');
-        // }
 
         // Kiểm tra schedule 1 tồn tại
         const schedule1 = await this.scheduleRepo.findById(scheduleId1);
@@ -308,14 +311,10 @@ export class ScheduleService {
     }
 
     /**
-     * Get user info by user_id (placeholder - cần integrate với User service)
+     * Get user info by user_id
      */
     private async getUserById(userId: string): Promise<any> {
-        // Nên tạo UserRepository hoặc gọi User model trực tiếp
-        // Ở đây là placeholder, bạn cần implement dựa trên User model của bạn
-        // const User = require('../../../models/user.model');
-        // return await User.findById(userId).lean();
-        return null; // Placeholder
+        return await authRepository.findById(userId);
     }
 }
 

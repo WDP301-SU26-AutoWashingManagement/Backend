@@ -11,10 +11,10 @@ const router = Router();
 router.use(authenticate);
 
 // ─── Dashboard stats ──────────────────────────────────────────────────────────
-router.get('/customers/count', authorize(UserRole.ADMIN, UserRole.BOSS), adminController.getCustomerCount);
-router.post('/bookings/count', authorize(UserRole.ADMIN, UserRole.BOSS), adminController.getBookingCount);
-router.post('/profit', authorize(UserRole.ADMIN, UserRole.BOSS), adminController.getDailyProfit);
-router.get('/top-services', authorize(UserRole.ADMIN, UserRole.BOSS), adminController.getTopServices);
+router.get('/customers/count', authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF), adminController.getCustomerCount);
+router.post('/bookings/count', authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF), adminController.getBookingCount);
+router.post('/profit', authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF), adminController.getDailyProfit);
+router.get('/top-services', authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF), adminController.getTopServices);
 
 router.get(
     "/",
