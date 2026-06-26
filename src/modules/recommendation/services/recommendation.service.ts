@@ -70,13 +70,44 @@ export class RecommendationService {
     const cacheKey = `reco:${customer._id}:${dto.vehicle_id}:${dto.branch_id ?? 'auto'}`;
     const cached = await this.readCache(cacheKey);
     if (cached) {
-      // Nếu suggested_scheduled_at đã qua → cache stale, bỏ qua và tính lại slot mới.
-      const slotStillValid =
-        !cached.suggested_scheduled_at ||
-        new Date(cached.suggested_scheduled_at) > new Date();
+      let slotStillValid = false;
+      if (!cached.suggested_scheduled_at) {
+        slotStillValid = true;
+      } else if (new Date(cached.suggested_scheduled_at) > new Date()) {
+        const checkBranchId = dto.branch_id ?? cached.branch_id;
+        if (checkBranchId) {
+           try {
+             const d = new Date(cached.suggested_scheduled_at);
+             const yyyy = d.getFullYear();
+             const mm = String(d.getMonth() + 1).padStart(2, '0');
+             const dd = String(d.getDate()).padStart(2, '0');
+             const dateStr = `${yyyy}-${mm}-${dd}`;
+             
+             const avail = await bookingService.getAvailableSlots(checkBranchId, {
+               date: dateStr,
+               service_ids: cached.recommended_items.map((i: any) => i.service_id)
+             });
+             
+             if (avail.some((s: any) => s.scheduled_at === cached.suggested_scheduled_at)) {
+               slotStillValid = true;
+             }
+           } catch (e) {
+             slotStillValid = false;
+           }
+        }
+      }
+
       if (slotStillValid) return cached;
-      // Slot đã qua: xóa cache cũ, tiếp tục tính lại (chỉ cần refresh slot, không cần re-run toàn bộ RAG)
-      await this.deleteCache(cacheKey);
+      
+      // Slot đã qua hoặc không còn khả dụng (đổi giờ/đã full): refresh slot, KHÔNG re-run toàn bộ RAG
+      const branchId = dto.branch_id ?? cached.branch_id;
+      if (branchId) {
+         const newSlot = await this.findOptimalSlot(branchId, cached.recommended_items);
+         cached.suggested_scheduled_at = newSlot;
+         cached.generated_at = new Date().toISOString();
+         await this.writeCache(cacheKey, cached);
+      }
+      return cached;
     }
 
     const history = await this.repo.findRecentHistory(dto.vehicle_id, HISTORY_LIMIT);
