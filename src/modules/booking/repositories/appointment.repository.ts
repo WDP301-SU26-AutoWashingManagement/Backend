@@ -68,11 +68,11 @@ export class AppointmentRepository extends BaseRepository<IAppointment> {
      * Business rule: không cho đặt trùng slot.
      */
     hasOverlappingBooking(
-        customerId  : string,
+        vehicleId  : string,
         scheduledAt : Date,
     ): Promise<boolean> {
         return this.exists({
-        customer_id   : new Types.ObjectId(customerId),
+        vehicle_id    : new Types.ObjectId(vehicleId),
         booking_status: { $in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
         scheduled_at  : scheduledAt,
         });
