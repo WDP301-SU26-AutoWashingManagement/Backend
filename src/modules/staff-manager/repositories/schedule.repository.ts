@@ -73,6 +73,20 @@ export class ScheduleRepository extends BaseRepository<ISchedule> {
         );
     }
 
+    removeStaffFromDateRange(staffId: string | Types.ObjectId, from: Date, to: Date) {
+        return this.model.updateMany(
+            {
+                shift_date: {
+                    $gte: from,
+                    $lte: to
+                }
+            },
+            {
+                $pull: { assigned_staff: staffId }
+            }
+        );
+    }
+
     isStaffAvailable(
         staffId: string | Types.ObjectId,
         date: Date,

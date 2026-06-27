@@ -3,6 +3,7 @@ import {
   staffAbsentRequestRepository,
 } from '../repositories/staffAbsentRequest.repository';
 import { staffRepository } from '../repositories/staff.repository';
+import { scheduleRepository } from '../repositories/schedule.repository';
 import { IStaffAbsentRequest } from '../../../models/staffAbsentRequest.model';
 import { RequestStatus, StaffRole } from '../../../common/types/enum';
 import {Types} from 'mongoose';
@@ -64,7 +65,10 @@ export class StaffAbsentRequestService {
       throw new BadRequestError('Request already processed');
     }
 
-    const staff = await this.staffRepo.findById(request.staff_id.toString())
+    let staff = await this.staffRepo.findById(request.staff_id.toString());
+    if (!staff) {
+        staff = await this.staffRepo.findByUserId(request.staff_id.toString());
+    }
     if (!staff){
       throw new NotFoundError('Không tìm thấy nhân viên');
     } 
@@ -96,6 +100,18 @@ export class StaffAbsentRequestService {
                     used_leave_days: totalLeaveDays
                 },
             }
+        );
+
+        const fromDate = new Date(request.from_date);
+        fromDate.setHours(0, 0, 0, 0);
+        
+        const toDate = new Date(request.to_date);
+        toDate.setHours(23, 59, 59, 999);
+
+        await scheduleRepository.removeStaffFromDateRange(
+            staff._id,
+            fromDate,
+            toDate
         );
     }
 
