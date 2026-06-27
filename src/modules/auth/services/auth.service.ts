@@ -47,6 +47,7 @@ export class AuthService {
     if (user.role === UserRole.ADMIN) {
       await Admin.create({
         user_id: user._id,
+        branch_id: user.branch_id,
       });
     }
 
