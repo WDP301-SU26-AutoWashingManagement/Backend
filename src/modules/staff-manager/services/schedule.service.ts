@@ -168,6 +168,14 @@ export class ScheduleService {
         throw new BadRequestError('Nhân viên thứ hai không có trong lịch làm việc thứ hai');
         }
 
+        // Kiểm tra điều kiện: nhân viên 2 chưa có trong lịch 1 và nhân viên 1 chưa có trong lịch 2
+        if (schedule1.assigned_staff.some((id) => id.equals(staffId2Obj))) {
+            throw new BadRequestError('Nhân viên thứ hai đã có mặt trong lịch làm việc thứ nhất (không thể đổi ca)');
+        }
+        if (schedule2.assigned_staff.some((id) => id.equals(staffId1Obj))) {
+            throw new BadRequestError('Nhân viên thứ nhất đã có mặt trong lịch làm việc thứ hai (không thể đổi ca)');
+        }
+
         // Thực hiện switch
         // Xóa staff 1 khỏi schedule 1
         let updatedSchedule1 = await this.scheduleRepo.removeStaff(scheduleId1, staffId1);
