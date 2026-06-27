@@ -19,6 +19,24 @@ export interface ITopService {
     count: number;
 }
 
+export interface ITopServiceRevenue {
+    servicePackageId: string;
+    serviceName: string;
+    revenue: number;
+}
+
+export interface ITopIndividualService {
+    serviceId: string;
+    serviceName: string;
+    count: number;
+}
+
+export interface ITopIndividualServiceRevenue {
+    serviceId: string;
+    serviceName: string;
+    revenue: number;
+}
+
 export interface IAdminUpdate {
     user_id?: string;
 }

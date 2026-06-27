@@ -2,10 +2,11 @@ import { Appointment } from '../../../models/appointment.model';
 import { Customer } from '../../../models/customer.model';
 import { Invoice } from '../../../models/invoice.model';
 import { AppointmentService } from '../../../models/appointmentService.model';
-import { IBookingCount, IProfitQuery, IDailyProfit, ITopService, IAdminUpdate } from '../interfaces/admin.interface';
+import { IBookingCount, IProfitQuery, IDailyProfit, ITopService, ITopServiceRevenue, ITopIndividualService, ITopIndividualServiceRevenue, IAdminUpdate } from '../interfaces/admin.interface';
 import { Types } from 'mongoose';
 import { adminRepository } from '../repositories/admin.repository';
 import { BadRequestError, NotFoundError } from '@common/utils/AppError';
+import { User } from '../../../models/user.model';
 
 class AdminService {
   private readonly adminRepo = adminRepository;
@@ -120,16 +121,22 @@ class AdminService {
   }
 
   /**
-   * Get top 3 most selected service packages in the last 30 days.
+   * Get top 3 most selected service packages in the given date range.
    */
-  async getTopServices(branchId?: string | null): Promise<ITopService[]> {
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  async getTopServices(branchId?: string | null, dates?: { startDate?: string, endDate?: string }): Promise<ITopService[]> {
+    let start = new Date();
+    start.setDate(start.getDate() - 30);
+    let end = new Date();
+    
+    if (dates?.startDate) start = new Date(dates.startDate);
+    if (dates?.endDate) {
+      end = new Date(dates.endDate);
+      end.setHours(23, 59, 59, 999);
+    }
 
     const appointmentMatch: any = {
-      'appointment.createdAt': { $gte: thirtyDaysAgo, $lte: now },
-      'appointment.booking_status': { $ne: 'cancelled' },
+      'appointment.scheduled_at': { $gte: start, $lte: end },
+      'appointment.booking_status': 'completed',
     };
 
     if (branchId) {
@@ -160,12 +167,20 @@ class AdminService {
       // Group by the service package
       {
         $group: {
-          _id: '$service_package_id',
+          _id: {
+            appointment_id: '$appointment_id',
+            service_package_id: '$service_package_id'
+          }
+        }
+      },
+      {
+        $group: {
+          _id: '$_id.service_package_id',
           count: { $sum: 1 },
         },
       },
       { $sort: { count: -1 } },
-      { $limit: 3 },
+      { $limit: 5 },
       // Lookup package details
       {
         $lookup: {
@@ -189,7 +204,237 @@ class AdminService {
     return results as ITopService[];
   }
 
-  async getAdmins() {
+  /**
+   * Get top 3 service packages that generate the most revenue in the given date range.
+   */
+  async getTopServicesByRevenue(branchId?: string | null, dates?: { startDate?: string, endDate?: string }): Promise<ITopServiceRevenue[]> {
+    let start = new Date();
+    start.setDate(start.getDate() - 30);
+    let end = new Date();
+    
+    if (dates?.startDate) start = new Date(dates.startDate);
+    if (dates?.endDate) {
+      end = new Date(dates.endDate);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    const appointmentMatch: any = {
+      'appointment.scheduled_at': { $gte: start, $lte: end },
+      'appointment.booking_status': 'completed',
+    };
+
+    if (branchId) {
+      appointmentMatch['appointment.branch_id'] = new Types.ObjectId(branchId);
+    }
+
+    const results = await AppointmentService.aggregate([
+      // Only care about services associated with a service package
+      {
+        $match: {
+          service_package_id: { $ne: null },
+        },
+      },
+      // Join with Appointment to check dates and booking status
+      {
+        $lookup: {
+          from: 'appointments',
+          localField: 'appointment_id',
+          foreignField: '_id',
+          as: 'appointment',
+        },
+      },
+      { $unwind: '$appointment' },
+      // Filter for appointments created in the last 30 days that are not cancelled
+      {
+        $match: appointmentMatch,
+      },
+      // Group by the service package and sum price_snapshot
+      {
+        $group: {
+          _id: '$service_package_id',
+          revenue: { $sum: '$price_snapshot' },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 5 },
+      // Lookup package details
+      {
+        $lookup: {
+          from: 'servicepackages',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'package',
+        },
+      },
+      { $unwind: '$package' },
+      {
+        $project: {
+          _id: 0,
+          servicePackageId: '$_id',
+          serviceName: '$package.package_name',
+          revenue: 1,
+        },
+      },
+    ]);
+
+    return results as ITopServiceRevenue[];
+  }
+
+  /**
+   * Get top 3 most selected INDIVIDUAL services (not in a package) in the given date range.
+   */
+  async getTopIndividualServices(branchId?: string | null, dates?: { startDate?: string, endDate?: string }): Promise<ITopIndividualService[]> {
+    let start = new Date();
+    start.setDate(start.getDate() - 30);
+    let end = new Date();
+    
+    if (dates?.startDate) start = new Date(dates.startDate);
+    if (dates?.endDate) {
+      end = new Date(dates.endDate);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    const appointmentMatch: any = {
+      'appointment.scheduled_at': { $gte: start, $lte: end },
+      'appointment.booking_status': 'completed',
+    };
+
+    if (branchId) {
+      appointmentMatch['appointment.branch_id'] = new Types.ObjectId(branchId);
+    }
+
+    const results = await AppointmentService.aggregate([
+      {
+        $match: {
+          service_package_id: null,
+        },
+      },
+      {
+        $lookup: {
+          from: 'appointments',
+          localField: 'appointment_id',
+          foreignField: '_id',
+          as: 'appointment',
+        },
+      },
+      { $unwind: '$appointment' },
+      {
+        $match: appointmentMatch,
+      },
+      {
+        $group: {
+          _id: '$service_id',
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { count: -1 } },
+      { $limit: 5 },
+      {
+        $lookup: {
+          from: 'services',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'serviceDoc',
+        },
+      },
+      { $unwind: '$serviceDoc' },
+      {
+        $project: {
+          _id: 0,
+          serviceId: '$_id',
+          serviceName: '$serviceDoc.service_name',
+          count: 1,
+        },
+      },
+    ]);
+
+    return results as ITopIndividualService[];
+  }
+
+  /**
+   * Get top 3 individual services that generate the most revenue in the given date range.
+   */
+  async getTopIndividualServicesByRevenue(branchId?: string | null, dates?: { startDate?: string, endDate?: string }): Promise<ITopIndividualServiceRevenue[]> {
+    let start = new Date();
+    start.setDate(start.getDate() - 30);
+    let end = new Date();
+    
+    if (dates?.startDate) start = new Date(dates.startDate);
+    if (dates?.endDate) {
+      end = new Date(dates.endDate);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    const appointmentMatch: any = {
+      'appointment.scheduled_at': { $gte: start, $lte: end },
+      'appointment.booking_status': 'completed',
+    };
+
+    if (branchId) {
+      appointmentMatch['appointment.branch_id'] = new Types.ObjectId(branchId);
+    }
+
+    const results = await AppointmentService.aggregate([
+      {
+        $match: {
+          service_package_id: null,
+        },
+      },
+      {
+        $lookup: {
+          from: 'appointments',
+          localField: 'appointment_id',
+          foreignField: '_id',
+          as: 'appointment',
+        },
+      },
+      { $unwind: '$appointment' },
+      {
+        $match: appointmentMatch,
+      },
+      {
+        $group: {
+          _id: '$service_id',
+          revenue: { $sum: '$price_snapshot' },
+        },
+      },
+      { $sort: { revenue: -1 } },
+      { $limit: 5 },
+      {
+        $lookup: {
+          from: 'services',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'serviceDoc',
+        },
+      },
+      { $unwind: '$serviceDoc' },
+      {
+        $project: {
+          _id: 0,
+          serviceId: '$_id',
+          serviceName: '$serviceDoc.service_name',
+          revenue: 1,
+        },
+      },
+    ]);
+
+    return results as ITopIndividualServiceRevenue[];
+  }
+
+  async getAdmins(branchId?: string) {
+      if (branchId) {
+          const usersInBranch = await User.find({ branch_id: new Types.ObjectId(branchId) }).select('_id');
+          const userIds = usersInBranch.map(u => u._id);
+          
+          const filter = {
+              $or: [
+                  { branch_id: new Types.ObjectId(branchId) },
+                  { user_id: { $in: userIds } }
+              ]
+          };
+          return this.adminRepo.findMany(filter);
+      }
       return this.adminRepo.findMany();
   }
 
