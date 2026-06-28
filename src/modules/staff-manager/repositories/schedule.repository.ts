@@ -3,139 +3,99 @@ import { ISchedule, Schedule } from '../../../models/schedule.model';
 import { Types } from 'mongoose';
 
 export class ScheduleRepository extends BaseRepository<ISchedule> {
-    constructor() {
-        super(Schedule);
-    }
+  constructor() {
+    super(Schedule);
+  }
 
-    // ===================== QUERY =====================
-    findAll() {
-        return this.model.find().populate({
-            path: 'assigned_staff',
-            populate: {
-                path: 'user_id',
-                select: 'full_name email'
-            }
-        }).sort({ createdAt: -1 });
-    }
+  // ─── READ (replica) ────────────────────────────────────────────────────────
 
-    findByBranch(branchId: string) {
-        return this.model.find({ branch_id: branchId });
-    }
+  findAll() {
+    return this.rm.find().populate({
+      path: 'assigned_staff',
+      populate: { path: 'user_id', select: 'full_name email' },
+    }).sort({ createdAt: -1 });
+  }
 
-    findByDate(date: Date) {
-        return this.model.find({ shift_date: date });
-    }
+  findByBranch(branchId: string) {
+    return this.rm.find({ branch_id: branchId });
+  }
 
-    findByDateRange(from: Date, to: Date) {
-        return this.model.find({
-            shift_date: { $gte: from, $lte: to }
-        });
-    }
+  findByDate(date: Date) {
+    return this.rm.find({ shift_date: date });
+  }
 
-    findByStaff(staffId: string | Types.ObjectId) {
-        return this.model.find({
-            assigned_staff: staffId
-        });
-    }
+  findByDateRange(from: Date, to: Date) {
+    return this.rm.find({ shift_date: { $gte: from, $lte: to } });
+  }
 
-    findAvailableShifts(date: Date) {
-        return this.model.find({
-            shift_date: date,
-            $expr: {
-                $lt: [{ $size: "$assigned_staff" }, "$max_staff"]
-            }
-        });
-    }
+  findByStaff(staffId: string | Types.ObjectId) {
+    return this.rm.find({ assigned_staff: staffId });
+  }
 
-    findUnderstaffedShifts() {
-        return this.model.find({
-            $expr: {
-                $lt: [{ $size: "$assigned_staff" }, "$max_staff"]
-            }
-        });
-    }
+  findAvailableShifts(date: Date) {
+    return this.rm.find({
+      shift_date: date,
+      $expr: { $lt: [{ $size: '$assigned_staff' }, '$max_staff'] },
+    });
+  }
 
-    // ===================== STAFF ASSIGNMENT =====================
+  findUnderstaffedShifts() {
+    return this.rm.find({
+      $expr: { $lt: [{ $size: '$assigned_staff' }, '$max_staff'] },
+    });
+  }
 
-    addStaff(scheduleId: string, staffId: string | Types.ObjectId) {
-        return this.model.findByIdAndUpdate(
-            scheduleId,
-            { $addToSet: { assigned_staff: staffId } },
-            { new: true }
-        );
-    }
+  isStaffAvailable(staffId: string | Types.ObjectId, date: Date, start: Date, end: Date) {
+    return this.rm.findOne({
+      assigned_staff: staffId,
+      shift_date: date,
+      $or: [
+        { start_time: { $lt: end, $gte: start } },
+        { end_time: { $gt: start, $lte: end } },
+      ],
+    });
+  }
 
-    removeStaff(scheduleId: string, staffId: string | Types.ObjectId) {
-        return this.model.findByIdAndUpdate(
-            scheduleId,
-            { $pull: { assigned_staff: staffId } },
-            { new: true }
-        );
-    }
+  getStaffWorkload(date: Date) {
+    return this.rm.aggregate([
+      { $match: { shift_date: date } },
+      { $unwind: '$assigned_staff' },
+      { $group: { _id: '$assigned_staff', shifts: { $sum: 1 } } },
+    ]);
+  }
 
-    removeStaffFromDateRange(staffId: string | Types.ObjectId, from: Date, to: Date) {
-        return this.model.updateMany(
-            {
-                shift_date: {
-                    $gte: from,
-                    $lte: to
-                }
-            },
-            {
-                $pull: { assigned_staff: staffId }
-            }
-        );
-    }
+  // ─── WRITE (primary) ───────────────────────────────────────────────────────
 
-    isStaffAvailable(
-        staffId: string | Types.ObjectId,
-        date: Date,
-        start: Date,
-        end: Date
-    ) {
-        return this.model.findOne({
-            assigned_staff: staffId,
-            shift_date: date,
-            $or: [
-                { start_time: { $lt: end, $gte: start } },
-                { end_time: { $gt: start, $lte: end } }
-            ]
-        });
-    }
+  addStaff(scheduleId: string, staffId: string | Types.ObjectId) {
+    return this.wm.findByIdAndUpdate(
+      scheduleId,
+      { $addToSet: { assigned_staff: staffId } },
+      { new: true },
+    );
+  }
 
-    // ===================== STATUS =====================
+  removeStaff(scheduleId: string, staffId: string | Types.ObjectId) {
+    return this.wm.findByIdAndUpdate(
+      scheduleId,
+      { $pull: { assigned_staff: staffId } },
+      { new: true },
+    );
+  }
 
-    updateStatus(scheduleId: string, status: string) {
-        return this.model.findByIdAndUpdate(
-            scheduleId,
-            { shift_status: status },
-            { new: true }
-        );
-    }
+  removeStaffFromDateRange(staffId: string | Types.ObjectId, from: Date, to: Date) {
+    return this.wm.updateMany(
+      { shift_date: { $gte: from, $lte: to } },
+      { $pull: { assigned_staff: staffId } },
+    );
+  }
 
-    lockShift(scheduleId: string) {
-        return this.model.findByIdAndUpdate(
-            scheduleId,
-            { shift_status: "locked" },
-            { new: true }
-        );
-    }
+  updateStatus(scheduleId: string, status: string) {
+    return this.wm.findByIdAndUpdate(scheduleId, { shift_status: status }, { new: true });
+  }
 
-    // ===================== ANALYTICS =====================
-
-    getStaffWorkload(date: Date) {
-        return this.model.aggregate([
-            { $match: { shift_date: date } },
-            { $unwind: "$assigned_staff" },
-            {
-                $group: {
-                    _id: "$assigned_staff",
-                    shifts: { $sum: 1 }
-                }
-            }
-        ]);
-    }
-
+  lockShift(scheduleId: string) {
+    return this.wm.findByIdAndUpdate(scheduleId, { shift_status: 'locked' }, { new: true });
+  }
 }
 
 export const scheduleRepository = new ScheduleRepository();
