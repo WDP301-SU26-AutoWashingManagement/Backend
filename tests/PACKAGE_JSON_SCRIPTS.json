@@ -1,0 +1,19 @@
+{
+  "comment": "Add these scripts to your package.json",
+  
+  "scripts": {
+    "test:perf": "ts-node -r tsconfig-paths/register src/__tests__/replicator.perf.runner.ts",
+    "test:perf:jest": "jest --config jest.config.perf.js --runInBand --forceExit",
+    "test:perf:watch": "jest --config jest.config.perf.js --runInBand --watch",
+    "test:perf:verbose": "jest --config jest.config.perf.js --runInBand --forceExit --verbose",
+    "test:perf:coverage": "jest --config jest.config.perf.js --runInBand --forceExit --coverage"
+  },
+
+  "comment_explanation": {
+    "test:perf": "Run standalone performance test (fastest, no Jest)",
+    "test:perf:jest": "Run Jest performance test suite",
+    "test:perf:watch": "Run Jest tests in watch mode (rerun on file changes)",
+    "test:perf:verbose": "Run Jest tests with detailed output",
+    "test:perf:coverage": "Run Jest tests and generate coverage report"
+  }
+}
