@@ -23,19 +23,13 @@ interface TestDocument extends mongoose.Document {
 }
 
 interface BenchmarkResult {
-  name: string;
-  mode: 'before' | 'after';
   avgTime: number;
   minTime: number;
   maxTime: number;
-  totalTime: number;
-  iterations: number;
   throughput: number;
   p95: number;
-  p99: number;
 }
 
-// Struct để gom dữ liệu in bảng tổng hợp
 interface AggregatedRow {
   'Before (ms)': string;
   'After (ms)': string;
@@ -79,40 +73,6 @@ class AfterRepository extends BaseRepository<TestDocument> {
   async findWithComplexFilterAfter(filters: any) { return this.find(filters); }
 }
 
-// ─── Benchmark Helper ──────────────────────────────────────────────────────
-
-const benchmark = async (
-  fn: () => Promise<any>,
-  iterations: number,
-  name: string,
-  mode: 'before' | 'after',
-): Promise<BenchmarkResult> => {
-  const times: number[] = [];
-  await fn(); // Warmup
-
-  for (let i = 0; i < iterations; i++) {
-    const start = performance.now();
-    await fn();
-    const end = performance.now();
-    times.push(end - start);
-  }
-
-  const sorted = [...times].sort((a, b) => a - b);
-  const total = times.reduce((a, b) => a + b, 0);
-  return {
-    name,
-    mode,
-    avgTime: total / iterations,
-    minTime: sorted[0],
-    maxTime: sorted[sorted.length - 1],
-    totalTime: total,
-    iterations,
-    throughput: iterations / (total / 1000),
-    p95: sorted[Math.floor(iterations * 0.95)] || sorted[sorted.length - 1],
-    p99: sorted[Math.floor(iterations * 0.99)] || sorted[sorted.length - 1],
-  };
-};
-
 // ─── Test Suite ────────────────────────────────────────────────────────────
 
 describe('MongoDB Replicator - Before/After Comparison Test', () => {
@@ -120,16 +80,65 @@ describe('MongoDB Replicator - Before/After Comparison Test', () => {
   let beforeRepo: BeforeRepository;
   let afterRepo: AfterRepository;
   
-  // Lưu trữ kết quả qua từng test case để làm bảng tổng hợp cuối cùng
   const summaryReportData: Record<string, AggregatedRow> = {};
   
   const NUM_DOCUMENTS = 500;
   const ITERATIONS = 20;
 
-  // Helper dùng chung để chạy & in bảng nhanh cho từng cặp test đơn lẻ
-  async function runAndLogComparison(testKey: string, title: string, beforeFn: () => Promise<any>, afterFn: () => Promise<any>, runIters = ITERATIONS) {
-    const beforeRes = await benchmark(beforeFn, runIters, testKey, 'before');
-    const afterRes = await benchmark(afterFn, runIters, testKey, 'after');
+  // Tính toán các chỉ số thống kê từ mảng kết quả time execution
+  function analyzeTimes(times: number[]): BenchmarkResult {
+    const sorted = [...times].sort((a, b) => a - b);
+    const total = times.reduce((a, b) => a + b, 0);
+    const iters = times.length;
+    return {
+      avgTime: total / iters,
+      minTime: sorted[0],
+      maxTime: sorted[sorted.length - 1],
+      throughput: iters / (total / 1000),
+      p95: sorted[Math.floor(iters * 0.95)] || sorted[sorted.length - 1],
+    };
+  }
+
+  // Cơ chế chạy xen kẽ (Interleaved Iterations) để loại bỏ bias
+  async function runAndLogComparison(
+    testKey: string, 
+    title: string, 
+    beforeFn: () => Promise<any>, 
+    afterFn: () => Promise<any>, 
+    runIters = ITERATIONS
+  ) {
+    const beforeTimes: number[] = [];
+    const afterTimes: number[] = [];
+
+    // Warmup cả 2 môi trường trước khi đo đạc thực tế
+    await beforeFn();
+    await afterFn();
+
+    // Thực hiện vòng lặp xen kẽ đảo vị trí liên tục
+    for (let i = 1; i <= runIters; i++) {
+      if (i % 2 !== 0) {
+        // Vòng lẻ: Before -> After
+        const sBefore = performance.now();
+        await beforeFn();
+        beforeTimes.push(performance.now() - sBefore);
+
+        const sAfter = performance.now();
+        await afterFn();
+        afterTimes.push(performance.now() - sAfter);
+      } else {
+        // Vòng chẵn: After -> Before
+        const sAfter = performance.now();
+        await afterFn();
+        afterTimes.push(performance.now() - sAfter);
+
+        const sBefore = performance.now();
+        await beforeFn();
+        beforeTimes.push(performance.now() - sBefore);
+      }
+    }
+
+    const beforeRes = analyzeTimes(beforeTimes);
+    const afterRes = analyzeTimes(afterTimes);
 
     console.log(`\n🔹 ${title}`);
     console.table({
@@ -148,7 +157,6 @@ describe('MongoDB Replicator - Before/After Comparison Test', () => {
     const improvement = ((beforeRes.avgTime - afterRes.avgTime) / beforeRes.avgTime) * 100;
     const throughputGain = ((afterRes.throughput - beforeRes.throughput) / beforeRes.throughput) * 100;
 
-    // Lưu vào bộ nhớ đệm phục vụ Test 9
     summaryReportData[testKey.toUpperCase()] = {
       'Before (ms)': `${beforeRes.avgTime.toFixed(2)}ms`,
       'After (ms)': `${afterRes.avgTime.toFixed(2)}ms`,
@@ -279,14 +287,11 @@ describe('MongoDB Replicator - Before/After Comparison Test', () => {
     await testModel.deleteMany({ email: /@t.com/ });
   });
 
-  // ─── Test 9: Summary Bảng Tổng Hợp Chốt Hạ ───────────────────────────────
-
   it('Test 9: Comprehensive Summary Report', async () => {
     console.log('\n┌──────────────────────────────────────────────────────────┐');
-    console.log('│             COMPREHENSIVE COMPARISON REPORT              │');
+    console.log('│              COMPREHENSIVE COMPARISON REPORT             │');
     console.log('└──────────────────────────────────────────────────────────┘\n');
 
-    // In toàn bộ dữ liệu thu thập được từ Test 1 -> Test 8 thành 1 bảng duy nhất
     console.table(summaryReportData);
 
     console.log('💡 RECOMMENDATIONS:');
