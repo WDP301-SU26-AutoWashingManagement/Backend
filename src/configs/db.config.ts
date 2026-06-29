@@ -41,10 +41,10 @@ const makeReadConn = (tag: string): Connection => {
     autoIndex: false,
   });
 
-  conn.on('connected',    () => logger.info(`[DB][${tag}] connected to Atlas`));
+  conn.on('connected', () => logger.info(`[DB][${tag}] connected to Atlas`));
   conn.on('disconnected', () => logger.warn(`[DB][${tag}] disconnected`));
-  conn.on('reconnected',  () => logger.info(`[DB][${tag}] reconnected`));
-  conn.on('error',        (err) => logger.error(`[DB][${tag}] error`, err));
+  conn.on('reconnected', () => logger.info(`[DB][${tag}] reconnected`));
+  conn.on('error', (err) => logger.error(`[DB][${tag}] error`, err));
 
   return conn;
 };
@@ -72,6 +72,14 @@ export const connectDB = async (): Promise<void> => {
       const tag = `READ_${i + 1}`;
       const conn = makeReadConn(tag);
       await conn.asPromise();
+
+      mongoose.modelNames().forEach(name => {
+        // Nếu Read Connection chưa có model này
+        if (!conn.modelNames().includes(name)) {
+          // Thực hiện đăng ký model đó (copy schema) sang Read Connection
+          conn.model(name, mongoose.model(name).schema);
+        }
+      });
       readPool.push(conn);
       logger.info(`[DB] ${tag} ready`);
     }),
