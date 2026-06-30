@@ -56,7 +56,7 @@ router.use('/bookings', bookingRoutes);
 router.use('/invoices', invoiceRoutes);
 router.use('/promotions', promotionRoutes);
 router.use('/booking-checklists', bookingChecklistRoutes);
-router.use('/', sseNotificationRoutes);
+router.use('/sse-notifications', sseNotificationRoutes);
 // router.use('/bookings', bookingRoutes);
 // router.use('/services', serviceRoutes);
 // router.use('/vehicles', vehicleRoutes);
