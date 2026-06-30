@@ -35,7 +35,8 @@ async function findAppointmentByPlates(plates: string[]) {
   });
 
   if (!vehicle) return null;
-
+  console.log("plates:", plates);
+  console.log("vehicle:", vehicle);
   // Lấy khoảng thời gian hôm nay (00:00:00 → 23:59:59)
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
@@ -49,7 +50,7 @@ async function findAppointmentByPlates(plates: string[]) {
     scheduled_at  : { $gte: startOfDay, $lte: endOfDay },
     booking_status: BookingStatus.CONFIRMED,
   });
-
+  console.log(appointment)
   return appointment ? { appointment, vehicle } : null;
 }
 
