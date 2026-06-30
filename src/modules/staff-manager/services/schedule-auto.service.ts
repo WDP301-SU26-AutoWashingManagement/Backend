@@ -4,9 +4,11 @@ import { scheduleRepository } from "../repositories/schedule.repository";
 import { splitTimeRange } from "../utils/slot-separate";
 import { runWithRetry } from "../utils/retry-cron";
 import { staffRepository } from "../repositories/staff.repository";
+import { staffAbsentRequestRepository } from "../repositories/staffAbsentRequest.repository";
 import { branchRepository } from '../../boss/repositories/branch.repository';
 import { ISchedule } from "src/models/schedule.model";
 import { CronLog } from "../../../models/cronLog.model";
+import { StaffRole } from "../../../common/types/enum";
 
 type ShiftTemplate = {
     branch_id: string;
@@ -297,10 +299,34 @@ export class ScheduleCronService {
 
         if (remainSlot <= 0) return 0;
 
+        const shiftStart = new Date(schedule.shift_date);
+        shiftStart.setHours(0, 0, 0, 0);
+
+        const shiftEnd = new Date(schedule.shift_date);
+        shiftEnd.setHours(23, 59, 59, 999);
+
+        const leaveRequests = await staffAbsentRequestRepository.findMany({
+            request_status: 'approved',
+            from_date: { $lte: shiftEnd },
+            to_date: { $gte: shiftStart }
+        });
+        const onLeaveIdStrings = leaveRequests.map(req => req.staff_id.toString());
+        
+        const staffsOnLeave = await this.staffRepo.find({
+            $or: [
+                { _id: { $in: onLeaveIdStrings } },
+                { user_id: { $in: onLeaveIdStrings } }
+            ]
+        });
+        const staffOnLeaveIds = staffsOnLeave.map(s => s._id.toString());
+        
+        const excludedStaffIds = [...new Set([...currentStaffIds, ...staffOnLeaveIds])];
+
         const staffs = await this.staffRepo.find({
             branch_id: schedule.branch_id,
+            staff_type: StaffRole.TECHNICAL,
             _id: {
-                $nin: currentStaffIds,
+                $nin: excludedStaffIds,
             },
         });
 

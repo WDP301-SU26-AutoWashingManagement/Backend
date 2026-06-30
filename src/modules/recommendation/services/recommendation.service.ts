@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { recommendationRepository, IHistoryEntry } from '../repositories/recommendation.repository';
 import { bookingService } from '../../booking/services/booking.service';
+import { IAvailableSlot } from '../../booking/interfaces/booking.interface';
 import { Service } from '../../../models/service.model';
 import { ServicePackage } from '../../../models/servicePackage.model';
 import { redisClient } from '../../../configs/redis.config';
@@ -69,13 +70,44 @@ export class RecommendationService {
     const cacheKey = `reco:${customer._id}:${dto.vehicle_id}:${dto.branch_id ?? 'auto'}`;
     const cached = await this.readCache(cacheKey);
     if (cached) {
-      // Nếu suggested_scheduled_at đã qua → cache stale, bỏ qua và tính lại slot mới.
-      const slotStillValid =
-        !cached.suggested_scheduled_at ||
-        new Date(cached.suggested_scheduled_at) > new Date();
+      let slotStillValid = false;
+      if (!cached.suggested_scheduled_at) {
+        slotStillValid = true;
+      } else if (new Date(cached.suggested_scheduled_at) > new Date()) {
+        const checkBranchId = dto.branch_id ?? cached.branch_id;
+        if (checkBranchId) {
+           try {
+             const d = new Date(cached.suggested_scheduled_at);
+             const yyyy = d.getFullYear();
+             const mm = String(d.getMonth() + 1).padStart(2, '0');
+             const dd = String(d.getDate()).padStart(2, '0');
+             const dateStr = `${yyyy}-${mm}-${dd}`;
+             
+             const avail = await bookingService.getAvailableSlots(checkBranchId, {
+               date: dateStr,
+               service_ids: cached.recommended_items.map((i: any) => i.service_id)
+             });
+             
+             if (avail.some((s: any) => s.scheduled_at === cached.suggested_scheduled_at)) {
+               slotStillValid = true;
+             }
+           } catch (e) {
+             slotStillValid = false;
+           }
+        }
+      }
+
       if (slotStillValid) return cached;
-      // Slot đã qua: xóa cache cũ, tiếp tục tính lại (chỉ cần refresh slot, không cần re-run toàn bộ RAG)
-      await this.deleteCache(cacheKey);
+      
+      // Slot đã qua hoặc không còn khả dụng (đổi giờ/đã full): refresh slot, KHÔNG re-run toàn bộ RAG
+      const branchId = dto.branch_id ?? cached.branch_id;
+      if (branchId) {
+         const newSlot = await this.findOptimalSlot(branchId, cached.recommended_items);
+         cached.suggested_scheduled_at = newSlot;
+         cached.generated_at = new Date().toISOString();
+         await this.writeCache(cacheKey, cached);
+      }
+      return cached;
     }
 
     const history = await this.repo.findRecentHistory(dto.vehicle_id, HISTORY_LIMIT);
@@ -117,7 +149,7 @@ export class RecommendationService {
 
     const branchId = dto.branch_id ?? this.pickMostUsedBranch(history);
     const suggestedScheduledAt = branchId
-      ? await this.findEarliestSlot(branchId, recommendedItems)
+      ? await this.findOptimalSlot(branchId, recommendedItems)
       : null;
 
     const applicablePromotion = this.toApplicablePromotion(promotionId, promotions);
@@ -259,7 +291,7 @@ export class RecommendationService {
 
     const prompt = `Bạn là trợ lý gợi ý dịch vụ cho hệ thống đặt lịch rửa xe AutoWash.
 Dựa trên thông tin khách hàng dưới đây, hãy chọn ra lựa chọn phù hợp NHẤT từ danh sách ứng viên.
-
+ 
 Thông tin khách hàng:
 ${contextText}
 
@@ -416,30 +448,137 @@ Yêu cầu:
     return best;
   }
 
-  private async findEarliestSlot(branchId: string, items: IRecommendedItem[]): Promise<string | null> {
+  /**
+   * Tìm slot tối ưu theo thuật toán load balancing:
+   *
+   * 1. Lấy available slots từng ngày (trong SLOT_LOOKAHEAD_DAYS ngày tới).
+   * 2. Tính congestion score dựa trên lịch sử 7 ngày của branch.
+   * 3. Chọn Top 3 slot ít đông nhất.
+   * 4. Phân phối khách đều bằng Round Robin (Redis counter per branch).
+   * 5. Validate slot được chọn còn nhân viên hợp lệ.
+   * 6. Nếu không hợp lệ, fallback sang slot gần nhất (ưu tiên về sau).
+   *
+   * Thay thế findEarliestSlot() — KHÔNG BAO GIỜ throw, luôn trả null nếu thất bại.
+   */
+  private async findOptimalSlot(
+    branchId : string,
+    items    : IRecommendedItem[],
+  ): Promise<string | null> {
     const serviceIds = items.map((i) => i.service_id);
 
+    // ── Lần lượt tìm qua từng ngày ──────────────────────────────────────────
     for (let dayOffset = 0; dayOffset < SLOT_LOOKAHEAD_DAYS; dayOffset++) {
       const date = new Date();
       date.setDate(date.getDate() + dayOffset);
-      
-      // Khắc phục lỗi UTC: Lấy chuẩn ngày giờ địa phương (Local Time)
-      const yyyy = date.getFullYear();
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
+
+      const yyyy    = date.getFullYear();
+      const mm      = String(date.getMonth() + 1).padStart(2, '0');
+      const dd      = String(date.getDate()).padStart(2, '0');
       const dateStr = `${yyyy}-${mm}-${dd}`;
 
+      let availableSlots: IAvailableSlot[];
       try {
-        const slots = await bookingService.getAvailableSlots(branchId, { date: dateStr, service_ids: serviceIds });
-        if (slots.length) return slots[0].scheduled_at;
+        availableSlots = await bookingService.getAvailableSlots(branchId, {
+          date        : dateStr,
+          service_ids : serviceIds,
+        });
       } catch (err: any) {
-        // Bỏ qua lỗi (vd: lệch múi giờ quá khứ) và thử tiếp ngày mai thay vì return null tắt hoàn toàn chức năng
-        logger.warn(`[recommendation] getAvailableSlots failed for branch ${branchId} on ${dateStr}`, err?.message || err);
+        logger.warn(`[recommendation] getAvailableSlots failed for branch ${branchId} on ${dateStr}`, err?.message);
         continue;
       }
+
+      if (!availableSlots.length) continue;
+
+      // ── Validate: slot phải sau hiện tại ít nhất 1 tiếng ────────────────
+      const oneHourFromNow = Date.now() + 60 * 60 * 1000;
+      const validSlots = availableSlots.filter(
+        (s) => new Date(s.scheduled_at).getTime() >= oneHourFromNow,
+      );
+      if (!validSlots.length) continue;
+
+      // ── Bước 2–3: Lấy congestion map 7 ngày trước ───────────────────────
+      const bookingDate     = new Date(`${dateStr}T00:00:00+07:00`);
+      const congestionMap   = await this.repo.findSlotCongestionMap(branchId, bookingDate);
+
+      // ── Bước 4–5: Tính score cho từng slot khả dụng ─────────────────────
+      const scoredSlots = validSlots.map((s) => {
+        const slotTime = new Date(s.scheduled_at)
+          .toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' });
+        const count    = congestionMap.get(slotTime) ?? 0;
+        return { slot: s, slotTime, count };
+      });
+
+      // maxBookingCount trong window (tránh chia cho 0)
+      const maxCount = Math.max(...scoredSlots.map((s) => s.count), 1);
+
+      const withScore = scoredSlots.map((s) => ({
+        ...s,
+        congestionScore: s.count / maxCount,
+      }));
+
+      // ── Bước 6–7: Sort tăng dần, lấy Top 3 ─────────────────────────────
+      const top3 = [...withScore]
+        .sort((a, b) => a.congestionScore - b.congestionScore)
+        .slice(0, 3);
+
+      if (!top3.length) continue;
+
+      // ── Bước 8: Round Robin phân phối khách giữa Top 3 ──────────────────
+      // Dùng Redis counter per branch — nếu Redis lỗi thì random chọn 1 trong top3
+      let pickedIndex = 0;
+      const rrKey = `reco:rr:${branchId}`;
+      try {
+        const counter = await redisClient.incr(rrKey);
+        // TTL 24h để counter reset mỗi ngày
+        await redisClient.expire(rrKey, 86_400);
+        pickedIndex = (Number(counter) - 1) % top3.length;
+      } catch {
+        pickedIndex = Math.floor(Math.random() * top3.length);
+      }
+
+      const primaryCandidate = top3[pickedIndex];
+
+      // ── Bước 9–10: Validate staff + fallback sang slot gần nhất ─────────
+      const allCandidates = this.buildFallbackOrder(primaryCandidate, top3, withScore);
+
+      for (const candidate of allCandidates) {
+        const slotDate = new Date(candidate.slot.scheduled_at);
+        try {
+          const hasStaff = await this.repo.hasAvailableStaffForSlot(branchId, slotDate, serviceIds);
+          if (hasStaff) return candidate.slot.scheduled_at;
+        } catch (err: any) {
+          logger.warn(`[recommendation] hasAvailableStaffForSlot failed for slot ${candidate.slot.scheduled_at}`, err?.message);
+        }
+      }
+      // Không có slot nào có staff → thử ngày tiếp theo
     }
 
     return null;
+  }
+
+  /**
+   * Xây dựng thứ tự fallback:
+   * [primary, ...slots sau primary theo thời gian, ...slots trước primary theo thời gian ngược]
+   * Ưu tiên dịch về phía sau trước, sau đó mới xét các slot sớm hơn.
+   */
+  private buildFallbackOrder(
+    primary   : { slot: IAvailableSlot; congestionScore: number },
+    top3      : { slot: IAvailableSlot; congestionScore: number }[],
+    allScored : { slot: IAvailableSlot; congestionScore: number }[],
+  ): { slot: IAvailableSlot; congestionScore: number }[] {
+    const primaryTime = new Date(primary.slot.scheduled_at).getTime();
+
+    // Tất cả slot sau primary (sort tăng dần)
+    const after  = allScored
+      .filter((s) => new Date(s.slot.scheduled_at).getTime() > primaryTime)
+      .sort((a, b) => new Date(a.slot.scheduled_at).getTime() - new Date(b.slot.scheduled_at).getTime());
+
+    // Tất cả slot trước primary (sort giảm dần — gần primary nhất trước)
+    const before = allScored
+      .filter((s) => new Date(s.slot.scheduled_at).getTime() < primaryTime)
+      .sort((a, b) => new Date(b.slot.scheduled_at).getTime() - new Date(a.slot.scheduled_at).getTime());
+
+    return [primary, ...after, ...before];
   }
 
   // ─── Cache helpers ───────────────────────────────────────────────────────

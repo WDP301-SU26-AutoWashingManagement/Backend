@@ -12,8 +12,26 @@ export class AdminController {
     if (req.user.role === UserRole.STAFF || req.user.role === UserRole.ADMIN) {
       const { User } = require('../../../models/user.model');
       const user = await User.findById(req.user.id);
+      
+      if (req.user.role === UserRole.STAFF) {
+        const { staffRepository } = require('../../staff-manager/repositories/staff.repository');
+        const staff = await staffRepository.findByUserId(req.user.id);
+        if (staff?.staff_type === 'technical') {
+          const { ForbiddenError } = require('../../../common/utils/AppError');
+          throw new ForbiddenError('Staff technical không có quyền xem thống kê doanh thu');
+        }
+      }
+
       return user?.branch_id ? user.branch_id.toString() : null;
     }
+
+    if (req.user.role === UserRole.BOSS) {
+       const requestedBranchId = req.query.branch_id || req.body.branch_id;
+       if (requestedBranchId && typeof requestedBranchId === 'string' && requestedBranchId !== 'all') {
+         return requestedBranchId;
+       }
+    }
+
     return null;
   }
 
@@ -64,8 +82,51 @@ export class AdminController {
   getTopServices = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const branchId = await this.getBranchId(req);
-      const result = await adminService.getTopServices(branchId);
+      const { startDate, endDate } = req.query as { startDate?: string, endDate?: string };
+      const result = await adminService.getTopServices(branchId, { startDate, endDate });
       sendSuccess(res, result, 'Top services fetched successfully');
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // GET /admin/top-services-revenue
+  // ─────────────────────────────────────────────
+  getTopServicesByRevenue = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const branchId = await this.getBranchId(req);
+      const { startDate, endDate } = req.query as { startDate?: string, endDate?: string };
+      const result = await adminService.getTopServicesByRevenue(branchId, { startDate, endDate });
+      sendSuccess(res, result, 'Top services by revenue fetched successfully');
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // GET /admin/top-individual-services
+  // ─────────────────────────────────────────────
+  getTopIndividualServices = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const branchId = await this.getBranchId(req);
+      const { startDate, endDate } = req.query as { startDate?: string, endDate?: string };
+      const result = await adminService.getTopIndividualServices(branchId, { startDate, endDate });
+      sendSuccess(res, result, 'Top individual services fetched successfully');
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // GET /admin/top-individual-services-revenue
+  // ─────────────────────────────────────────────
+  getTopIndividualServicesByRevenue = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const branchId = await this.getBranchId(req);
+      const { startDate, endDate } = req.query as { startDate?: string, endDate?: string };
+      const result = await adminService.getTopIndividualServicesByRevenue(branchId, { startDate, endDate });
+      sendSuccess(res, result, 'Top individual services by revenue fetched successfully');
     } catch (err) {
       next(err);
     }
@@ -77,7 +138,8 @@ export class AdminController {
       next: NextFunction,
   ) => {
       try {
-          const admins = await this.adminService.getAdmins();
+          const { branch_id } = req.query;
+          const admins = await this.adminService.getAdmins(branch_id as string);
 
           sendSuccess(
               res,

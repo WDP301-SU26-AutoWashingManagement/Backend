@@ -1,15 +1,15 @@
 import { FilterQuery, PaginateResult, Types } from 'mongoose';
-import { appointmentRepository }        from '../repositories/appointment.repository';
+import { appointmentRepository } from '../repositories/appointment.repository';
 import { appointmentServiceRepository } from '../repositories/appointmentService.repository';
 
 // Models
 import { Appointment, BookingSource, BookingStatus, IAppointment } from '../../../models/appointment.model';
-import { Branch }         from '../../../models/branch.model';
-import { Vehicle }        from '../../../models/vehicle.model';
-import { Customer }       from '../../../models/customer.model';
-import { Service }        from '../../../models/service.model';
+import { Branch } from '../../../models/branch.model';
+import { Vehicle } from '../../../models/vehicle.model';
+import { Customer } from '../../../models/customer.model';
+import { Service } from '../../../models/service.model';
 import { PackageService } from '../../../models/packageService.model';
-import { Staff }          from '../../../models/staff.model';
+import { Staff } from '../../../models/staff.model';
 
 // Cross-module
 import { scheduleRepository } from '../../staff-manager/repositories/schedule.repository';
@@ -17,20 +17,20 @@ import { customerRepository } from '../../customer/repositories/customer.reposit
 
 // Errors & types
 import {
-  BadRequestError,
-  ConflictError,
-  ForbiddenError,
-  NotFoundError,
+    BadRequestError,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
 } from '../../../common/utils/AppError';
 import {
-  IAssignStaff,
-  IAvailableSlot,
-  IAvailableSlotsQuery,
-  ICancelBooking,
-  IConfirmBooking,
-  ICreateBooking,
-  IGetBookingList,
-  IServiceSnapshot,
+    IAssignStaff,
+    IAvailableSlot,
+    IAvailableSlotsQuery,
+    ICancelBooking,
+    IConfirmBooking,
+    ICreateBooking,
+    IGetBookingList,
+    IServiceSnapshot,
 } from '../interfaces/booking.interface';
 import { UserRole } from '../../../common/types/enum';
 
@@ -48,7 +48,7 @@ const POINTS_PER_10K = 1;
 // ─── Service Class ────────────────────────────────────────────────────────────
 
 export class BookingService {
-    private readonly appointmentRepo        = appointmentRepository;
+    private readonly appointmentRepo = appointmentRepository;
     private readonly appointmentServiceRepo = appointmentServiceRepository;
 
     // ─── 1. Available Slots ──────────────────────────────────────────────────
@@ -64,8 +64,8 @@ export class BookingService {
      * Nếu ngày là cuối tuần + branch có weekend hours → dùng weekend hours.
      */
     async getAvailableSlots(
-        branchId : string,
-        dto      : IAvailableSlotsQuery,
+        branchId: string,
+        dto: IAvailableSlotsQuery,
     ): Promise<IAvailableSlot[]> {
         const branch = await Branch.findById(branchId).lean();
         if (!branch) throw new NotFoundError('Branch not found');
@@ -73,30 +73,30 @@ export class BookingService {
 
         const requestedDate = new Date(dto.date);
         if (isNaN(requestedDate.getTime())) {
-        throw new BadRequestError('Invalid date format');
+            throw new BadRequestError('Invalid date format');
         }
 
         // Chặn đặt lịch quá khứ
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         if (requestedDate < today) {
-        throw new BadRequestError('Cannot query slots for a past date');
+            throw new BadRequestError('Cannot query slots for a past date');
         }
 
         const dayOfWeek = requestedDate.getDay(); // 0=Sun, 6=Sat
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-        const openStr  = (isWeekend && branch.operating_time.weekend_open)
-        ? branch.operating_time.weekend_open
-        : branch.operating_time.default_open;
+        const openStr = (isWeekend && branch.operating_time.weekend_open)
+            ? branch.operating_time.weekend_open
+            : branch.operating_time.default_open;
         const closeStr = (isWeekend && branch.operating_time.weekend_close)
-        ? branch.operating_time.weekend_close
-        : branch.operating_time.default_close;
+            ? branch.operating_time.weekend_close
+            : branch.operating_time.default_close;
 
         if (!openStr || !closeStr) throw new BadRequestError('Branch operating hours not configured');
 
         // Build day boundaries
-        const [openH, openM]   = openStr.split(':').map(Number);
+        const [openH, openM] = openStr.split(':').map(Number);
         const [closeH, closeM] = closeStr.split(':').map(Number);
 
         const dayStart = new Date(requestedDate);
@@ -107,34 +107,34 @@ export class BookingService {
 
         // Fetch existing active bookings for the day once (1 DB call)
         const existingBookings = await this.appointmentRepo
-        .findActiveByBranchAndDate(branchId, dayStart, dayEnd);
+            .findActiveByBranchAndDate(branchId, dayStart, dayEnd);
 
         // Map: slot ISO string → booking count
         const bookingCountMap = new Map<string, number>();
         for (const b of existingBookings) {
-        const key = b.scheduled_at.toISOString();
-        bookingCountMap.set(key, (bookingCountMap.get(key) ?? 0) + 1);
+            const key = b.scheduled_at.toISOString();
+            bookingCountMap.set(key, (bookingCountMap.get(key) ?? 0) + 1);
         }
 
         // Generate slots
         const slots: IAvailableSlot[] = [];
         const cursor = new Date(dayStart);
-        const now    = new Date();
+        const now = new Date();
 
         while (cursor < dayEnd) {
-        const slotKey      = cursor.toISOString();
-        const bookedCount  = bookingCountMap.get(slotKey) ?? 0;
-        const availableBays = branch.bay_counts - bookedCount;
+            const slotKey = cursor.toISOString();
+            const bookedCount = bookingCountMap.get(slotKey) ?? 0;
+            const availableBays = branch.bay_counts - bookedCount;
 
-        // Bỏ qua slot đã qua (nếu hỏi ngày hôm nay)
-        if (cursor > now && availableBays > 0) {
-            slots.push({
-            scheduled_at   : slotKey,
-            available_bays : availableBays,
-            });
-        }
+            // Bỏ qua slot đã qua (nếu hỏi ngày hôm nay)
+            if (cursor > now && availableBays > 0) {
+                slots.push({
+                    scheduled_at: slotKey,
+                    available_bays: availableBays,
+                });
+            }
 
-        cursor.setMinutes(cursor.getMinutes() + SLOT_GRANULARITY_MINUTES);
+            cursor.setMinutes(cursor.getMinutes() + SLOT_GRANULARITY_MINUTES);
         }
 
         return slots;
@@ -156,9 +156,9 @@ export class BookingService {
      *  - Price & duration được snapshot tại thời điểm booking.
      */
     async createBooking(
-        customerId : string,  // customer._id (ObjectId string) — lấy từ JWT + lookup
-        userId     : string,  // user._id — để lookup customer
-        dto        : ICreateBooking,
+        customerId: string,  // customer._id (ObjectId string) — lấy từ JWT + lookup
+        userId: string,  // user._id — để lookup customer
+        dto: ICreateBooking,
     ): Promise<IAppointment> {
 
         // ── Resolve customer record ──
@@ -177,37 +177,37 @@ export class BookingService {
         const vehicle = await Vehicle.findById(dto.vehicle_id).lean();
         if (!vehicle) throw new NotFoundError('Vehicle not found');
         if (vehicle.customer_id.toString() !== resolvedCustomerId) {
-        throw new ForbiddenError('Vehicle does not belong to this customer');
+            throw new ForbiddenError('Vehicle does not belong to this customer');
         }
 
         // ── Validate scheduled_at ──
         const scheduledAt = new Date(dto.scheduled_at);
         if (isNaN(scheduledAt.getTime())) {
-        throw new BadRequestError('Invalid scheduled_at date');
+            throw new BadRequestError('Invalid scheduled_at date');
         }
         if (scheduledAt <= new Date()) {
-        throw new BadRequestError('scheduled_at must be in the future');
+            throw new BadRequestError('scheduled_at must be in the future');
         }
 
         // Validate booking window theo tier
         const tier = await customer.populate('tier_id');
         const tierConfig = (customer as any).tier_id;
         if (tierConfig?.booking_window_days) {
-        const maxDate = new Date();
-        maxDate.setDate(maxDate.getDate() + tierConfig.booking_window_days);
-        if (scheduledAt > maxDate) {
-            throw new BadRequestError(
-            `Your tier only allows booking up to ${tierConfig.booking_window_days} days in advance`,
-            );
-        }
+            const maxDate = new Date();
+            maxDate.setDate(maxDate.getDate() + tierConfig.booking_window_days);
+            if (scheduledAt > maxDate) {
+                throw new BadRequestError(
+                    `Your tier only allows booking up to ${tierConfig.booking_window_days} days in advance`,
+                );
+            }
         }
 
-        // ── Validate no duplicate slot for this customer ──
+        // ── Validate no duplicate slot for this vehicle ──
         const hasDuplicate = await this.appointmentRepo.hasOverlappingBooking(
-        resolvedCustomerId, scheduledAt,
+            dto.vehicle_id, scheduledAt,
         );
         if (hasDuplicate) {
-        throw new ConflictError('You already have a booking at this time slot');
+            throw new ConflictError('Phương tiện này đã được đặt lịch vào khung giờ này');
         }
 
         // ── Validate branch bay availability ──
@@ -215,10 +215,10 @@ export class BookingService {
         slotEnd.setMinutes(slotEnd.getMinutes() + SLOT_GRANULARITY_MINUTES);
 
         const activeCount = await this.appointmentRepo.countActiveInWindow(
-        dto.branch_id, scheduledAt, slotEnd,
+            dto.branch_id, scheduledAt, slotEnd,
         );
         if (activeCount >= branch.bay_counts) {
-        throw new ConflictError('No available bays at this time slot. Please choose another time.');
+            throw new ConflictError('No available bays at this time slot. Please choose another time.');
         }
 
         // ── Validate & snapshot services ──
@@ -226,43 +226,43 @@ export class BookingService {
 
         // ── Create Appointment (PENDING) ──
         const appointment = await this.appointmentRepo.create({
-        branch_id   : new Types.ObjectId(dto.branch_id),
-        vehicle_id  : new Types.ObjectId(dto.vehicle_id),
-        customer_id : new Types.ObjectId(resolvedCustomerId),
-        staff_id    : null,
-        booking_status : BookingStatus.PENDING,
-        booking_source : dto.booking_source ?? BookingSource.APP,
-        scheduled_at   : scheduledAt,
-        checkedin_at   : null,
-        started_at     : null,
-        completed_at   : null,
-        cancelled_at   : null,
-        earned_membership_point : 0,
-        earned_reward_point     : 0,
-        redeemed_reward_point   : 0,
-        cancellation_reason     : null,
+            branch_id: new Types.ObjectId(dto.branch_id),
+            vehicle_id: new Types.ObjectId(dto.vehicle_id),
+            customer_id: new Types.ObjectId(resolvedCustomerId),
+            staff_id: null,
+            booking_status: BookingStatus.PENDING,
+            booking_source: dto.booking_source ?? BookingSource.APP,
+            scheduled_at: scheduledAt,
+            checkedin_at: null,
+            started_at: null,
+            completed_at: null,
+            cancelled_at: null,
+            earned_membership_point: 0,
+            earned_reward_point: 0,
+            redeemed_reward_point: 0,
+            cancellation_reason: null,
         });
 
         // ── Create AppointmentService line-items ──
         await this.appointmentServiceRepo.insertMany(
-        serviceSnapshots.map(s => ({
-            appointment_id     : appointment._id,
-            service_id         : s.service_id,
-            service_package_id : s.service_package_id,
-            price_snapshot     : s.price_snapshot,
-            duration_snapshot  : s.duration_snapshot,
-        })),
+            serviceSnapshots.map(s => ({
+                appointment_id: appointment._id,
+                service_id: s.service_id,
+                service_package_id: s.service_package_id,
+                price_snapshot: s.price_snapshot,
+                duration_snapshot: s.duration_snapshot,
+            })),
         );
 
         return this.appointmentRepo.findByIdPopulated(
-        (appointment._id as Types.ObjectId).toString(),
+            (appointment._id as Types.ObjectId).toString(),
         ) as Promise<IAppointment>;
     }
 
     // ─── 3. Get List ─────────────────────────────────────────────────────────
 
     async getBookingList(
-        dto        : IGetBookingList,
+        dto: IGetBookingList,
         requesterId: string,
         requesterRole: string,
     ): Promise<PaginateResult<any>> {
@@ -279,7 +279,7 @@ export class BookingService {
             filter.customer_id = customer._id;
         } else {
             if (rest.customer_id) filter.customer_id = new Types.ObjectId(rest.customer_id);
-            if (rest.staff_id)    filter.staff_id    = new Types.ObjectId(rest.staff_id);
+            if (rest.staff_id) filter.staff_id = new Types.ObjectId(rest.staff_id);
 
             // BẮT BUỘC lọc branch_id đối với STAFF và ADMIN
             if (requesterRole === UserRole.STAFF || requesterRole === UserRole.ADMIN) {
@@ -307,9 +307,9 @@ export class BookingService {
         }
 
         if (from_date || to_date) {
-        filter.scheduled_at = {};
-        if (from_date) filter.scheduled_at.$gte = new Date(from_date);
-        if (to_date)   filter.scheduled_at.$lte = new Date(to_date);
+            filter.scheduled_at = {};
+            if (from_date) filter.scheduled_at.$gte = new Date(from_date);
+            if (to_date) filter.scheduled_at.$lte = new Date(to_date);
         }
 
         const result = await this.appointmentRepo.paginateList(filter, { page, limit });
@@ -324,12 +324,12 @@ export class BookingService {
         const docsWithServices = result.docs.map(doc => {
             const docObj = doc.toObject ? doc.toObject() : doc;
             const docServices = services.filter(s => s.appointment_id.toString() === doc._id.toString());
-            
+
             const base_price = docServices.reduce((sum, s) => sum + s.price_snapshot, 0);
-            
+
             // Tìm hoá đơn tương ứng
             const invoice = invoices.find((inv: any) => inv.appointment_id.toString() === doc._id.toString());
-            
+
             const final_price = invoice ? invoice.total : base_price;
             const discount_amount = invoice ? invoice.discount_amount : undefined;
 
@@ -357,7 +357,7 @@ export class BookingService {
 
     async getBookingById(
         appointmentId: string,
-        requesterId  : string,
+        requesterId: string,
         requesterRole: string,
     ): Promise<{ appointment: IAppointment; services: unknown[] }> {
         const appointment = await this.appointmentRepo.findByIdPopulated(appointmentId) as IAppointment;
@@ -379,7 +379,7 @@ export class BookingService {
         // Compute final_price similarly
         const { Invoice } = require('../../../models/invoice.model');
         const invoice = await Invoice.findOne({ appointment_id: appointmentId }).lean();
-        
+
         const base_price = services.reduce((sum, s: any) => sum + s.price_snapshot, 0);
         const final_price = invoice ? invoice.total : base_price;
         const discount_amount = invoice ? invoice.discount_amount : undefined;
@@ -403,25 +403,25 @@ export class BookingService {
      */
     async confirmBooking(
         appointmentId: string,
-        dto          : IConfirmBooking,
+        dto: IConfirmBooking,
     ): Promise<IAppointment> {
         const appointment = await this.appointmentRepo.findById(appointmentId);
         if (!appointment) throw new NotFoundError('Booking not found');
 
         if (appointment.booking_status !== BookingStatus.PENDING) {
-        throw new BadRequestError(
-            `Cannot confirm a booking with status "${appointment.booking_status}"`,
-        );
+            throw new BadRequestError(
+                `Cannot confirm a booking with status "${appointment.booking_status}"`,
+            );
         }
 
         // Validate staff nếu truyền vào
         if (dto.staff_id) {
-        await this.validateStaffForAssignment(dto.staff_id, appointment.branch_id.toString());
+            await this.validateStaffForAssignment(dto.staff_id, appointment.branch_id.toString());
         }
 
         const updated = await this.appointmentRepo.updateById(appointmentId, {
-        booking_status: BookingStatus.CONFIRMED,
-        ...(dto.staff_id && { staff_id: new Types.ObjectId(dto.staff_id) }),
+            booking_status: BookingStatus.CONFIRMED,
+            ...(dto.staff_id && { staff_id: new Types.ObjectId(dto.staff_id) }),
         });
         if (!updated) throw new NotFoundError('Booking not found');
 
@@ -436,22 +436,22 @@ export class BookingService {
      */
     async assignStaff(
         appointmentId: string,
-        dto          : IAssignStaff,
+        dto: IAssignStaff,
     ): Promise<IAppointment> {
         const appointment = await this.appointmentRepo.findById(appointmentId);
         if (!appointment) throw new NotFoundError('Booking not found');
 
         const allowedStatuses: BookingStatus[] = [BookingStatus.PENDING, BookingStatus.CONFIRMED];
         if (!allowedStatuses.includes(appointment.booking_status)) {
-        throw new BadRequestError(
-            `Cannot assign staff to a booking with status "${appointment.booking_status}"`,
-        );
+            throw new BadRequestError(
+                `Cannot assign staff to a booking with status "${appointment.booking_status}"`,
+            );
         }
 
         await this.validateStaffForAssignment(dto.staff_id, appointment.branch_id.toString());
 
         const updated = await this.appointmentRepo.updateById(appointmentId, {
-        staff_id: new Types.ObjectId(dto.staff_id),
+            staff_id: new Types.ObjectId(dto.staff_id),
         });
         if (!updated) throw new NotFoundError('Booking not found');
 
@@ -467,8 +467,8 @@ export class BookingService {
      */
     async cancelBooking(
         appointmentId: string,
-        dto          : ICancelBooking,
-        requesterId  : string,
+        dto: ICancelBooking,
+        requesterId: string,
         requesterRole: string,
     ): Promise<IAppointment> {
         const appointment = await this.appointmentRepo.findById(appointmentId);
@@ -476,26 +476,26 @@ export class BookingService {
 
         // Ownership check cho customer
         if (requesterRole === UserRole.CUSTOMER) {
-        const customer = await customerRepository.findOne({
-            user_id: new Types.ObjectId(requesterId),
-        });
-        if (!customer) throw new NotFoundError('Customer profile not found');
-        if ((appointment.customer_id as Types.ObjectId).toString() !== (customer._id as Types.ObjectId).toString()) {
-            throw new ForbiddenError('You are not allowed to cancel this booking');
-        }
+            const customer = await customerRepository.findOne({
+                user_id: new Types.ObjectId(requesterId),
+            });
+            if (!customer) throw new NotFoundError('Customer profile not found');
+            if ((appointment.customer_id as Types.ObjectId).toString() !== (customer._id as Types.ObjectId).toString()) {
+                throw new ForbiddenError('You are not allowed to cancel this booking');
+            }
         }
 
         const cancellableStatuses: BookingStatus[] = [BookingStatus.PENDING, BookingStatus.CONFIRMED];
         if (!cancellableStatuses.includes(appointment.booking_status)) {
-        throw new BadRequestError(
-            `Cannot cancel a booking with status "${appointment.booking_status}"`,
-        );
+            throw new BadRequestError(
+                `Cannot cancel a booking with status "${appointment.booking_status}"`,
+            );
         }
 
         const updated = await this.appointmentRepo.updateById(appointmentId, {
-        booking_status      : BookingStatus.CANCELLED,
-        cancelled_at        : new Date(),
-        cancellation_reason : dto.cancellation_reason,
+            booking_status: BookingStatus.CANCELLED,
+            cancelled_at: new Date(),
+            cancellation_reason: dto.cancellation_reason,
         });
         if (!updated) throw new NotFoundError('Booking not found');
 
@@ -513,14 +513,14 @@ export class BookingService {
         if (!appointment) throw new NotFoundError('Booking not found');
 
         if (appointment.booking_status !== BookingStatus.CONFIRMED) {
-        throw new BadRequestError(
-            `Cannot check-in a booking with status "${appointment.booking_status}". Booking must be confirmed first.`,
-        );
+            throw new BadRequestError(
+                `Cannot check-in a booking with status "${appointment.booking_status}". Booking must be confirmed first.`,
+            );
         }
 
         const updated = await this.appointmentRepo.updateById(appointmentId, {
-        booking_status: BookingStatus.CHECKED_IN,
-        checkedin_at  : new Date(),
+            booking_status: BookingStatus.CHECKED_IN,
+            checkedin_at: new Date(),
         });
         if (!updated) throw new NotFoundError('Booking not found');
 
@@ -539,18 +539,18 @@ export class BookingService {
         if (!appointment) throw new NotFoundError('Booking not found');
 
         if (appointment.booking_status !== BookingStatus.CHECKED_IN) {
-        throw new BadRequestError(
-            `Cannot start service on a booking with status "${appointment.booking_status}"`,
-        );
+            throw new BadRequestError(
+                `Cannot start service on a booking with status "${appointment.booking_status}"`,
+            );
         }
 
         if (appointment.started_at) {
-        throw new ConflictError('Service has already been started for this booking');
+            throw new ConflictError('Service has already been started for this booking');
         }
 
         const updated = await this.appointmentRepo.updateById(appointmentId, {
-        booking_status: BookingStatus.IN_PROGRESS,
-        started_at: new Date(),
+            booking_status: BookingStatus.IN_PROGRESS,
+            started_at: new Date(),
         });
         if (!updated) throw new NotFoundError('Booking not found');
 
@@ -591,23 +591,23 @@ export class BookingService {
         if (!appointment) throw new NotFoundError('Booking not found');
 
         if (![BookingStatus.CHECKED_IN, BookingStatus.IN_PROGRESS, BookingStatus.WASHED].includes(appointment.booking_status)) {
-        throw new BadRequestError(
-            `Cannot complete a booking with status "${appointment.booking_status}"`,
-        );
+            throw new BadRequestError(
+                `Cannot complete a booking with status "${appointment.booking_status}"`,
+            );
         }
 
         if (!appointment.started_at) {
-        throw new BadRequestError('Service must be started before completing');
+            throw new BadRequestError('Service must be started before completing');
         }
 
         // Tính membership points từ subtotal (snapshot prices)
-        const subtotal      = await this.appointmentServiceRepo.getSubtotal(appointmentId);
-        const earnedPoints  = Math.floor(subtotal / 10_000) * POINTS_PER_10K;
+        const subtotal = await this.appointmentServiceRepo.getSubtotal(appointmentId);
+        const earnedPoints = Math.floor(subtotal / 10_000) * POINTS_PER_10K;
 
         const updated = await this.appointmentRepo.updateById(appointmentId, {
-        booking_status          : BookingStatus.COMPLETED,
-        completed_at            : new Date(),
-        earned_membership_point : earnedPoints,
+            booking_status: BookingStatus.COMPLETED,
+            completed_at: new Date(),
+            earned_membership_point: earnedPoints,
         });
         if (!updated) throw new NotFoundError('Booking not found');
 
@@ -629,47 +629,47 @@ export class BookingService {
         const snapshots: IServiceSnapshot[] = [];
 
         for (const item of items) {
-        const service = await Service.findById(item.service_id).lean();
-        if (!service) {
-            throw new NotFoundError(`Service not found: ${item.service_id}`);
-        }
-        if (!service.is_active) {
-            throw new BadRequestError(`Service "${service.service_name}" is currently inactive`);
-        }
-
-        let priceSnapshot    = service.service_price;
-        let servicePackageId : Types.ObjectId | null = null;
-
-        if (item.service_package_id) {
-            // Kiểm tra package có chứa service này không (via PackageService junction)
-            const packageLink = await PackageService.findOne({
-            service_id        : new Types.ObjectId(item.service_id),
-            service_package_id: new Types.ObjectId(item.service_package_id),
-            }).populate('service_package_id').lean();
-
-            if (!packageLink) {
-            throw new BadRequestError(
-                `Service "${service.service_name}" does not belong to the specified package`,
-            );
+            const service = await Service.findById(item.service_id).lean();
+            if (!service) {
+                throw new NotFoundError(`Service not found: ${item.service_id}`);
+            }
+            if (!service.is_active) {
+                throw new BadRequestError(`Service "${service.service_name}" is currently inactive`);
             }
 
-            const pkg = (packageLink as any).service_package_id;
-            if (!pkg?.is_active) {
-            throw new BadRequestError(`Package is currently inactive`);
+            let priceSnapshot = service.service_price;
+            let servicePackageId: Types.ObjectId | null = null;
+
+            if (item.service_package_id) {
+                // Kiểm tra package có chứa service này không (via PackageService junction)
+                const packageLink = await PackageService.findOne({
+                    service_id: new Types.ObjectId(item.service_id),
+                    service_package_id: new Types.ObjectId(item.service_package_id),
+                }).populate('service_package_id').lean();
+
+                if (!packageLink) {
+                    throw new BadRequestError(
+                        `Service "${service.service_name}" does not belong to the specified package`,
+                    );
+                }
+
+                const pkg = (packageLink as any).service_package_id;
+                if (!pkg?.is_active) {
+                    throw new BadRequestError(`Package is currently inactive`);
+                }
+
+                // Apply package discount
+                const discountRate = (pkg.package_discount_percentage ?? 0) / 100;
+                priceSnapshot = Math.round(service.service_price * (1 - discountRate));
+                servicePackageId = new Types.ObjectId(item.service_package_id);
             }
 
-            // Apply package discount
-            const discountRate = (pkg.package_discount_percentage ?? 0) / 100;
-            priceSnapshot      = Math.round(service.service_price * (1 - discountRate));
-            servicePackageId   = new Types.ObjectId(item.service_package_id);
-        }
-
-        snapshots.push({
-            service_id         : new Types.ObjectId(item.service_id),
-            service_package_id : servicePackageId,
-            price_snapshot     : priceSnapshot,
-            duration_snapshot  : service.duration_minutes,
-        });
+            snapshots.push({
+                service_id: new Types.ObjectId(item.service_id),
+                service_package_id: servicePackageId,
+                price_snapshot: priceSnapshot,
+                duration_snapshot: service.duration_minutes,
+            });
         }
 
         return snapshots;
@@ -679,8 +679,8 @@ export class BookingService {
      * Validate rằng staff tồn tại, thuộc đúng branch, và đang có trong lịch làm việc.
      */
     private async validateStaffForAssignment(
-        staffId  : string,
-        branchId : string,
+        staffId: string,
+        branchId: string,
     ): Promise<void> {
         const staff = await Staff.findById(staffId).lean();
         if (!staff) throw new NotFoundError('Staff not found');

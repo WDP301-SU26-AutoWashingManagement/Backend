@@ -42,7 +42,6 @@ const vehicleSchema = new Schema<IVehicle>(
 
         vehicle_model: {
             type: String,
-            required: true,
         },
 
         fuel_type: {

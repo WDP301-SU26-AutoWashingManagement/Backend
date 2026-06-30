@@ -7,11 +7,11 @@ export class AdminRepository extends BaseRepository<IAdmin> {
     }
 
     findById = (id: string) => {
-        return Admin.findById(id).populate("user_id");
+        return Admin.findById(id).populate("user_id").populate("branch_id");
     };
 
-    findMany = () => {
-        return Admin.find().populate("user_id");
+    findMany = (filter: any = {}) => {
+        return Admin.find(filter).populate("user_id").populate("branch_id");
     };
 
     findByUserId = (userId: string) => {

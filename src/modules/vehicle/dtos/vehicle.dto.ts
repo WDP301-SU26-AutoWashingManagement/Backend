@@ -10,16 +10,21 @@ export const createVehicleSchema = Joi.object({
     .required(),
 
   model_id: Joi.string()
-    .regex(/^[0-9a-fA-F]{24}$/),
+    .regex(/^[0-9a-fA-F]{24}$/)
+    .allow(null, '', 'other')
+    .optional(),
 
-  vehicle_model: Joi.string().trim(),
+  make_name: Joi.string().trim().allow(null, '').optional(),
+  model_name: Joi.string().trim().allow(null, '').optional(),
+
+  vehicle_model: Joi.string().trim().allow(null, '').optional(),
 
   license_plate: Joi.string().trim().required(),
 
   fuel_type: Joi.string().trim().required(),
 
   color: Joi.string().trim().required(),
-}).xor('model_id', 'vehicle_model');
+});
 
 export const updateVehicleSchema = Joi.object({
   vehicle_class_id: Joi.string()
@@ -27,13 +32,18 @@ export const updateVehicleSchema = Joi.object({
     .optional(),
 
   model_id: Joi.string()
-    .regex(/^[0-9a-fA-F]{24}$/),
+    .regex(/^[0-9a-fA-F]{24}$/)
+    .allow(null, '', 'other')
+    .optional(),
 
-  vehicle_model: Joi.string().trim(),
+  make_name: Joi.string().trim().allow(null, '').optional(),
+  model_name: Joi.string().trim().allow(null, '').optional(),
+
+  vehicle_model: Joi.string().trim().allow(null, '').optional(),
 
   license_plate: Joi.string().trim().optional(),
 
   fuel_type: Joi.string().trim().optional(),
 
   color: Joi.string().trim().optional(),
-}).oxor('model_id', 'vehicle_model');
+});

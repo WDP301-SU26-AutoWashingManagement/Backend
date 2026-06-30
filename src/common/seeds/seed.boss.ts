@@ -1,17 +1,11 @@
-import 'dotenv/config';
-import bcrypt from 'bcryptjs';
-import { connectDB } from '../../configs/db.config';
 import { User } from '../../models/user.model';
 import { Boss } from '../../models/boss.model';
 import { UserRole } from '../../common/types/enum';
 
 const seedBoss = async () => {
-  await connectDB();
-
   const email = 'boss@gmail.com';
 
   const existingUser = await User.findOne({ email });
-
   if (existingUser) {
     console.log('Boss đã tồn tại, bỏ qua seed.');
     return;
@@ -27,9 +21,7 @@ const seedBoss = async () => {
     is_phone_verified: true,
   });
 
-  await Boss.create({
-    user_id: bossUser._id,
-  });
+  await Boss.create({ user_id: bossUser._id });
 
   console.log('Seed boss thành công!');
 };
