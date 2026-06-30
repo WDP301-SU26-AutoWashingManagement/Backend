@@ -1,7 +1,6 @@
 import { Appointment, BookingStatus, IAppointment } from '../../../models/appointment.model';
 import { Types } from 'mongoose';
-import { WashingStatus } from '../interfaces/washingStatus.interface';
-import { redisClient } from 'src/configs/redis.config';
+
 
 export interface BookingStatusUpdate {
   appointment_id : string;
@@ -80,12 +79,8 @@ export class NotificationService {
     }));
   }
 
-  async updateStatus(branch_id: string, status: WashingStatus, customer_id: string) {
-    await redisClient.set(branch_id, JSON.stringify(status))
-  }
-
-  async getStatus(branch_id: string) {
-    return await redisClient.get(branch_id);
+  async getWashingStatus(branch_id: string) {
+    
   }
 }
 

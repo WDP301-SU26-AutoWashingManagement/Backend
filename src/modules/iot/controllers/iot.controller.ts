@@ -5,6 +5,7 @@ import { AuthenticatedRequest } from "../../../common/types";
 import { notificationService } from '../../sse-notifications/services/notification.service';
 import { User } from '../../../models/user.model';
 import { ActionType } from "@modules/sse-notifications/interfaces/washingStatus.interface";
+import { redisService } from "@modules/redis/services/redis.service";
 
 export class IOTController {
     async turnOnWater(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -19,12 +20,12 @@ export class IOTController {
 
             if (branchId) {
                 // Set washing status in Redis to WASHING
-                await notificationService.updateStatus(branchId, { id: branchId, action: ActionType.WASHING }, '');
+                await redisService.updateWashingStatus(branchId, { id: branchId, action: ActionType.WASHING }, '');
 
                 // Simulate status transition: WASHING -> DONE (after 15 seconds) -> PREPAIRING (after 20 seconds)
                 setTimeout(async () => {
                     try {
-                        await notificationService.updateStatus(branchId, { id: branchId, action: ActionType.DONE }, '');
+                        await redisService.updateWashingStatus(branchId, { id: branchId, action: ActionType.DONE }, '');
                     } catch (err) {
                         console.error('Failed to update status to DONE:', err);
                     }
@@ -32,7 +33,7 @@ export class IOTController {
 
                 setTimeout(async () => {
                     try {
-                        await notificationService.updateStatus(branchId, { id: branchId, action: ActionType.PREPAIRING }, '');
+                        await redisService.updateWashingStatus(branchId, { id: branchId, action: ActionType.PREPAIRING }, '');
                     } catch (err) {
                         console.error('Failed to update status to PREPAIRING:', err);
                     }
