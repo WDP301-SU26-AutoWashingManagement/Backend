@@ -1,7 +1,7 @@
 import { Appointment, BookingStatus, IAppointment } from '../../../models/appointment.model';
 import { Types } from 'mongoose';
 import { WashingStatus } from '../interfaces/washingStatus.interface';
-import { redisClient } from 'src/configs/redis.config';
+import { redisClient } from '../../../configs/redis.config';
 
 export interface BookingStatusUpdate {
   appointment_id : string;
