@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { connectDB } from '../src/configs/db.config';
 import { User } from '../src/models/user.model';
 import { Admin } from '../src/models/admin.model';
-import { ADMIN_SEED } from '../src/common/constants/seeds';
+import { ADMIN_SEED } from '../../../common/constants/seeds';
 import { logger } from '../src/common/utils/logger';
 import { UserRole } from '../src/common/types';
 

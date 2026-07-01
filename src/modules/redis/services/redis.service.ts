@@ -1,6 +1,6 @@
 
 import { WashingStatus } from '@modules/sse-notifications/interfaces/washingStatus.interface';
-import { redisClient } from 'src/configs/redis.config';
+import { redisClient } from '../../../configs/redis.config';
 
 export class RedisService {
 

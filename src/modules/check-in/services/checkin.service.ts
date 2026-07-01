@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Appointment, BookingStatus } from '../../../models/appointment.model';
 import { Vehicle } from '../../../models/vehicle.model';
 
-const PYTHON_API_URL = process.env.PYTHON_API_URL || 'http://localhost:8000';
+const LICENSE_DETECT_API_URL = process.env.LICENSE_DETECT_API_URL || 'http://localhost:8000';
 
 // -------------------------------------------------------
 // 1. Fetch biển số từ Python service
@@ -15,9 +15,9 @@ async function fetchPlatesFromImage(imageBuffer: Buffer, mimeType: string): Prom
     contentType: mimeType,
   });
 
-  const response = await axios.post(`${PYTHON_API_URL}/detect`, form, {
+  const response = await axios.post(`${LICENSE_DETECT_API_URL}/detect`, form, {
     headers: form.getHeaders(),
-    timeout: 10000, // 10s timeout
+    timeout: 30000, // 10s timeout
   });
 
   return response.data.plates as string[]; // ["99E1-22268", ...]
@@ -46,8 +46,8 @@ async function findAppointmentByPlates(plates: string[]) {
 
   // Tìm appointment của xe này, hôm nay, đang ở trạng thái confirmed
   const appointment = await Appointment.findOne({
-    vehicle_id    : vehicle._id,
-    scheduled_at  : { $gte: startOfDay, $lte: endOfDay },
+    vehicle_id: vehicle._id,
+    scheduled_at: { $gte: startOfDay, $lte: endOfDay },
     booking_status: BookingStatus.CONFIRMED,
   });
   console.log(appointment)
@@ -62,7 +62,7 @@ async function checkInAppointment(appointmentId: string) {
     appointmentId,
     {
       booking_status: BookingStatus.CHECKED_IN,
-      checkedin_at  : new Date(),
+      checkedin_at: new Date(),
     },
     { new: true }
   );
@@ -92,8 +92,8 @@ export async function processCheckinFromImage(
 
   if (!result) {
     return {
-      success      : false,
-      message      : 'Không tìm thấy lịch hẹn hôm nay cho biển số này.',
+      success: false,
+      message: 'Không tìm thấy lịch hẹn hôm nay cho biển số này.',
       license_plate: plates[0],
     };
   }
@@ -106,9 +106,9 @@ export async function processCheckinFromImage(
   }
 
   return {
-    success       : true,
-    message       : 'Check-in thành công.',
+    success: true,
+    message: 'Check-in thành công.',
     appointment_id: updated._id.toString(),
-    license_plate : result.vehicle.license_plate,
+    license_plate: result.vehicle.license_plate,
   };
 }
