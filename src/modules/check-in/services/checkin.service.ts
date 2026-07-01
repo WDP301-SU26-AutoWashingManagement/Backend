@@ -17,7 +17,7 @@ async function fetchPlatesFromImage(imageBuffer: Buffer, mimeType: string): Prom
 
   const response = await axios.post(`${LICENSE_DETECT_API_URL}/detect`, form, {
     headers: form.getHeaders(),
-    timeout: 30000, // 10s timeout
+    timeout: 30000, // 30s timeout
   });
 
   return response.data.plates as string[]; // ["99E1-22268", ...]
