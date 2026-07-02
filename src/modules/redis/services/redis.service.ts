@@ -1,6 +1,6 @@
 
 import { WashingStatus } from '@modules/sse-notifications/interfaces/washingStatus.interface';
-import { redisClient } from 'src/configs/redis.config';
+import { redisClient } from '../../../configs/redis.config';
 
 export class RedisService {
 
@@ -9,8 +9,9 @@ export class RedisService {
         await redisClient.set(`washing-status:${branch_id}`, JSON.stringify(status))
     }
 
-    async getWashingStatus(branch_id: string) {
-        return await redisClient.get(`washing-status:${branch_id}`);
+    async getWashingStatus(branch_id: string): Promise<WashingStatus | null> {
+        const data = await redisClient.get(`washing-status:${branch_id}`);
+        return data ? JSON.parse(data) : null;
     }
 }
 

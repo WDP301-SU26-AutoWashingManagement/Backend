@@ -1,6 +1,7 @@
-import { Appointment, BookingStatus, IAppointment } from '../../../models/appointment.model';
+import { Appointment, BookingStatus } from '../../../models/appointment.model';
 import { Types } from 'mongoose';
-
+import { User } from '../../../models/user.model';
+import { redisService } from '@modules/redis/services/redis.service';
 
 export interface BookingStatusUpdate {
   appointment_id : string;
@@ -79,8 +80,17 @@ export class NotificationService {
     }));
   }
 
-  async getWashingStatus(branch_id: string) {
-    
+  async resolveUserBranch(userId: string): Promise<string | undefined> {
+    const user = await User.findById(userId).lean();
+    return user?.branch_id ? user.branch_id.toString() : undefined;
+  }
+
+  async getWashingStatus(branchId: string): Promise<any> {
+    const cachedStatus = await redisService.getWashingStatus(branchId);
+    if (cachedStatus) {
+      return cachedStatus;
+    }
+    return { id: branchId, action: 'PREPAIRING' };
   }
 }
 
