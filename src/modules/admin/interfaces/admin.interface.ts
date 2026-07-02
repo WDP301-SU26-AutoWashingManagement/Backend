@@ -40,3 +40,8 @@ export interface ITopIndividualServiceRevenue {
 export interface IAdminUpdate {
     user_id?: string;
 }
+
+export interface IHourlyBooking {
+    time: string;
+    count: number;
+}

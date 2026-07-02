@@ -63,6 +63,19 @@ export class AdminController {
   };
 
   // ─────────────────────────────────────────────
+  // POST /admin/bookings/hourly-distribution
+  // ─────────────────────────────────────────────
+  getHourlyBookingDistribution = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const branchId = await this.getBranchId(req);
+      const result = await adminService.getHourlyBookingDistribution(req.body as IBookingCount, branchId);
+      sendSuccess(res, result, 'Hourly booking distribution fetched successfully');
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // ─────────────────────────────────────────────
   // POST /admin/profit
   // Require body startDate and endDate
   // ─────────────────────────────────────────────

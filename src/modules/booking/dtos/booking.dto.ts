@@ -70,6 +70,7 @@ export const getBookingListSchema = Joi.object({
 
   from_date: Joi.string().isoDate().optional(),
   to_date  : Joi.string().isoDate().optional(),
+  time_slot: Joi.string().optional(),
 });
 
 /**
