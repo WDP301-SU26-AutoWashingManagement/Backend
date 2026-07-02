@@ -31,6 +31,7 @@ class AdminService {
    */
   async getBookingCount(date: IBookingCount, branchId?: string | null): Promise<{ totalBookings: number }> {
     const start = new Date(date.startDate);
+    start.setHours(0, 0, 0, 0);
     const end = new Date(date.endDate);
     end.setHours(23, 59, 59, 999);
     
@@ -53,6 +54,7 @@ class AdminService {
    */
   async getHourlyBookingDistribution(date: IBookingCount, branchId?: string | null): Promise<IHourlyBooking[]> {
     const start = new Date(date.startDate);
+    start.setHours(0, 0, 0, 0);
     const end = new Date(date.endDate);
     end.setHours(23, 59, 59, 999);
     
@@ -132,12 +134,12 @@ class AdminService {
 
     return hourlyDist;
   }
-
   /**
    * Get daily profit (sum of total for paid invoices) between startDate and endDate.
    */
   async getDailyProfit(query: IProfitQuery, branchId?: string | null): Promise<IDailyProfit[]> {
     const start = new Date(query.startDate);
+    start.setHours(0, 0, 0, 0);
     const end = new Date(query.endDate);
     // Set end to end-of-day so the entire endDate is included
     end.setHours(23, 59, 59, 999);
@@ -177,33 +179,41 @@ class AdminService {
         $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$paid_at', timezone: '+07:00' } },
           profit: { $sum: '$total' },
+          count: { $sum: 1 }
         },
       },
       { $sort: { _id: 1 } }
     );
 
     // Aggregate paid invoices, group by day
-    const results = await Invoice.aggregate<{ _id: string; profit: number }>(pipeline);
+    const results = await Invoice.aggregate<{ _id: string; profit: number; count: number }>(pipeline);
 
     // Build a lookup map from aggregation results
-    const profitMap = new Map<string, number>();
+    const profitMap = new Map<string, { profit: number; count: number }>();
     for (const r of results) {
-      profitMap.set(r._id, r.profit);
+      profitMap.set(r._id, { profit: r.profit, count: r.count });
     }
 
-    // Fill every day in the range so the frontend gets a continuous series
-    const dailyProfits: IDailyProfit[] = [];
-    const cursor = new Date(start);
-    while (cursor <= end) {
-      const dateStr = cursor.toISOString().slice(0, 10); // YYYY-MM-DD
-      dailyProfits.push({
+    const dailyProfit: IDailyProfit[] = [];
+    const curDate = new Date(start);
+    // curDate was set to 00:00:00.000 above
+
+    while (curDate <= end) {
+      const year = curDate.getFullYear();
+      const month = (curDate.getMonth() + 1).toString().padStart(2, '0');
+      const day = curDate.getDate().toString().padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
+      const data = profitMap.get(dateStr) || { profit: 0, count: 0 };
+      dailyProfit.push({
         date: dateStr,
-        profit: profitMap.get(dateStr) ?? 0,
+        profit: data.profit,
+        count: data.count
       });
-      cursor.setDate(cursor.getDate() + 1);
+      curDate.setDate(curDate.getDate() + 1);
     }
 
-    return dailyProfits;
+    return dailyProfit;
   }
 
   /**
@@ -552,6 +562,92 @@ class AdminService {
       await this.adminRepo.deleteById(adminId);
 
       return { message: "Xóa admin thành công" };
+  }
+
+  async getPaidBookings(dates: { startDate?: string, endDate?: string }, branchId?: string | null) {
+    let start = new Date(0);
+    let end = new Date();
+    
+    if (dates?.startDate) {
+      start = new Date(dates.startDate);
+      start.setHours(0, 0, 0, 0);
+    }
+    if (dates?.endDate) {
+      end = new Date(dates.endDate);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    const match: any = {
+      'invoice_status': 'paid',
+      'paid_at': { $gte: start, $lte: end },
+    };
+
+    const pipeline: any[] = [
+      { $match: match },
+      {
+        $lookup: {
+          from: 'appointments',
+          localField: 'appointment_id',
+          foreignField: '_id',
+          as: 'appointment'
+        }
+      },
+      { $unwind: { path: '$appointment', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'customers',
+          localField: 'customer_id',
+          foreignField: '_id',
+          as: 'customer'
+        }
+      },
+      { $unwind: { path: '$customer', preserveNullAndEmptyArrays: true } }
+    ];
+
+    if (branchId) {
+      pipeline.push({
+        $match: {
+          'appointment.branch_id': new Types.ObjectId(branchId)
+        }
+      });
+    }
+    
+    pipeline.push(
+      {
+        $lookup: {
+          from: 'vehicles',
+          localField: 'appointment.vehicle_id',
+          foreignField: '_id',
+          as: 'vehicle'
+        }
+      },
+      { $unwind: { path: '$vehicle', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'appointmentservices',
+          localField: 'appointment._id',
+          foreignField: 'appointment_id',
+          as: 'services'
+        }
+      },
+      {
+        $lookup: {
+          from: 'servicepackages',
+          localField: 'services.service_package_id',
+          foreignField: '_id',
+          as: 'servicePackages'
+        }
+      },
+      {
+        $addFields: {
+          service_package: { $arrayElemAt: ['$servicePackages', 0] }
+        }
+      },
+      { $sort: { paid_at: -1 } }
+    );
+
+    const invoices = await Invoice.aggregate(pipeline);
+    return invoices;
   }
 }
 

@@ -11,6 +11,7 @@ export interface IProfitQuery {
 export interface IDailyProfit {
     date: string;
     profit: number;
+    count: number;
 }
 
 export interface ITopService {
