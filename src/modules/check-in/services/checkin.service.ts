@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { Appointment, BookingStatus } from '../../../models/appointment.model';
 import { Vehicle } from '../../../models/vehicle.model';
+import { iotService } from '@modules/iot/services/iot.service';
 
 const LICENSE_DETECT_API_URL = process.env.LICENSE_DETECT_API_URL || 'http://localhost:8000';
 
@@ -26,7 +27,7 @@ async function fetchPlatesFromImage(imageBuffer: Buffer, mimeType: string): Prom
 // -------------------------------------------------------
 // 2. Tìm appointment theo biển số + ngày hôm nay
 // -------------------------------------------------------
-async function findAppointmentByPlates(plates: string[]) {
+export async function findAppointmentByPlates(plates: string[]) {
   if (plates.length === 0) return null;
 
   // Tìm vehicle có license_plate khớp với bất kỳ biển nào trong list
@@ -57,7 +58,7 @@ async function findAppointmentByPlates(plates: string[]) {
 // -------------------------------------------------------
 // 3. Update trạng thái → checked_in
 // -------------------------------------------------------
-async function checkInAppointment(appointmentId: string) {
+export async function checkInAppointment(appointmentId: string) {
   return Appointment.findByIdAndUpdate(
     appointmentId,
     {
@@ -104,6 +105,8 @@ export async function processCheckinFromImage(
   if (!updated) {
     return { success: false, message: 'Cập nhật trạng thái thất bại.' };
   }
+
+  iotService.turnOnWaterPump(result.appointment.branch_id.toString());
 
   return {
     success: true,
