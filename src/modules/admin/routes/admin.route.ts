@@ -14,6 +14,7 @@ router.use(authenticate);
 router.get('/customers/count', authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF), adminController.getCustomerCount);
 router.post('/bookings/count', authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF), adminController.getBookingCount);
 router.post('/bookings/hourly-distribution', authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF), adminController.getHourlyBookingDistribution);
+router.post('/paid-bookings', authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF), adminController.getPaidBookings);
 router.post('/profit', authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF), adminController.getDailyProfit);
 router.get('/top-services', authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF), adminController.getTopServices);
 router.get('/top-services-revenue', authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF), adminController.getTopServicesByRevenue);

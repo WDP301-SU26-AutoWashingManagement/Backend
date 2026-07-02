@@ -61,15 +61,27 @@ export class AdminController {
       next(err);
     }
   };
-
   // ─────────────────────────────────────────────
   // POST /admin/bookings/hourly-distribution
   // ─────────────────────────────────────────────
   getHourlyBookingDistribution = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const branchId = await this.getBranchId(req);
-      const result = await adminService.getHourlyBookingDistribution(req.body as IBookingCount, branchId);
+      const result = await adminService.getHourlyBookingDistribution(req.body, branchId);
       sendSuccess(res, result, 'Hourly booking distribution fetched successfully');
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // ─────────────────────────────────────────────
+  // POST /admin/paid-bookings
+  // ─────────────────────────────────────────────
+  getPaidBookings = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const branchId = await this.getBranchId(req);
+      const result = await adminService.getPaidBookings(req.body, branchId);
+      sendSuccess(res, result, 'Paid bookings fetched successfully');
     } catch (err) {
       next(err);
     }
