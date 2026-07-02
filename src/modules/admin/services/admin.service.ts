@@ -2,11 +2,12 @@ import { Appointment } from '../../../models/appointment.model';
 import { Customer } from '../../../models/customer.model';
 import { Invoice } from '../../../models/invoice.model';
 import { AppointmentService } from '../../../models/appointmentService.model';
-import { IBookingCount, IProfitQuery, IDailyProfit, ITopService, ITopServiceRevenue, ITopIndividualService, ITopIndividualServiceRevenue, IAdminUpdate } from '../interfaces/admin.interface';
+import { IBookingCount, IProfitQuery, IDailyProfit, ITopService, ITopServiceRevenue, ITopIndividualService, ITopIndividualServiceRevenue, IAdminUpdate, IHourlyBooking } from '../interfaces/admin.interface';
 import { Types } from 'mongoose';
 import { adminRepository } from '../repositories/admin.repository';
 import { BadRequestError, NotFoundError } from '@common/utils/AppError';
 import { User } from '../../../models/user.model';
+import { Branch } from '../../../models/branch.model';
 
 class AdminService {
   private readonly adminRepo = adminRepository;
@@ -45,6 +46,91 @@ class AdminService {
     
     const totalBookings = await Appointment.countDocuments(filter);
     return { totalBookings };
+  }
+
+  /**
+   * Get hourly booking distribution within startDate and endDate.
+   */
+  async getHourlyBookingDistribution(date: IBookingCount, branchId?: string | null): Promise<IHourlyBooking[]> {
+    const start = new Date(date.startDate);
+    const end = new Date(date.endDate);
+    end.setHours(23, 59, 59, 999);
+    
+    const filter: any = {
+      scheduled_at: {
+        $gte: start,
+        $lte: end,
+      },
+      booking_status: { $nin: ['cancelled'] }
+    };
+
+    let minTime = "06:00";
+    let maxTime = "22:00";
+
+    if (branchId) {
+        filter.branch_id = new Types.ObjectId(branchId);
+        const branch = await Branch.findById(branchId).lean();
+        if (branch && branch.operating_time) {
+           minTime = branch.operating_time.default_open || minTime;
+           maxTime = branch.operating_time.default_close || maxTime;
+        }
+    } else {
+        const branches = await Branch.find().lean();
+        if (branches.length > 0) {
+           let minMin = 24 * 60, maxMin = 0;
+           for (const b of branches) {
+              if (b.operating_time) {
+                 const openStr = b.operating_time.default_open || "06:00";
+                 const closeStr = b.operating_time.default_close || "22:00";
+                 const oMins = parseInt(openStr.split(':')[0]) * 60 + parseInt(openStr.split(':')[1]);
+                 const cMins = parseInt(closeStr.split(':')[0]) * 60 + parseInt(closeStr.split(':')[1]);
+                 if (oMins < minMin) minMin = oMins;
+                 if (cMins > maxMin) maxMin = cMins;
+              }
+           }
+           if (minMin !== 24 * 60) minTime = `${Math.floor(minMin/60).toString().padStart(2, '0')}:${(minMin%60).toString().padStart(2, '0')}`;
+           if (maxMin !== 0) maxTime = `${Math.floor(maxMin/60).toString().padStart(2, '0')}:${(maxMin%60).toString().padStart(2, '0')}`;
+        }
+    }
+    
+    const pipeline: any[] = [
+      { $match: filter },
+      {
+        $group: {
+          _id: {
+            hour: { $hour: { date: "$scheduled_at", timezone: "+07:00" } },
+            minute: { $minute: { date: "$scheduled_at", timezone: "+07:00" } }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id.hour": 1, "_id.minute": 1 } }
+    ];
+
+    const results = await Appointment.aggregate(pipeline);
+    const map = new Map<string, number>();
+    for (const r of results) {
+      const m = r._id.minute < 30 ? "00" : "30";
+      const key = `${r._id.hour.toString().padStart(2, '0')}:${m}`;
+      map.set(key, (map.get(key) || 0) + r.count);
+    }
+
+    const hourlyDist: IHourlyBooking[] = [];
+    let curMins = parseInt(minTime.split(':')[0]) * 60 + parseInt(minTime.split(':')[1]);
+    const endMins = parseInt(maxTime.split(':')[0]) * 60 + parseInt(maxTime.split(':')[1]);
+
+    while (curMins < endMins) {
+      const h = Math.floor(curMins / 60).toString().padStart(2, '0');
+      const m = (curMins % 60).toString().padStart(2, '0');
+      const key = `${h}:${m}`;
+      hourlyDist.push({
+        time: key,
+        count: map.get(key) || 0
+      });
+      curMins += 30;
+    }
+
+    return hourlyDist;
   }
 
   /**

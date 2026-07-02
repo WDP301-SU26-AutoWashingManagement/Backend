@@ -262,11 +262,11 @@ export class BookingService {
     // ─── 3. Get List ─────────────────────────────────────────────────────────
 
     async getBookingList(
-        dto: IGetBookingList,
+        dto: IGetBookingList & { time_slot?: string },
         requesterId: string,
         requesterRole: string,
     ): Promise<PaginateResult<any>> {
-        const { page = 1, limit = 10, from_date, to_date, ...rest } = dto;
+        const { page = 1, limit = 10, from_date, to_date, time_slot, ...rest } = dto;
 
         const filter: FilterQuery<IAppointment> = {};
 
@@ -310,6 +310,16 @@ export class BookingService {
             filter.scheduled_at = {};
             if (from_date) filter.scheduled_at.$gte = new Date(from_date);
             if (to_date) filter.scheduled_at.$lte = new Date(to_date);
+        }
+
+        if (time_slot) {
+            const [h, m] = time_slot.split(':').map(Number);
+            filter.$expr = {
+                $and: [
+                    { $eq: [{ $hour: { date: "$scheduled_at", timezone: "+07:00" } }, h] },
+                    { $eq: [{ $minute: { date: "$scheduled_at", timezone: "+07:00" } }, m] }
+                ]
+            };
         }
 
         const result = await this.appointmentRepo.paginateList(filter, { page, limit });
