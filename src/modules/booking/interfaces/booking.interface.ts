@@ -23,6 +23,9 @@ export interface ICreateBooking {
   scheduled_at : string;         // ISO 8601 string, validate trước khi parse thành Date
   services     : IBookingServiceItem[];
   booking_source?: BookingSource;
+  promotion_id?: string;
+  vat_requested?: boolean;
+  tax_code?: string;
 }
 
 /**

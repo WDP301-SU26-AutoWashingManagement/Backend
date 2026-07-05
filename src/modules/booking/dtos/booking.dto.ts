@@ -51,6 +51,10 @@ export const createBookingSchema = Joi.object({
   booking_source: Joi.string()
     .valid(...Object.values(BookingSource))
     .default(BookingSource.APP),
+    
+  promotion_id: mongoId.optional(),
+  vat_requested: Joi.boolean().default(false),
+  tax_code: Joi.string().allow('').optional(),
 });
 
 /**

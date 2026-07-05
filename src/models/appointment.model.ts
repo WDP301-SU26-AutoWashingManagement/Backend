@@ -35,6 +35,7 @@ export interface IAppointment extends Document {
   redeemed_reward_point   : number;
   booking_source      : BookingSource;
   cancellation_reason : string | null;
+  promotion_id        : Types.ObjectId | null;
 }
 
 const appointmentSchema = new Schema<IAppointment>(
@@ -89,6 +90,11 @@ const appointmentSchema = new Schema<IAppointment>(
       required: true,
     },
     cancellation_reason: { type: String, default: null },
+    promotion_id: {
+      type: Schema.Types.ObjectId,
+      ref: 'Promotion',
+      default: null,
+    },
   },
   { timestamps: true }
 );
