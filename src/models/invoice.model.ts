@@ -24,6 +24,8 @@ export interface IInvoice extends Document {
   invoice_number: string;   // INV-00000001
   subtotal        : number;  // base price trước giảm giá & thuế
   discount_amount : number;
+  tier_discount   : number;
+  promotion_discount: number;
   tax_amount      : number;
   total           : number;
   invoice_status : InvoiceStatus;
@@ -85,6 +87,8 @@ const invoiceSchema = new Schema<IInvoice>(
     // ── Tiền ───────────────────────────────────────────────────────────────────
     subtotal       : { type: Number, required: true, min: 0 },
     discount_amount: { type: Number, default: 0,     min: 0 },
+    tier_discount  : { type: Number, default: 0,     min: 0 },
+    promotion_discount: { type: Number, default: 0,     min: 0 },
     tax_amount     : { type: Number, default: 0,     min: 0 },
     total          : { type: Number, required: true, min: 0 },
 
