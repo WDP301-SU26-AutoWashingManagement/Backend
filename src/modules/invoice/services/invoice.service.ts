@@ -97,9 +97,15 @@ export class InvoiceService {
       throw new NotFoundError('Appointment not found');
     }
 
-    if (appointment.booking_status !== BookingStatus.WASHED) {
+    if (
+      appointment.booking_status !== BookingStatus.WASHED &&
+      appointment.booking_status !== BookingStatus.PENDING &&
+      appointment.booking_status !== BookingStatus.CONFIRMED &&
+      appointment.booking_status !== BookingStatus.CHECKED_IN &&
+      appointment.booking_status !== BookingStatus.IN_PROGRESS
+    ) {
       throw new AppError(
-        `Chỉ có thể tạo hóa đơn khi xe đã được rửa xong (trạng thái "washed"). Trạng thái hiện tại: "${appointment.booking_status}"`,
+        `Chỉ có thể tạo/cập nhật hóa đơn ở các trạng thái hợp lệ. Trạng thái hiện tại: "${appointment.booking_status}"`,
         400,
       );
     }
@@ -110,7 +116,8 @@ export class InvoiceService {
       if (existing.invoice_status === InvoiceStatus.PAID) {
         throw new AppError('Đơn này đã được thanh toán', 400);
       }
-      return existing;
+      // Nếu là DRAFT, xóa đi để tạo lại với promotion mới nhất
+      await Invoice.deleteOne({ _id: existing._id });
     }
 
     // Lấy danh sách dịch vụ và tính subtotal
@@ -159,11 +166,16 @@ export class InvoiceService {
       }
 
       if (promotion.type === EPromotionType.DISCOUNT) {
-        // Tính % trên giá đã giảm tier, capped bởi discount_amount (max cap)
-        const calculated = Math.round(price_after_tier * (promotion.discount_percentage / 100));
-        promotion_discount = promotion.discount_amount
-          ? Math.min(calculated, promotion.discount_amount)
-          : calculated;
+        if (promotion.discount_percentage && promotion.discount_percentage > 0) {
+          // Tính % trên giá đã giảm tier, capped bởi discount_amount (max cap)
+          const calculated = Math.round(price_after_tier * (promotion.discount_percentage / 100));
+          promotion_discount = promotion.discount_amount
+            ? Math.min(calculated, promotion.discount_amount)
+            : calculated;
+        } else if (promotion.discount_amount) {
+          // Giảm giá cố định
+          promotion_discount = Math.min(price_after_tier, promotion.discount_amount);
+        }
       }
       // BONUS_SERVICE: không tính tiền, chỉ ghi nhận promotion_id để FE hiển thị
 
@@ -176,8 +188,8 @@ export class InvoiceService {
     const tax_amount = Math.round((subtotal - discount_amount) * (opts.tax_rate ?? 0));
     const total = subtotal - discount_amount + tax_amount;
 
-    if (total <= 0) {
-      throw new AppError('Tổng tiền phải lớn hơn 0', 400);
+    if (total < 0) {
+      throw new AppError('Tổng tiền không hợp lệ (nhỏ hơn 0)', 400);
     }
 
     const invoice = await Invoice.create({
@@ -192,6 +204,8 @@ export class InvoiceService {
       customer_voucher_id: opts.customer_voucher_id ?? null,
       vat_requested: opts.vat_requested ?? false,
       tax_code: opts.tax_code ?? null,
+      tier_discount: tier_discount,
+      promotion_discount: promotion_discount,
     });
 
     return invoice;

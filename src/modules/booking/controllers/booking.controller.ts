@@ -57,6 +57,9 @@ export class BookingController {
                 req.user.id,
                 req.user.role,
             );
+            if (result.docs && result.docs.length > 0) {
+                console.log('DEBUG CONTROLLER getList [0]:', result.docs[0].applied_tier_discount, result.docs[0].applied_promotion_discount);
+            }
             sendPaginated(res, result, 'Bookings fetched successfully');
         } catch (err) {
             next(err);

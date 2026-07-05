@@ -14,6 +14,7 @@ import { Staff } from '../../../models/staff.model';
 // Cross-module
 import { scheduleRepository } from '../../staff-manager/repositories/schedule.repository';
 import { customerRepository } from '../../customer/repositories/customer.repository';
+import { invoiceService } from '../../invoice/services/invoice.service';
 
 // Errors & types
 import {
@@ -33,6 +34,7 @@ import {
     IServiceSnapshot,
 } from '../interfaces/booking.interface';
 import { UserRole } from '../../../common/types/enum';
+import { Promotion } from '../../../models/promotion.model';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -241,6 +243,7 @@ export class BookingService {
             earned_reward_point: 0,
             redeemed_reward_point: 0,
             cancellation_reason: null,
+            promotion_id: dto.promotion_id ? new Types.ObjectId(dto.promotion_id) : null,
         });
 
         // ── Create AppointmentService line-items ──
@@ -253,6 +256,10 @@ export class BookingService {
                 duration_snapshot: s.duration_snapshot,
             })),
         );
+
+        // Note: Invoice is now deferred until WASHED as requested by the user,
+        // so we don't create it here. The promotion_id is saved in the Appointment
+        // document itself so it can be viewed in the frontend during PENDING.
 
         return this.appointmentRepo.findByIdPopulated(
             (appointment._id as Types.ObjectId).toString(),
@@ -331,7 +338,8 @@ export class BookingService {
         const { Invoice } = require('../../../models/invoice.model');
         const invoices = await Invoice.find({ appointment_id: { $in: appointmentIds } }).lean();
 
-        const docsWithServices = result.docs.map(doc => {
+        // Compute preview discounts
+        const docsWithServices = await Promise.all(result.docs.map(async (doc) => {
             const docObj = doc.toObject ? doc.toObject() : doc;
             const docServices = services.filter(s => s.appointment_id.toString() === doc._id.toString());
 
@@ -340,8 +348,70 @@ export class BookingService {
             // Tìm hoá đơn tương ứng
             const invoice = invoices.find((inv: any) => inv.appointment_id.toString() === doc._id.toString());
 
-            const final_price = invoice ? invoice.total : base_price;
-            const discount_amount = invoice ? invoice.discount_amount : undefined;
+            let final_price = invoice ? invoice.total : base_price;
+            let discount_amount = invoice ? invoice.discount_amount : undefined;
+            
+            let applied_tier_discount = invoice?.tier_discount;
+            let applied_promotion_discount = invoice?.promotion_discount;
+
+            if (invoice && (applied_tier_discount === undefined || applied_promotion_discount === undefined)) {
+                // Backward compatibility for old invoices without tier_discount/promotion_discount fields
+                try {
+                    if (invoice.promotion_id) {
+                        const promotion = await Promotion.findById(invoice.promotion_id).lean();
+                        if (promotion && promotion.type === 'discount' && promotion.discount_amount) {
+                            applied_promotion_discount = promotion.discount_amount;
+                        } else {
+                            applied_promotion_discount = 0;
+                        }
+                        applied_tier_discount = Math.max(0, invoice.discount_amount - applied_promotion_discount);
+                    } else {
+                        applied_tier_discount = invoice.discount_amount;
+                        applied_promotion_discount = 0;
+                    }
+                } catch(e) {
+                    applied_tier_discount = invoice.discount_amount;
+                    applied_promotion_discount = 0;
+                }
+            }
+
+            if (!invoice && docObj.promotion_id) {
+                try {
+                    const customer = doc.customer_id as any; // populated customer
+                    const tier_discount_pct = customer?.tier_id?.discount_percentage || 0;
+                    const tier_discount = Math.round((base_price * tier_discount_pct) / 100);
+                    
+                    const price_after_tier = base_price - tier_discount;
+                    
+                    let promotion_discount = 0;
+                    const promotion = await Promotion.findById(docObj.promotion_id).lean();
+                    if (promotion && promotion.is_active && base_price >= (promotion.min_order_amount || 0)) {
+                        if (promotion.type === 'discount') {
+                            if (promotion.discount_percentage) {
+                                const calculated = (price_after_tier * promotion.discount_percentage) / 100;
+                                promotion_discount = promotion.discount_amount 
+                                    ? Math.min(calculated, promotion.discount_amount)
+                                    : calculated;
+                            } else if (promotion.discount_amount) {
+                                promotion_discount = Math.min(price_after_tier, promotion.discount_amount);
+                            }
+                        }
+                    }
+                    promotion_discount = Math.round(promotion_discount);
+                    discount_amount = tier_discount + promotion_discount;
+                    final_price = Math.max(0, base_price - discount_amount);
+                    applied_tier_discount = tier_discount;
+                    applied_promotion_discount = promotion_discount;
+                } catch (err) {
+                    console.error('Failed to preview discount:', err);
+                }
+            } else if (!invoice) {
+                // Just tier discount preview
+                const customer = doc.customer_id as any;
+                const tier_discount_pct = customer?.tier_id?.discount_percentage || 0;
+                applied_tier_discount = Math.round((base_price * tier_discount_pct) / 100);
+                applied_promotion_discount = 0;
+            }
 
             const mainPackage = docServices.find(s => s.service_package_id);
             const mainService = docServices[0];
@@ -352,10 +422,12 @@ export class BookingService {
                 base_price,
                 final_price,
                 discount_amount,
+                applied_tier_discount,
+                applied_promotion_discount,
                 // frontend expects service_package_id as object for package name
                 service_package_id: mainPackage ? mainPackage.service_package_id : (mainService ? mainService.service_id : null)
             };
-        });
+        }));
 
         return {
             ...result,
@@ -391,15 +463,78 @@ export class BookingService {
         const invoice = await Invoice.findOne({ appointment_id: appointmentId }).lean();
 
         const base_price = services.reduce((sum, s: any) => sum + s.price_snapshot, 0);
-        const final_price = invoice ? invoice.total : base_price;
-        const discount_amount = invoice ? invoice.discount_amount : undefined;
+        let final_price = invoice ? invoice.total : base_price;
+        let discount_amount = invoice ? invoice.discount_amount : undefined;
+
+        let applied_tier_discount = invoice?.tier_discount;
+        let applied_promotion_discount = invoice?.promotion_discount;
+
+        if (invoice && (applied_tier_discount === undefined || applied_promotion_discount === undefined)) {
+            // Backward compatibility
+            try {
+                if (invoice.promotion_id) {
+                    const promotion = await Promotion.findById(invoice.promotion_id).lean();
+                    if (promotion && promotion.type === 'discount' && promotion.discount_amount) {
+                        applied_promotion_discount = promotion.discount_amount;
+                    } else {
+                        applied_promotion_discount = 0;
+                    }
+                    applied_tier_discount = Math.max(0, invoice.discount_amount - applied_promotion_discount);
+                } else {
+                    applied_tier_discount = invoice.discount_amount;
+                    applied_promotion_discount = 0;
+                }
+            } catch(e) {
+                applied_tier_discount = invoice.discount_amount;
+                applied_promotion_discount = 0;
+            }
+        }
+
+        if (!invoice && appointment.promotion_id) {
+            try {
+                const customer = appointment.customer_id as any; // populated customer
+                const tier_discount_pct = customer?.tier_id?.discount_percentage || 0;
+                const tier_discount = Math.round((base_price * tier_discount_pct) / 100);
+                
+                const price_after_tier = base_price - tier_discount;
+                
+                let promotion_discount = 0;
+                const promotion = await Promotion.findById(appointment.promotion_id).lean();
+                if (promotion && promotion.is_active && base_price >= (promotion.min_order_amount || 0)) {
+                    if (promotion.type === 'discount') {
+                        if (promotion.discount_percentage) {
+                            const calculated = (price_after_tier * promotion.discount_percentage) / 100;
+                            promotion_discount = promotion.discount_amount 
+                                ? Math.min(calculated, promotion.discount_amount)
+                                : calculated;
+                        } else if (promotion.discount_amount) {
+                            promotion_discount = Math.min(price_after_tier, promotion.discount_amount);
+                        }
+                    }
+                }
+                promotion_discount = Math.round(promotion_discount);
+                discount_amount = tier_discount + promotion_discount;
+                final_price = Math.max(0, base_price - discount_amount);
+                applied_tier_discount = tier_discount;
+                applied_promotion_discount = promotion_discount;
+            } catch (err) {
+                console.error('Failed to preview discount in getBookingById:', err);
+            }
+        } else if (!invoice) {
+            const customer = appointment.customer_id as any;
+            const tier_discount_pct = customer?.tier_id?.discount_percentage || 0;
+            applied_tier_discount = Math.round((base_price * tier_discount_pct) / 100);
+            applied_promotion_discount = 0;
+        }
 
         const appointmentObj = appointment.toObject ? appointment.toObject() : appointment;
         const resultAppt = {
             ...appointmentObj,
             base_price,
             final_price,
-            discount_amount
+            discount_amount,
+            applied_tier_discount,
+            applied_promotion_discount
         };
 
         return { appointment: resultAppt as any, services };
