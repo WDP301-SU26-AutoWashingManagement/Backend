@@ -359,8 +359,35 @@ export class BookingService {
                 try {
                     if (invoice.promotion_id) {
                         const promotion = await Promotion.findById(invoice.promotion_id).lean();
-                        if (promotion && promotion.type === 'discount' && promotion.discount_amount) {
-                            applied_promotion_discount = promotion.discount_amount;
+                        if (promotion && promotion.type === 'discount') {
+                            if (promotion.discount_percentage) {
+                                const base = invoice.subtotal || base_price;
+                                const maxCap = promotion.discount_amount || base;
+                                const y = promotion.discount_percentage / 100;
+                                
+                                // Solve algebraically for tier_discount (x):
+                                // D = tier_discount + promotion_discount
+                                // Assume it didn't hit max cap: promotion_discount = (base - tier_discount) * y
+                                // D = tier_discount + (base - tier_discount) * y
+                                // D = tier_discount * (1 - y) + base * y
+                                // tier_discount = (D - base * y) / (1 - y)
+                                
+                                const D = invoice.discount_amount;
+                                let guessed_tier = Math.round((D - base * y) / (1 - y));
+                                
+                                // Check if it actually hit max cap:
+                                if (guessed_tier < 0 || (base - guessed_tier) * y > maxCap) {
+                                    // It hit max cap.
+                                    applied_promotion_discount = maxCap;
+                                    guessed_tier = D - maxCap;
+                                } else {
+                                    applied_promotion_discount = Math.round((base - guessed_tier) * y);
+                                }
+
+                                // Math already resolved applied_promotion_discount above
+                            } else {
+                                applied_promotion_discount = promotion.discount_amount || 0;
+                            }
                         } else {
                             applied_promotion_discount = 0;
                         }
@@ -474,8 +501,24 @@ export class BookingService {
             try {
                 if (invoice.promotion_id) {
                     const promotion = await Promotion.findById(invoice.promotion_id).lean();
-                    if (promotion && promotion.type === 'discount' && promotion.discount_amount) {
-                        applied_promotion_discount = promotion.discount_amount;
+                    if (promotion && promotion.type === 'discount') {
+                        if (promotion.discount_percentage) {
+                            const base = invoice.subtotal || base_price;
+                            const maxCap = promotion.discount_amount || base;
+                            const y = promotion.discount_percentage / 100;
+                            
+                            const D = invoice.discount_amount;
+                            let guessed_tier = Math.round((D - base * y) / (1 - y));
+                            
+                            if (guessed_tier < 0 || (base - guessed_tier) * y > maxCap) {
+                                applied_promotion_discount = maxCap;
+                                guessed_tier = D - maxCap;
+                            } else {
+                                applied_promotion_discount = Math.round((base - guessed_tier) * y);
+                            }
+                        } else {
+                            applied_promotion_discount = promotion.discount_amount || 0;
+                        }
                     } else {
                         applied_promotion_discount = 0;
                     }
