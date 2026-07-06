@@ -68,9 +68,7 @@ export const getBookingListSchema = Joi.object({
   customer_id : mongoId.optional(),
   staff_id    : mongoId.optional(),
 
-  booking_status: Joi.string()
-    .valid(...Object.values(BookingStatus))
-    .optional(),
+  booking_status: Joi.string().optional(),
 
   from_date: Joi.string().isoDate().optional(),
   to_date  : Joi.string().isoDate().optional(),
