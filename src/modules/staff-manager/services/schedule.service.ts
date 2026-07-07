@@ -8,6 +8,7 @@ import { authRepository } from '../../auth/repositories/auth.repository';
 import {
   IAddStaffToScheduleResponse,
   ISwitchStaffResponse,
+  IReplaceStaffResponse,
   ITotalLeaveDaysResponse,
   IScheduleResponse,
 } from '../dto/schedule.dto';
@@ -261,6 +262,184 @@ export class ScheduleService {
         schedule_1: this.mapToScheduleResponse(updatedSchedule1),
         schedule_2: this.mapToScheduleResponse(updatedSchedule2),
         message: 'Đổi ca làm việc thành công. Email thông báo đã được gửi cho cả 2 nhân viên.',
+        };
+    }
+
+    /**
+     * Replace one staff with another in a schedule
+     * Người thực hiện: Manager
+     * Tự động: Gửi email thông báo cho staff mới
+     */
+    async replaceStaff(
+        managerId: string,
+        scheduleId: string,
+        oldStaffId: string,
+        newStaffId: string
+    ): Promise<IReplaceStaffResponse> {
+        // Kiểm tra manager
+        const manager = await this.staffRepo.findByUserId(managerId);
+        if (!manager) {
+            const user = await authRepository.findById(managerId);
+            if (!user || (user.role !== 'admin' && user.role !== 'boss')) {
+                throw new NotFoundError('Người dùng không có quyền quản lý lịch');
+            }
+        } else if (manager.staff_type === StaffRole.TECHNICAL) {
+            throw new ForbiddenError('Staff technical không có quyền thay thế nhân viên');
+        }
+
+        // Kiểm tra schedule tồn tại
+        const schedule = await this.scheduleRepo.findById(scheduleId);
+        if (!schedule) {
+            throw new NotFoundError('Lịch làm việc không tìm thấy');
+        }
+
+        // Kiểm tra staff cũ tồn tại và có trong schedule
+        const oldStaff = await this.staffRepo.findById(oldStaffId);
+        if (!oldStaff) {
+            throw new NotFoundError('Nhân viên cũ không tìm thấy');
+        }
+        const oldStaffIdObj = new Types.ObjectId(oldStaffId);
+        if (!schedule.assigned_staff.some((id) => id.equals(oldStaffIdObj))) {
+            throw new BadRequestError('Nhân viên cũ không có trong lịch làm việc này');
+        }
+
+        // Kiểm tra staff mới tồn tại và CHƯA có trong schedule
+        const newStaff = await this.staffRepo.findById(newStaffId);
+        if (!newStaff) {
+            throw new NotFoundError('Nhân viên mới không tìm thấy');
+        }
+        const newStaffIdObj = new Types.ObjectId(newStaffId);
+        if (schedule.assigned_staff.some((id) => id.equals(newStaffIdObj))) {
+            throw new BadRequestError('Nhân viên mới đã có trong lịch làm việc này');
+        }
+
+        // Xóa staff cũ
+        let updatedSchedule = await this.scheduleRepo.removeStaff(scheduleId, oldStaffId);
+        if (!updatedSchedule) {
+            throw new BadRequestError('Thao tác xóa nhân viên cũ thất bại');
+        }
+
+        // Thêm staff mới
+        updatedSchedule = await this.scheduleRepo.addStaff(scheduleId, newStaffId);
+        if (!updatedSchedule) {
+            // Rollback (cố gắng add lại nhân viên cũ)
+            await this.scheduleRepo.addStaff(scheduleId, oldStaffId);
+            throw new BadRequestError('Thao tác thêm nhân viên mới thất bại');
+        }
+
+        // Gửi email cho staff mới
+        try {
+            const userNew = await this.getUserById(newStaff.user_id.toString());
+            if (userNew && userNew.email) {
+                const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+                const emailContent = {
+                    to: userNew.email,
+                    subject: 'Thông báo phân công ca làm việc',
+                    template: 'schedule-assignment',
+                    data: {
+                        staffName: userNew.name || 'Nhân viên',
+                        shiftDate,
+                        startTime: schedule.start_time,
+                        endTime: schedule.end_time,
+                        branchId: schedule.branch_id.toString(),
+                    },
+                };
+                await sendEmail(
+                    userNew.email,
+                    'Thông báo phân công ca làm việc (Thay thế)',
+                    EMAIL_TEMPLATE.ASSIGNMENT_EMAIL({
+                        staffName: emailContent.data.staffName,
+                        shiftDate: emailContent.data.shiftDate,
+                        startTime: emailContent.data.startTime,
+                        endTime: emailContent.data.endTime,
+                        branchName: emailContent.data.branchId,
+                    })
+                ); 
+            }
+        } catch (error) {
+            console.warn('Không thể gửi email thông báo cho staff mới:', error);
+        }
+
+        return {
+            schedule: this.mapToScheduleResponse(updatedSchedule),
+            message: 'Thay thế nhân viên thành công. Email thông báo đã được gửi cho nhân viên mới.',
+        };
+    }
+
+    /**
+     * Update entire staff list for a schedule (via checkboxes)
+     */
+    async updateScheduleStaff(
+        managerId: string,
+        scheduleId: string,
+        staffIds: string[]
+    ): Promise<IReplaceStaffResponse> {
+        // Kiểm tra manager
+        const manager = await this.staffRepo.findByUserId(managerId);
+        if (!manager) {
+            const user = await authRepository.findById(managerId);
+            if (!user || (user.role !== 'admin' && user.role !== 'boss')) {
+                throw new NotFoundError('Người dùng không có quyền quản lý lịch');
+            }
+        } else if (manager.staff_type === StaffRole.TECHNICAL) {
+            throw new ForbiddenError('Staff technical không có quyền cập nhật lịch');
+        }
+
+        // Kiểm tra schedule tồn tại
+        const schedule = await this.scheduleRepo.findById(scheduleId);
+        if (!schedule) {
+            throw new NotFoundError('Lịch làm việc không tìm thấy');
+        }
+
+        if (staffIds.length > schedule.max_staff) {
+            throw new BadRequestError(`Ca làm việc chỉ được phép tối đa ${schedule.max_staff} nhân viên`);
+        }
+
+        // Validate all new staffs exist
+        for (const id of staffIds) {
+            const st = await this.staffRepo.findById(id);
+            if (!st) {
+                throw new BadRequestError(`Nhân viên ${id} không tồn tại`);
+            }
+        }
+
+        const oldStaffIds = schedule.assigned_staff.map(id => id.toString());
+        const newlyAdded = staffIds.filter(id => !oldStaffIds.includes(id));
+
+        const updatedSchedule = await this.scheduleRepo.updateStaffList(scheduleId, staffIds);
+        if (!updatedSchedule) {
+            throw new BadRequestError('Cập nhật nhân viên thất bại');
+        }
+
+        // Gửi email cho các staff mới được thêm vào ca
+        for (const newStaffId of newlyAdded) {
+            try {
+                const staff = await this.staffRepo.findById(newStaffId);
+                if (staff) {
+                    const userNew = await this.getUserById(staff.user_id.toString());
+                    if (userNew && userNew.email) {
+                        const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+                        await sendEmail(
+                            userNew.email,
+                            'Thông báo phân công ca làm việc',
+                            EMAIL_TEMPLATE.ASSIGNMENT_EMAIL({
+                                staffName: userNew.name || 'Nhân viên',
+                                shiftDate: shiftDate,
+                                startTime: schedule.start_time,
+                                endTime: schedule.end_time,
+                                branchName: schedule.branch_id.toString(),
+                            })
+                        );
+                    }
+                }
+            } catch (error) {
+                console.warn('Không thể gửi email thông báo cho staff mới:', error);
+            }
+        }
+
+        return {
+            schedule: this.mapToScheduleResponse(updatedSchedule),
+            message: 'Cập nhật danh sách nhân viên thành công.',
         };
     }
 
