@@ -7,7 +7,6 @@ import {
   availableSlotsSchema,
   createBookingSchema,
   getBookingListSchema,
-  confirmBookingSchema,
   assignStaffSchema,
   cancelBookingSchema,
 } from '../dtos/booking.dto';
@@ -71,7 +70,6 @@ router.get(
 router.patch(
   '/:id/confirm',
   authorize(UserRole.STAFF, UserRole.ADMIN, UserRole.BOSS),
-  validate(confirmBookingSchema, 'body'),
   ctrl.confirm,
 );
 
