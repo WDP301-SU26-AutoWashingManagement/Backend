@@ -27,7 +27,6 @@ import {
     IAvailableSlot,
     IAvailableSlotsQuery,
     ICancelBooking,
-    IConfirmBooking,
     ICreateBooking,
     IGetBookingList,
     IServiceSnapshot,
@@ -588,7 +587,6 @@ export class BookingService {
      */
     async confirmBooking(
         appointmentId: string,
-        dto: IConfirmBooking,
     ): Promise<IAppointment> {
         const appointment = await this.appointmentRepo.findById(appointmentId);
         if (!appointment) throw new NotFoundError('Booking not found');

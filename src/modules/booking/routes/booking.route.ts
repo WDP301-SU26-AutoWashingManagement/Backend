@@ -7,7 +7,6 @@ import {
   availableSlotsSchema,
   createBookingSchema,
   getBookingListSchema,
-  assignStaffSchema,
   cancelBookingSchema,
 } from '../dtos/booking.dto';
 
@@ -71,17 +70,6 @@ router.patch(
   '/:id/confirm',
   authorize(UserRole.STAFF, UserRole.ADMIN, UserRole.BOSS),
   ctrl.confirm,
-);
-
-/**
- * POST /bookings/:id/assign-staff
- * Staff/Admin gán nhân viên vào booking đã xác nhận.
- */
-router.post(
-  '/:id/assign-staff',
-  authorize(UserRole.STAFF, UserRole.ADMIN, UserRole.BOSS),
-  validate(assignStaffSchema, 'body'),
-  ctrl.assignStaff,
 );
 
 /**
