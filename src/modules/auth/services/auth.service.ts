@@ -103,6 +103,10 @@ export class AuthService {
       throw new AppError('Email hay Password không đúng', 401);
     }
 
+    if (!user.is_active) {
+      throw new AppError('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.', 403);
+    }
+
     if (!data.password) {
       throw new Error('Password is required');
     }
@@ -176,6 +180,10 @@ export class AuthService {
 
     if (!user) {
       throw new AppError("User not found", 500);
+    }
+
+    if (!user.is_active) {
+      throw new AppError('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.', 403);
     }
     const tokens = generateTokenPair(user._id.toString(), user.role);
 
