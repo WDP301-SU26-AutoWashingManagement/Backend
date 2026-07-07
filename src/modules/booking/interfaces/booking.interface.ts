@@ -43,20 +43,7 @@ export interface IGetBookingList {
   to_date?        : string;
 }
 
-/**
- * Payload xác nhận booking (PATCH /bookings/:id/confirm).
- * Staff có thể gán staff_id ngay lúc confirm.
- */
-export interface IConfirmBooking {
-  staff_id?: string;
-}
 
-/**
- * Payload assign staff riêng (POST /bookings/:id/assign-staff).
- */
-export interface IAssignStaff {
-  staff_id: string;
-}
 
 /**
  * Payload huỷ booking (PATCH /bookings/:id/cancel).

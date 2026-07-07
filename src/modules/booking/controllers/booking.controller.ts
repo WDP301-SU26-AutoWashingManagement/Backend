@@ -8,9 +8,7 @@ import {
 import { sendPaginated } from '../../../common/utils/paginated.helper';
 import { AuthenticatedRequest } from '../../../common/types';
 import {
-    IAssignStaff,
     ICancelBooking,
-    IConfirmBooking,
     ICreateBooking,
     IGetBookingList,
     IAvailableSlotsQuery,
@@ -87,7 +85,6 @@ export class BookingController {
         try {
             const appointment = await this.bookingService.confirmBooking(
                 req.params.id,
-                req.body as IConfirmBooking,
             );
             sendSuccess(res, appointment, 'Booking confirmed successfully');
         } catch (err) {
@@ -95,19 +92,6 @@ export class BookingController {
         }
     };
 
-    // ─── POST /bookings/:id/assign-staff ──────────────────────────────────────
-
-    assignStaff = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-        try {
-            const appointment = await this.bookingService.assignStaff(
-                req.params.id,
-                req.body as IAssignStaff,
-            );
-            sendSuccess(res, appointment, 'Staff assigned successfully');
-        } catch (err) {
-            next(err);
-        }
-    };
 
     // ─── PATCH /bookings/:id/cancel ───────────────────────────────────────────
 

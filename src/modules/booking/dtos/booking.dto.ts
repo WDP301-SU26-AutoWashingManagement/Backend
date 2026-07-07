@@ -66,7 +66,6 @@ export const getBookingListSchema = Joi.object({
 
   branch_id   : mongoId.optional(),
   customer_id : mongoId.optional(),
-  staff_id    : mongoId.optional(),
 
   booking_status: Joi.string().optional(),
 
@@ -95,21 +94,6 @@ export const availableSlotsSchema = Joi.object({
     .optional(),
 });
 
-/**
- * PATCH /bookings/:id/confirm
- */
-export const confirmBookingSchema = Joi.object({
-  staff_id: mongoId.optional(),
-});
-
-/**
- * POST /bookings/:id/assign-staff
- */
-export const assignStaffSchema = Joi.object({
-  staff_id: mongoId.required().messages({
-    'any.required': 'staff_id is required',
-  }),
-});
 
 /**
  * PATCH /bookings/:id/cancel
