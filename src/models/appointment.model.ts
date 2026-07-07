@@ -22,7 +22,6 @@ export interface IAppointment extends Document {
   branch_id   : Types.ObjectId;
   vehicle_id  : Types.ObjectId;
   customer_id : Types.ObjectId;
-  staff_id    : Types.ObjectId | null;
   appointment_code: string;
   booking_status : BookingStatus;
   scheduled_at   : Date;
@@ -54,11 +53,6 @@ const appointmentSchema = new Schema<IAppointment>(
       type    : Schema.Types.ObjectId,
       ref     : 'Customer',
       required: true,
-    },
-    staff_id: {
-      type   : Schema.Types.ObjectId,
-      ref    : 'Staff',
-      default: null,
     },
 
     appointment_code: {
@@ -103,7 +97,6 @@ appointmentSchema.plugin(applyPlugins);
 
 appointmentSchema.index({ customer_id: 1, booking_status: 1 });
 appointmentSchema.index({ branch_id: 1, scheduled_at: 1 });
-appointmentSchema.index({ staff_id: 1, scheduled_at: 1 });
 
 appointmentSchema.pre('validate', async function (next) {
   if (!this.isNew) return next();

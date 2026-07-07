@@ -24,7 +24,6 @@ import {
     NotFoundError,
 } from '../../../common/utils/AppError';
 import {
-    IAssignStaff,
     IAvailableSlot,
     IAvailableSlotsQuery,
     ICancelBooking,
@@ -231,7 +230,6 @@ export class BookingService {
             branch_id: new Types.ObjectId(dto.branch_id),
             vehicle_id: new Types.ObjectId(dto.vehicle_id),
             customer_id: new Types.ObjectId(resolvedCustomerId),
-            staff_id: null,
             booking_status: BookingStatus.PENDING,
             booking_source: dto.booking_source ?? BookingSource.APP,
             scheduled_at: scheduledAt,
@@ -286,7 +284,6 @@ export class BookingService {
             filter.customer_id = customer._id;
         } else {
             if (rest.customer_id) filter.customer_id = new Types.ObjectId(rest.customer_id);
-            if (rest.staff_id) filter.staff_id = new Types.ObjectId(rest.staff_id);
 
             // BẮT BUỘC lọc branch_id đối với STAFF và ADMIN
             if (requesterRole === UserRole.STAFF || requesterRole === UserRole.ADMIN) {
@@ -602,49 +599,14 @@ export class BookingService {
             );
         }
 
-        // Validate staff nếu truyền vào
-        if (dto.staff_id) {
-            await this.validateStaffForAssignment(dto.staff_id, appointment.branch_id.toString());
-        }
-
         const updated = await this.appointmentRepo.updateById(appointmentId, {
             booking_status: BookingStatus.CONFIRMED,
-            ...(dto.staff_id && { staff_id: new Types.ObjectId(dto.staff_id) }),
         });
         if (!updated) throw new NotFoundError('Booking not found');
 
         return this.appointmentRepo.findByIdPopulated(appointmentId) as Promise<IAppointment>;
     }
 
-    // ─── 6. Assign Staff ─────────────────────────────────────────────────────
-
-    /**
-     * Gán staff riêng biệt (sau confirm).
-     * Chỉ PENDING hoặc CONFIRMED mới được assign.
-     */
-    async assignStaff(
-        appointmentId: string,
-        dto: IAssignStaff,
-    ): Promise<IAppointment> {
-        const appointment = await this.appointmentRepo.findById(appointmentId);
-        if (!appointment) throw new NotFoundError('Booking not found');
-
-        const allowedStatuses: BookingStatus[] = [BookingStatus.PENDING, BookingStatus.CONFIRMED];
-        if (!allowedStatuses.includes(appointment.booking_status)) {
-            throw new BadRequestError(
-                `Cannot assign staff to a booking with status "${appointment.booking_status}"`,
-            );
-        }
-
-        await this.validateStaffForAssignment(dto.staff_id, appointment.branch_id.toString());
-
-        const updated = await this.appointmentRepo.updateById(appointmentId, {
-            staff_id: new Types.ObjectId(dto.staff_id),
-        });
-        if (!updated) throw new NotFoundError('Booking not found');
-
-        return this.appointmentRepo.findByIdPopulated(appointmentId) as Promise<IAppointment>;
-    }
 
     // ─── 7. Cancel Booking ───────────────────────────────────────────────────
 
