@@ -73,18 +73,8 @@ export class ScheduleController {
             });
             }
 
-            const manager = await this.staffRepo.findByUserId(userId);
-
-            if (!manager) {
-            throw new NotFoundError('Không tìm thấy manager');
-            }
-
-            // if (manager.staff_type !== StaffRole.MANAGER) {
-            // throw new ForbiddenError('User không có quyền manager');
-            // }
-
             const result = await this.scheduleService.addStaffToSchedule(
-                manager._id.toString(),
+                userId,
                 scheduleId,
                 staff_id
             );
@@ -166,6 +156,106 @@ export class ScheduleController {
             error: error.message,
         };
         return res.status(statusCode).json(response);
+        }
+    };
+
+    /**
+     * POST /api/schedules/:scheduleId/replace-staff
+     * Replace one staff with another in a schedule
+     * Người thực hiện: Manager
+     * Body: {
+     *   old_staff_id: string,
+     *   new_staff_id: string
+     * }
+     */
+    replaceStaff = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const managerId = (req as AuthenticatedRequest).user.id;
+            const { scheduleId } = req.params;
+            const { old_staff_id, new_staff_id } = req.body;
+
+            if (!old_staff_id || !new_staff_id) {
+                const response: IApiResponse<null> = {
+                    success: false,
+                    code: 400,
+                    message: 'Failed to replace staff',
+                    error: 'old_staff_id and new_staff_id are required',
+                };
+                return res.status(400).json(response);
+            }
+
+            const result = await this.scheduleService.replaceStaff(
+                managerId,
+                scheduleId,
+                old_staff_id,
+                new_staff_id
+            );
+
+            const response: IApiResponse<any> = {
+                success: true,
+                code: 200,
+                message: result.message,
+                data: result.schedule,
+            };
+
+            return res.status(200).json(response);
+        } catch (error: any) {
+            const statusCode = error instanceof NotFoundError ? 404 : 
+                                error instanceof ForbiddenError ? 403 : 400;
+            const response: IApiResponse<null> = {
+                success: false,
+                code: statusCode,
+                message: 'Failed to replace staff',
+                error: error.message,
+            };
+            return res.status(statusCode).json(response);
+        }
+    };
+
+    /**
+     * PUT /api/schedules/:scheduleId/staff
+     * Bulk update staff list for a schedule
+     */
+    updateScheduleStaff = async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const managerId = (req as AuthenticatedRequest).user.id;
+            const { scheduleId } = req.params;
+            const { staff_ids } = req.body;
+
+            if (!staff_ids || !Array.isArray(staff_ids)) {
+                const response: IApiResponse<null> = {
+                    success: false,
+                    code: 400,
+                    message: 'Failed to update schedule staff',
+                    error: 'staff_ids array is required',
+                };
+                return res.status(400).json(response);
+            }
+
+            const result = await this.scheduleService.updateScheduleStaff(
+                managerId,
+                scheduleId,
+                staff_ids
+            );
+
+            const response: IApiResponse<any> = {
+                success: true,
+                code: 200,
+                message: result.message,
+                data: result.schedule,
+            };
+
+            return res.status(200).json(response);
+        } catch (error: any) {
+            const statusCode = error instanceof NotFoundError ? 404 : 
+                                error instanceof ForbiddenError ? 403 : 400;
+            const response: IApiResponse<null> = {
+                success: false,
+                code: statusCode,
+                message: 'Failed to update schedule staff',
+                error: error.message,
+            };
+            return res.status(statusCode).json(response);
         }
     };
 
