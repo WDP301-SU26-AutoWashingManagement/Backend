@@ -23,6 +23,7 @@ import { connectDB, disconnectDB } from './configs/db.config';
 import { errorHandler, notFoundHandler } from './common/middleware/error.middleware';
 import { logger } from './common/utils/logger';
 import { connectRedis } from './configs/redis.config';
+import { initRedisCache } from './modules/redis/redis-cache.init';
 import routes from './routes';
 import { rateLimiter } from './configs/rateLimit.config';
 import { loadModels } from './models/global/model.load';
@@ -92,6 +93,7 @@ const bootstrap = async (): Promise<void> => {
   loadModels();
   await connectDB();   // ← kết nối primary + replicas
   await connectRedis();
+  initRedisCache();
 
   await seedBoss();
   await seedVehicle();
