@@ -1,9 +1,38 @@
 import { Request, Response, NextFunction } from "express";
 import { branchService } from "../services/branch.service";
 import { sendSuccess } from "@common/utils/apiResponse";
+import { Customer } from "../../../models/customer.model";
+import { Appointment } from "../../../models/appointment.model";
+import { Branch } from "../../../models/branch.model";
 
 export class BranchController {
     private readonly branchService = branchService;
+
+    getPublicStats = async (
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ) => {
+        try {
+            const [customerCount, bookingCount, branchCount] = await Promise.all([
+                Customer.countDocuments(),
+                Appointment.countDocuments(),
+                Branch.countDocuments({ is_active: { $ne: false } }),
+            ]);
+
+            sendSuccess(
+                res,
+                {
+                    customers: customerCount,
+                    bookings: bookingCount,
+                    branches: branchCount,
+                },
+                "Lấy số liệu thống kê công khai thành công",
+            );
+        } catch (error) {
+            next(error);
+        }
+    }
 
     getBranch = async(
         req: Request,
