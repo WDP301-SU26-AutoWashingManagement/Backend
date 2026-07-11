@@ -8,6 +8,7 @@ const router = Router();
 router.use(authenticate);
 router.use(authorize(UserRole.ADMIN, UserRole.BOSS, UserRole.STAFF));
 
-router.post('/manual', iotController.washManual)
+router.post('/manual', iotController.washManual);
+router.post('/stop', iotController.stopWashing)
 
 export default router

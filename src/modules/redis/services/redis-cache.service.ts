@@ -15,7 +15,7 @@ export class RedisCacheService {
   /**
    * Helper to check if Redis connection is active and ready.
    */
-  private isConnected(): boolean {
+  isConnected(): boolean {
     return redisClient.isOpen && redisClient.isReady;
   }
 

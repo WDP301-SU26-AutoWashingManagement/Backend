@@ -33,6 +33,7 @@ import {
 } from '../interfaces/booking.interface';
 import { UserRole } from '../../../common/types/enum';
 import { Promotion } from '../../../models/promotion.model';
+import { redisService } from '@modules/redis/services/redis.service';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -683,7 +684,7 @@ export class BookingService {
      * IoT pump sẽ được gọi riêng từ controller hoặc IoT route.
      */
     async startService(appointmentId: string): Promise<IAppointment> {
-        const appointment = await this.appointmentRepo.findById(appointmentId);
+        const appointment = await Appointment.findById(appointmentId);
         if (!appointment) throw new NotFoundError('Booking not found');
 
         if (appointment.booking_status !== BookingStatus.CHECKED_IN) {
@@ -702,6 +703,8 @@ export class BookingService {
         });
         if (!updated) throw new NotFoundError('Booking not found');
 
+        await redisService.storeBookingId(appointment.branch_id.toString(), appointment._id.toString());
+
         return this.appointmentRepo.findByIdPopulated(appointmentId) as Promise<IAppointment>;
     }
 
@@ -712,7 +715,7 @@ export class BookingService {
      * IN_PROGRESS → WASHED.
      */
     async washedBooking(appointmentId: string): Promise<IAppointment> {
-        const appointment = await this.appointmentRepo.findById(appointmentId);
+        const appointment = await Appointment.findById(appointmentId);
         if (!appointment) throw new NotFoundError('Booking not found');
 
         if (appointment.booking_status !== BookingStatus.IN_PROGRESS) {
@@ -735,7 +738,7 @@ export class BookingService {
      * Tính earned_membership_point từ subtotal.
      */
     async completeBooking(appointmentId: string): Promise<IAppointment> {
-        const appointment = await this.appointmentRepo.findById(appointmentId);
+        const appointment = await Appointment.findById(appointmentId);
         if (!appointment) throw new NotFoundError('Booking not found');
 
         if (![BookingStatus.CHECKED_IN, BookingStatus.IN_PROGRESS, BookingStatus.WASHED].includes(appointment.booking_status)) {
