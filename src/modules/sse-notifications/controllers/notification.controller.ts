@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthenticatedRequest } from '@common/types';
 import { notificationService } from '../services/notification.service';
+import { userProfileService } from '@modules/userProfile/services/userProfile.service';
 
 export class NotificationController {
 
@@ -25,7 +26,7 @@ export class NotificationController {
     let branchId: string | undefined;
 
     try {
-      branchId = await notificationService.resolveUserBranch(userId);
+      branchId = await userProfileService.resolveUserBranch(userId);
     } catch (err) {
       console.error('SSE: failed to resolve user context', err);
     }

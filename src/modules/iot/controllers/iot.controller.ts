@@ -6,6 +6,7 @@ import { ActionType } from "@modules/sse-notifications/interfaces/washingStatus.
 import { redisService } from "@modules/redis/services/redis.service";
 import { checkInAppointment } from "@modules/check-in/services/checkin.service";
 import { bookingService } from "@modules/booking/services/booking.service";
+import { userProfileService } from "@modules/userProfile/services/userProfile.service";
 
 export class IOTController {
     async washManual(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -59,12 +60,22 @@ export class IOTController {
 
     async stopWashing(req: AuthenticatedRequest, res: Response, next: NextFunction) {
         try {
-            const { branchId } = req.body;
+            const { id: userId } = (req as AuthenticatedRequest).user;
+
+            let branchId: string | undefined;
+
+            try {
+                branchId = await userProfileService.resolveUserBranch(userId);
+            } catch (err) {
+                console.error('IoT: failed to resolve user context', err);
+            }
+
             if (!branchId) {
                 return res.status(400).json({ success: false, message: 'Không nhận diện được chi nhánh.' });
             }
 
             await redisService.updateWashingStatus(branchId, ActionType.PREPAIRING);
+            await iotService.turnOffWaterPump(branchId);
 
             sendSuccess(res, null, "Water pump turned off successfully");
         } catch (error) {
