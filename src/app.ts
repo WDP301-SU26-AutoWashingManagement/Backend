@@ -88,6 +88,8 @@ app.use('/api/v1', routes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
+import { iotService } from './modules/iot/services/iot.service';
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 const bootstrap = async (): Promise<void> => {
   loadModels();
@@ -100,6 +102,9 @@ const bootstrap = async (): Promise<void> => {
 
   console.log('[SERVER] Starting cron...');
   scheduleCronService.init();
+
+  console.log('[SERVER] Starting MQTT IoT Service...');
+  iotService.init();
 
   const PORT = process.env.PORT ?? 3000;
   const server = app.listen(PORT, () =>

@@ -2,10 +2,10 @@ import { iotService } from "../services/iot.service";
 import { Response, NextFunction } from 'express';
 import { sendSuccess } from "../../../common/utils/apiResponse";
 import { AuthenticatedRequest } from "../../../common/types";
-import { User } from '../../../models/user.model';
 import { ActionType } from "@modules/sse-notifications/interfaces/washingStatus.interface";
 import { redisService } from "@modules/redis/services/redis.service";
-import { checkInAppointment, findAppointmentByPlates } from "@modules/check-in/services/checkin.service";
+import { checkInAppointment } from "@modules/check-in/services/checkin.service";
+import { bookingService } from "@modules/booking/services/booking.service";
 
 export class IOTController {
     async washManual(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -34,7 +34,7 @@ export class IOTController {
                     });
                 }
 
-                // Set washing status in Redis to WASHING
+                // Check in the appointment
                 const updated = await checkInAppointment(result.appointment._id.toString());
 
                 if (!updated) {
@@ -44,29 +44,29 @@ export class IOTController {
                     });
                 }
 
-                await redisService.updateWashingStatus(branchId, { id: branchId, action: ActionType.WASHING }, '');
+                // Start service, store booking ID, and set status to WASHING
+                await bookingService.startService(result.appointment._id.toString());
+                await redisService.updateWashingStatus(branchId, ActionType.WASHING);
 
-                //Call to machine at {branchId} branch
+                // Call to machine at {branchId} branch
                 await iotService.turnOnWaterPump(branchId);
-
-                // Simulate status transition: WASHING -> DONE (after 15 seconds) -> PREPAIRING (after 20 seconds)
-                setTimeout(async () => {
-                    try {
-                        await redisService.updateWashingStatus(branchId, { id: branchId, action: ActionType.DONE }, '');
-                    } catch (err) {
-                        console.error('Failed to update status to DONE:', err);
-                    }
-                }, 15000);
-
-                setTimeout(async () => {
-                    try {
-                        await redisService.updateWashingStatus(branchId, { id: branchId, action: ActionType.PREPAIRING }, '');
-                    } catch (err) {
-                        console.error('Failed to update status to PREPAIRING:', err);
-                    }
-                }, 20000);
             }
             sendSuccess(res, null, "Water pump turned on successfully");
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async stopWashing(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+        try {
+            const { branchId } = req.body;
+            if (!branchId) {
+                return res.status(400).json({ success: false, message: 'Không nhận diện được chi nhánh.' });
+            }
+
+            await redisService.updateWashingStatus(branchId, ActionType.PREPAIRING);
+
+            sendSuccess(res, null, "Water pump turned off successfully");
         } catch (error) {
             next(error);
         }

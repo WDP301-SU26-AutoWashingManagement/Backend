@@ -2,6 +2,9 @@ import axios from 'axios';
 import { Appointment, BookingStatus } from '../../../models/appointment.model';
 import { Vehicle } from '../../../models/vehicle.model';
 import { iotService } from '@modules/iot/services/iot.service';
+import { bookingService } from '@modules/booking/services/booking.service';
+import { redisService } from '@modules/redis/services/redis.service';
+import { ActionType } from '@modules/sse-notifications/interfaces/washingStatus.interface';
 
 const LICENSE_DETECT_API_URL = process.env.LICENSE_DETECT_API_URL || 'http://localhost:8000';
 
@@ -106,6 +109,8 @@ export async function processCheckinFromImage(
     return { success: false, message: 'Cập nhật trạng thái thất bại.' };
   }
 
+  await bookingService.startService(result.appointment._id.toString());
+  await redisService.updateWashingStatus(result.appointment.branch_id.toString(), ActionType.WASHING);
   iotService.turnOnWaterPump(result.appointment.branch_id.toString());
 
   return {

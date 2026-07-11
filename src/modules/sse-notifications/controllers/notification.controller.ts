@@ -33,8 +33,8 @@ export class NotificationController {
     // Send initial data immediately
     try {
       if (branchId) {
-        const data = await notificationService.getWashingStatus(branchId);
-        res.write(`data: ${JSON.stringify({ type: 'washing_status', data })}\n\n`);
+        const action = await notificationService.getWashingStatus(branchId);
+        res.write(`data: ${JSON.stringify({ type: 'washing_status', action })}\n\n`);
       }
       flushResponse();
     } catch (err) {
@@ -46,8 +46,8 @@ export class NotificationController {
     const intervalId = setInterval(async () => {
       try {
         if (branchId) {
-          const data = await notificationService.getWashingStatus(branchId);
-          res.write(`data: ${JSON.stringify({ type: 'washing_status', data })}\n\n`);
+          const action = await notificationService.getWashingStatus(branchId);
+          res.write(`data: ${JSON.stringify({ type: 'washing_status', action })}\n\n`);
         }
         flushResponse();
       } catch (err) {
