@@ -1,6 +1,6 @@
 import { EMAIL_TEMPLATE } from "@common/constants/emailTemplate";
 import { sendEmail } from "@common/utils/email.util";
-import { authRepository } from '../../auth/repositories/auth.repository';
+import { authRepository } from '../../modules/auth/repositories/auth.repository';
 
 export async function runWithRetry<T>(
     fn: () => Promise<T>,
@@ -46,5 +46,5 @@ export async function runWithRetry<T>(
 
 
 function sleep(ms: number) {
-    return new Promise((res) => setTimeout(res));
+    return new Promise((res) => setTimeout(res, ms));
 }

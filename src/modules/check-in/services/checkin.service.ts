@@ -21,6 +21,8 @@ async function fetchPlatesFromImage(imageBuffer: Buffer, mimeType: string): Prom
     timeout: 30000, // 30s timeout
   });
 
+  console.table(response.data)
+
   return response.data.plates as string[]; // ["99E1-22268", ...]
 }
 
