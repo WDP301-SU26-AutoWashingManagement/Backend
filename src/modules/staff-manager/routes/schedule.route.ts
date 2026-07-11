@@ -66,6 +66,39 @@ router.post(
 );
 
 /**
+ * POST /api/schedules/:scheduleId/replace-staff
+ * Replace one staff with another in a schedule
+ * Người thực hiện: Manager
+ * 
+ * Body:
+ * {
+ *   "old_staff_id": "string",
+ *   "new_staff_id": "string"
+ * }
+ */
+router.post(
+  '/:scheduleId/replace-staff',
+  authorize(UserRole.STAFF),
+  scheduleController.replaceStaff
+);
+
+/**
+ * PUT /api/schedules/:scheduleId/staff
+ * Bulk update staff list for a schedule
+ * Người thực hiện: Manager
+ * 
+ * Body:
+ * {
+ *   "staff_ids": ["string"]
+ * }
+ */
+router.put(
+  '/:scheduleId/staff',
+  authorize(UserRole.STAFF),
+  scheduleController.updateScheduleStaff
+);
+
+/**
  * POST /api/schedules/switch-staff
  * Switch two staff in different schedules
  * Người thực hiện: Manager

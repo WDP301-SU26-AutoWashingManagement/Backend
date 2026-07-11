@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { CacheAside } from '../../redis/decorators/cache-aside.decorator';
 import { Vehicle } from '../../../models/vehicle.model';
 import { Customer } from '../../../models/customer.model';
 import { Service } from '../../../models/service.model';
@@ -185,6 +186,11 @@ export class RecommendationRepository {
   }
 
   /** N appointment gần nhất ĐÃ HOÀN THÀNH của 1 xe, kèm tên các service đã dùng. */
+  @CacheAside({
+    keyPrefix: 'vehicle:history',
+    ttl: 600,
+    hydrate: false
+  })
   async findRecentHistory(vehicleId: string, limit = 5): Promise<IHistoryEntry[]> {
     const appointments = await Appointment.find({
       vehicle_id    : new Types.ObjectId(vehicleId),

@@ -82,6 +82,14 @@ export class ScheduleRepository extends BaseRepository<ISchedule> {
     );
   }
 
+  updateStaffList(scheduleId: string, staffIds: string[] | Types.ObjectId[]) {
+    return this.wm.findByIdAndUpdate(
+      scheduleId,
+      { assigned_staff: staffIds },
+      { new: true }
+    );
+  }
+
   removeStaffFromDateRange(staffId: string | Types.ObjectId, from: Date, to: Date) {
     return this.wm.updateMany(
       { shift_date: { $gte: from, $lte: to } },

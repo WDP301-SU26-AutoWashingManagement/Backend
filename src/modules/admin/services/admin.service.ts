@@ -1,4 +1,5 @@
 import { Appointment } from '../../../models/appointment.model';
+import { CacheAside } from '../../redis/decorators/cache-aside.decorator';
 import { Customer } from '../../../models/customer.model';
 import { Invoice } from '../../../models/invoice.model';
 import { AppointmentService } from '../../../models/appointmentService.model';
@@ -564,6 +565,11 @@ class AdminService {
       return { message: "Xóa admin thành công" };
   }
 
+  @CacheAside({
+    keyPrefix: 'admin:paid-bookings',
+    ttl: 300,
+    hydrate: false
+  })
   async getPaidBookings(dates: { startDate?: string, endDate?: string }, branchId?: string | null) {
     let start = new Date(0);
     let end = new Date();

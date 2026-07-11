@@ -70,6 +70,11 @@ export interface ISwitchStaffResponse {
   message: string;
 }
 
+export interface IReplaceStaffResponse {
+  schedule: IScheduleResponse;
+  message: string;
+}
+
 export interface ITotalLeaveDaysResponse {
   staff_id: string;
   staff_code: string;

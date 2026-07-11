@@ -20,6 +20,11 @@ router.get(
 );
 
 router.get(
+    "/public-stats",
+    branchController.getPublicStats,
+);
+
+router.get(
     "/:id",
     branchController.getBranch,
 );
