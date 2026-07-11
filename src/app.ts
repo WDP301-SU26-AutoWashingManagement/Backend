@@ -31,6 +31,7 @@ import { dbRoutingMiddleware } from './common/middleware/dbRouting.middleware';
 import seedBoss from '@common/seeds/seed.boss';
 import seedVehicle from '@common/seeds/seed.vehicle';
 import { scheduleCronService } from '@modules/staff-manager/services/schedule-auto.service';
+import { bookingCronService } from '@modules/booking/services/booking-cron.service';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -100,6 +101,7 @@ const bootstrap = async (): Promise<void> => {
 
   console.log('[SERVER] Starting cron...');
   scheduleCronService.init();
+  bookingCronService.init();
 
   const PORT = process.env.PORT ?? 3000;
   const server = app.listen(PORT, () =>

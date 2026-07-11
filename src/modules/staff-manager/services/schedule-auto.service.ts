@@ -2,7 +2,7 @@ import cron from "node-cron";
 import { ObjectId, Types } from "mongoose";
 import { scheduleRepository } from "../repositories/schedule.repository";
 import { splitTimeRange } from "../utils/slot-separate";
-import { runWithRetry } from "../utils/retry-cron";
+import { runWithRetry } from "../../../common/utils/retry-cron";
 import { staffRepository } from "../repositories/staff.repository";
 import { staffAbsentRequestRepository } from "../repositories/staffAbsentRequest.repository";
 import { branchRepository } from '../../boss/repositories/branch.repository';
