@@ -367,6 +367,29 @@ export class ScheduleService {
             console.warn('Không thể gửi email thông báo cho staff mới:', error);
         }
 
+        // Gửi email thông báo hủy ca cho staff cũ
+        try {
+            const userIdOld = (oldStaff.user_id as any)._id ? (oldStaff.user_id as any)._id.toString() : oldStaff.user_id.toString();
+            const userOld = await this.getUserById(userIdOld);
+            if (userOld && userOld.email) {
+                const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+                const branchAddress = await this.getBranchAddress(schedule.branch_id.toString());
+                await sendEmail(
+                    userOld.email,
+                    'Thông báo hủy ca làm việc',
+                    EMAIL_TEMPLATE.SHIFT_REMOVAL_EMAIL({
+                        staffName: userOld.full_name || 'Nhân viên',
+                        shiftDate: shiftDate,
+                        startTime: schedule.start_time,
+                        endTime: schedule.end_time,
+                        branchName: branchAddress,
+                    })
+                ); 
+            }
+        } catch (error) {
+            console.warn('Không thể gửi email thông báo hủy ca cho staff cũ:', error);
+        }
+
         return {
             schedule: this.mapToScheduleResponse(updatedSchedule),
             message: 'Thay thế nhân viên thành công. Email thông báo đã được gửi cho nhân viên mới.',
@@ -412,6 +435,7 @@ export class ScheduleService {
 
         const oldStaffIds = schedule.assigned_staff.map(id => id.toString());
         const newlyAdded = staffIds.filter(id => !oldStaffIds.includes(id));
+        const removedStaffs = oldStaffIds.filter(id => !staffIds.includes(id));
 
         const updatedSchedule = await this.scheduleRepo.updateStaffList(scheduleId, staffIds);
         if (!updatedSchedule) {
@@ -443,6 +467,34 @@ export class ScheduleService {
                 }
             } catch (error) {
                 console.warn('Không thể gửi email thông báo cho staff mới:', error);
+            }
+        }
+
+        // Gửi email cho các staff bị xóa khỏi ca
+        for (const removedStaffId of removedStaffs) {
+            try {
+                const staff = await this.staffRepo.findById(removedStaffId);
+                if (staff) {
+                    const userIdRemoved = (staff.user_id as any)._id ? (staff.user_id as any)._id.toString() : staff.user_id.toString();
+                    const userRemoved = await this.getUserById(userIdRemoved);
+                    if (userRemoved && userRemoved.email) {
+                        const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+                        const branchAddress = await this.getBranchAddress(schedule.branch_id.toString());
+                        await sendEmail(
+                            userRemoved.email,
+                            'Thông báo hủy ca làm việc',
+                            EMAIL_TEMPLATE.SHIFT_REMOVAL_EMAIL({
+                                staffName: userRemoved.full_name || 'Nhân viên',
+                                shiftDate: shiftDate,
+                                startTime: schedule.start_time,
+                                endTime: schedule.end_time,
+                                branchName: branchAddress,
+                            })
+                        );
+                    }
+                }
+            } catch (error) {
+                console.warn('Không thể gửi email thông báo hủy ca cho staff:', error);
             }
         }
 
