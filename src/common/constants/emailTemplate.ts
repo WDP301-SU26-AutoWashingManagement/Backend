@@ -385,4 +385,113 @@ export const EMAIL_TEMPLATE = {
         </html>
         `
     },
+
+    SHIFT_REMOVAL_EMAIL: ({
+        staffName,
+        shiftDate,
+        startTime,
+        endTime,
+        branchName,
+    }: {
+        staffName: string;
+        shiftDate: string;
+        startTime: string;
+        endTime: string;
+        branchName: string;
+    }): string => {
+        return `
+        <!DOCTYPE html>
+        <html lang="vi">
+        <head>
+            <meta charset="UTF-8" />
+            <title>Thông báo hủy ca làm việc</title>
+        </head>
+        <body style="margin:0;padding:0;background:#f5f6fa;font-family:Arial,sans-serif;">
+            <div style="max-width:600px;margin:30px auto;background:#ffffff;border-radius:8px;overflow:hidden;">
+                
+                <div style="background:#e11d48;padding:20px;text-align:center;">
+                    <h1 style="color:#ffffff;margin:0;">
+                        THÔNG BÁO HỦY CA LÀM VIỆC
+                    </h1>
+                </div>
+
+                <div style="padding:30px;">
+                    <p>Xin chào <strong>${staffName}</strong>,</p>
+
+                    <p>
+                        Ca làm việc của bạn đã được quản lý hủy bỏ khỏi lịch với thông tin như sau:
+                    </p>
+
+                    <table
+                        style="
+                            width:100%;
+                            border-collapse:collapse;
+                            margin:20px 0;
+                        "
+                    >
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                <strong>Ngày làm việc</strong>
+                            </td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                ${shiftDate}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                <strong>Giờ bắt đầu</strong>
+                            </td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                ${startTime}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                <strong>Giờ kết thúc</strong>
+                            </td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                ${endTime}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                <strong>Chi nhánh</strong>
+                            </td>
+                            <td style="padding:10px;border:1px solid #e5e7eb;">
+                                ${branchName}
+                            </td>
+                        </tr>
+                    </table>
+
+                    <p>
+                        Vui lòng kiểm tra lại lịch làm việc cá nhân của bạn.
+                    </p>
+
+                    <br />
+
+                    <p>
+                        Trân trọng,<br />
+                        <strong>Phòng Quản Lý Nhân Sự</strong>
+                    </p>
+                </div>
+
+                <div
+                    style="
+                        background:#f3f4f6;
+                        padding:15px;
+                        text-align:center;
+                        color:#6b7280;
+                        font-size:12px;
+                    "
+                >
+                    Đây là email tự động, vui lòng không trả lời email này.
+                </div>
+            </div>
+        </body>
+        </html>
+        `
+    },
 }
