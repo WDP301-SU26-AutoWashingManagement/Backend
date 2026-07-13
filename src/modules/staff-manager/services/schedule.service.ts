@@ -1,10 +1,13 @@
 import { scheduleRepository } from '../repositories/schedule.repository';
 import { staffRepository } from '../repositories/staff.repository';
+import { attendanceRepository } from '../repositories/attendance.repository';
+import { AttendanceStatus } from '../../../models/attendance.model';
 import { NotFoundError, BadRequestError, ForbiddenError } from '../../../common/utils/AppError';
 import { StaffRole } from '../../../common/types/enum';
 import { Types } from 'mongoose';
 import { sendEmail } from '../../../common/utils/email.util';
 import { authRepository } from '../../auth/repositories/auth.repository';
+import { branchRepository } from '../../boss/repositories/branch.repository';
 import {
   IAddStaffToScheduleResponse,
   ISwitchStaffResponse,
@@ -71,22 +74,35 @@ export class ScheduleService {
         throw new BadRequestError('Thêm nhân viên vào lịch thất bại');
         }
 
+        // Tạo bản ghi chấm công (attendance) placeholder cho ca này
+        try {
+            await attendanceRepository.createPlaceholder({
+                schedule_id: scheduleId,
+                staff_id: staffId,
+                branch_id: schedule.branch_id,
+            });
+        } catch (err) {
+            console.error('Failed to create attendance placeholder', err);
+        }
+
         // Gửi email thông báo cho staff
         try {
         // Lấy user info để gửi email
-        const user = await this.getUserById(staff.user_id.toString());
+        const userId = (staff.user_id as any)._id ? (staff.user_id as any)._id.toString() : staff.user_id.toString();
+        const user = await this.getUserById(userId);
         if (user && user.email) {
             const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+            const branchAddress = await this.getBranchAddress(schedule.branch_id.toString());
             const emailContent = {
                 to: user.email,
                 subject: 'Thông báo phân công ca làm việc',
                 template: 'schedule-assignment',
                 data: {
-                    staffName: user.name || 'Nhân viên',
+                    staffName: user.full_name || 'Nhân viên',
                     shiftDate,
                     startTime: schedule.start_time,
                     endTime: schedule.end_time,
-                    branchId: schedule.branch_id.toString(),
+                    branchId: branchAddress,
                 },
             };
             await sendEmail(
@@ -177,6 +193,16 @@ export class ScheduleService {
             throw new BadRequestError('Nhân viên thứ nhất đã có mặt trong lịch làm việc thứ hai (không thể đổi ca)');
         }
 
+        // Kiểm tra attendance: không cho đổi ca nếu đã check-in/check-out ca đó
+        const attendance1 = await attendanceRepository.findByScheduleAndStaff(scheduleId1, staffId1);
+        if (attendance1 && attendance1.status !== AttendanceStatus.NOT_CHECKED) {
+            throw new BadRequestError('Nhân viên thứ nhất đã check-in/check-out ca này, không thể đổi ca');
+        }
+        const attendance2 = await attendanceRepository.findByScheduleAndStaff(scheduleId2, staffId2);
+        if (attendance2 && attendance2.status !== AttendanceStatus.NOT_CHECKED) {
+            throw new BadRequestError('Nhân viên thứ hai đã check-in/check-out ca này, không thể đổi ca');
+        }
+
         // Thực hiện switch
         // Xóa staff 1 khỏi schedule 1
         let updatedSchedule1 = await this.scheduleRepo.removeStaff(scheduleId1, staffId1);
@@ -202,10 +228,30 @@ export class ScheduleService {
         throw new BadRequestError('Thao tác switch thất bại');
         }
 
+        // Đồng bộ attendance: dọn record cũ (chưa checkin nên an toàn để xóa) và tạo record mới
+        try {
+            await attendanceRepository.removeByScheduleAndStaff(scheduleId1, staffId1);
+            await attendanceRepository.removeByScheduleAndStaff(scheduleId2, staffId2);
+
+            await attendanceRepository.createPlaceholder({
+                schedule_id: scheduleId1,
+                staff_id: staffId2,
+                branch_id: schedule1.branch_id,
+            });
+            await attendanceRepository.createPlaceholder({
+                schedule_id: scheduleId2,
+                staff_id: staffId1,
+                branch_id: schedule2.branch_id,
+            });
+        } catch (err) {
+            console.error('Failed to sync attendance after switchStaff', err);
+        }
+
         // Gửi email thông báo cho cả 2 staff
         try {
         // Email cho staff 1
-        const user1 = await this.getUserById(staff1.user_id.toString());
+        const userId1 = (staff1.user_id as any)._id ? (staff1.user_id as any)._id.toString() : staff1.user_id.toString();
+        const user1 = await this.getUserById(userId1);
         if (user1 && user1.email) {
             const shiftDate2 = new Date(schedule2.shift_date).toLocaleDateString('vi-VN');
             const emailContent1 = {
@@ -213,7 +259,7 @@ export class ScheduleService {
             subject: 'Thông báo đổi ca làm việc',
             template: 'shift-switch',
             data: {
-                staffName: user1.name || 'Nhân viên',
+                staffName: user1.full_name || 'Nhân viên',
                 oldShiftDate: new Date(schedule1.shift_date).toLocaleDateString('vi-VN'),
                 oldStartTime: schedule1.start_time,
                 oldEndTime: schedule1.end_time,
@@ -230,7 +276,8 @@ export class ScheduleService {
         }
 
         // Email cho staff 2
-        const user2 = await this.getUserById(staff2.user_id.toString());
+        const userId2 = (staff2.user_id as any)._id ? (staff2.user_id as any)._id.toString() : staff2.user_id.toString();
+        const user2 = await this.getUserById(userId2);
         if (user2 && user2.email) {
             const shiftDate1 = new Date(schedule1.shift_date).toLocaleDateString('vi-VN');
             const emailContent2 = {
@@ -238,7 +285,7 @@ export class ScheduleService {
             subject: 'Thông báo đổi ca làm việc',
             template: 'shift-switch',
             data: {
-                staffName: user2.name || 'Nhân viên',
+                staffName: user2.full_name || 'Nhân viên',
                 oldShiftDate: new Date(schedule2.shift_date).toLocaleDateString('vi-VN'),
                 oldStartTime: schedule2.start_time,
                 oldEndTime: schedule2.end_time,
@@ -248,7 +295,7 @@ export class ScheduleService {
             },
             };
             await sendEmail(
-                user1.email,
+                user2.email,
                 'Thông báo thay đổi ca làm việc',
                 EMAIL_TEMPLATE.SHIFT_SWITCH_EMAIL(emailContent2.data)
             );
@@ -313,10 +360,23 @@ export class ScheduleService {
             throw new BadRequestError('Nhân viên mới đã có trong lịch làm việc này');
         }
 
+        // Kiểm tra attendance: không cho thay thế nếu nhân viên cũ đã check-in/check-out
+        const oldAttendance = await attendanceRepository.findByScheduleAndStaff(scheduleId, oldStaffId);
+        if (oldAttendance && oldAttendance.status !== AttendanceStatus.NOT_CHECKED) {
+            throw new BadRequestError('Nhân viên cũ đã check-in/check-out ca này, không thể thay thế');
+        }
+
         // Xóa staff cũ
         let updatedSchedule = await this.scheduleRepo.removeStaff(scheduleId, oldStaffId);
         if (!updatedSchedule) {
             throw new BadRequestError('Thao tác xóa nhân viên cũ thất bại');
+        }
+
+        // Dọn attendance record cũ (chưa checkin nên an toàn để xóa)
+        try {
+            await attendanceRepository.removeByScheduleAndStaff(scheduleId, oldStaffId);
+        } catch (err) {
+            console.error('Failed to remove old attendance record in replaceStaff', err);
         }
 
         // Thêm staff mới
@@ -324,24 +384,46 @@ export class ScheduleService {
         if (!updatedSchedule) {
             // Rollback (cố gắng add lại nhân viên cũ)
             await this.scheduleRepo.addStaff(scheduleId, oldStaffId);
+            try {
+                await attendanceRepository.createPlaceholder({
+                    schedule_id: scheduleId,
+                    staff_id: oldStaffId,
+                    branch_id: schedule.branch_id,
+                });
+            } catch (err) {
+                console.error('Failed to restore attendance record after rollback', err);
+            }
             throw new BadRequestError('Thao tác thêm nhân viên mới thất bại');
+        }
+
+        // Tạo attendance record cho staff mới
+        try {
+            await attendanceRepository.createPlaceholder({
+                schedule_id: scheduleId,
+                staff_id: newStaffId,
+                branch_id: schedule.branch_id,
+            });
+        } catch (err) {
+            console.error('Failed to create attendance placeholder in replaceStaff', err);
         }
 
         // Gửi email cho staff mới
         try {
-            const userNew = await this.getUserById(newStaff.user_id.toString());
+            const userIdNew = (newStaff.user_id as any)._id ? (newStaff.user_id as any)._id.toString() : newStaff.user_id.toString();
+            const userNew = await this.getUserById(userIdNew);
             if (userNew && userNew.email) {
                 const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+                const branchAddress = await this.getBranchAddress(schedule.branch_id.toString());
                 const emailContent = {
                     to: userNew.email,
                     subject: 'Thông báo phân công ca làm việc',
                     template: 'schedule-assignment',
                     data: {
-                        staffName: userNew.name || 'Nhân viên',
+                        staffName: userNew.full_name || 'Nhân viên',
                         shiftDate,
                         startTime: schedule.start_time,
                         endTime: schedule.end_time,
-                        branchId: schedule.branch_id.toString(),
+                        branchId: branchAddress,
                     },
                 };
                 await sendEmail(
@@ -358,6 +440,29 @@ export class ScheduleService {
             }
         } catch (error) {
             console.warn('Không thể gửi email thông báo cho staff mới:', error);
+        }
+
+        // Gửi email thông báo hủy ca cho staff cũ
+        try {
+            const userIdOld = (oldStaff.user_id as any)._id ? (oldStaff.user_id as any)._id.toString() : oldStaff.user_id.toString();
+            const userOld = await this.getUserById(userIdOld);
+            if (userOld && userOld.email) {
+                const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+                const branchAddress = await this.getBranchAddress(schedule.branch_id.toString());
+                await sendEmail(
+                    userOld.email,
+                    'Thông báo hủy ca làm việc',
+                    EMAIL_TEMPLATE.SHIFT_REMOVAL_EMAIL({
+                        staffName: userOld.full_name || 'Nhân viên',
+                        shiftDate: shiftDate,
+                        startTime: schedule.start_time,
+                        endTime: schedule.end_time,
+                        branchName: branchAddress,
+                    })
+                ); 
+            }
+        } catch (error) {
+            console.warn('Không thể gửi email thông báo hủy ca cho staff cũ:', error);
         }
 
         return {
@@ -405,10 +510,40 @@ export class ScheduleService {
 
         const oldStaffIds = schedule.assigned_staff.map(id => id.toString());
         const newlyAdded = staffIds.filter(id => !oldStaffIds.includes(id));
+        const removedStaffs = oldStaffIds.filter(id => !staffIds.includes(id));
+
+        // Kiểm tra attendance: không cho gỡ staff đã check-in/check-out ca này
+        for (const removedStaffId of removedStaffs) {
+            const attendance = await attendanceRepository.findByScheduleAndStaff(scheduleId, removedStaffId);
+            if (attendance && attendance.status !== AttendanceStatus.NOT_CHECKED) {
+                const staff = await this.staffRepo.findById(removedStaffId);
+                const label = staff?.staff_code ?? removedStaffId;
+                throw new BadRequestError(
+                    `Nhân viên ${label} đã check-in/check-out ca này, không thể gỡ khỏi lịch`
+                );
+            }
+        }
 
         const updatedSchedule = await this.scheduleRepo.updateStaffList(scheduleId, staffIds);
         if (!updatedSchedule) {
             throw new BadRequestError('Cập nhật nhân viên thất bại');
+        }
+
+        // Đồng bộ attendance: xóa record của staff bị gỡ (đã đảm bảo an toàn ở bước validate trên),
+        // tạo record mới cho staff vừa được thêm vào
+        try {
+            for (const removedStaffId of removedStaffs) {
+                await attendanceRepository.removeByScheduleAndStaff(scheduleId, removedStaffId);
+            }
+            for (const newStaffId of newlyAdded) {
+                await attendanceRepository.createPlaceholder({
+                    schedule_id: scheduleId,
+                    staff_id: newStaffId,
+                    branch_id: schedule.branch_id,
+                });
+            }
+        } catch (err) {
+            console.error('Failed to sync attendance after updateScheduleStaff', err);
         }
 
         // Gửi email cho các staff mới được thêm vào ca
@@ -416,24 +551,54 @@ export class ScheduleService {
             try {
                 const staff = await this.staffRepo.findById(newStaffId);
                 if (staff) {
-                    const userNew = await this.getUserById(staff.user_id.toString());
+                    const userIdNew = (staff.user_id as any)._id ? (staff.user_id as any)._id.toString() : staff.user_id.toString();
+                    const userNew = await this.getUserById(userIdNew);
                     if (userNew && userNew.email) {
                         const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+                        const branchAddress = await this.getBranchAddress(schedule.branch_id.toString());
                         await sendEmail(
                             userNew.email,
                             'Thông báo phân công ca làm việc',
                             EMAIL_TEMPLATE.ASSIGNMENT_EMAIL({
-                                staffName: userNew.name || 'Nhân viên',
+                                staffName: userNew.full_name || 'Nhân viên',
                                 shiftDate: shiftDate,
                                 startTime: schedule.start_time,
                                 endTime: schedule.end_time,
-                                branchName: schedule.branch_id.toString(),
+                                branchName: branchAddress,
                             })
                         );
                     }
                 }
             } catch (error) {
                 console.warn('Không thể gửi email thông báo cho staff mới:', error);
+            }
+        }
+
+        // Gửi email cho các staff bị xóa khỏi ca
+        for (const removedStaffId of removedStaffs) {
+            try {
+                const staff = await this.staffRepo.findById(removedStaffId);
+                if (staff) {
+                    const userIdRemoved = (staff.user_id as any)._id ? (staff.user_id as any)._id.toString() : staff.user_id.toString();
+                    const userRemoved = await this.getUserById(userIdRemoved);
+                    if (userRemoved && userRemoved.email) {
+                        const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+                        const branchAddress = await this.getBranchAddress(schedule.branch_id.toString());
+                        await sendEmail(
+                            userRemoved.email,
+                            'Thông báo hủy ca làm việc',
+                            EMAIL_TEMPLATE.SHIFT_REMOVAL_EMAIL({
+                                staffName: userRemoved.full_name || 'Nhân viên',
+                                shiftDate: shiftDate,
+                                startTime: schedule.start_time,
+                                endTime: schedule.end_time,
+                                branchName: branchAddress,
+                            })
+                        );
+                    }
+                }
+            } catch (error) {
+                console.warn('Không thể gửi email thông báo hủy ca cho staff:', error);
             }
         }
 
@@ -495,6 +660,22 @@ export class ScheduleService {
         createdAt: schedule.createdAt,
         updatedAt: schedule.updatedAt,
         };
+    }
+
+    /**
+     * Get branch address by branch_id
+     */
+    private async getBranchAddress(branchId: string): Promise<string> {
+        try {
+            const branch = await branchRepository.findById(branchId);
+            if (branch && branch.branch_address) {
+                const { street, ward, district, city } = branch.branch_address;
+                return `${street}, ${ward}, ${district}, ${city}`;
+            }
+        } catch (error) {
+            console.warn('Cannot fetch branch address:', error);
+        }
+        return branchId;
     }
 
     /**

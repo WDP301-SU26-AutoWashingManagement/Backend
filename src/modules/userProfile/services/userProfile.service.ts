@@ -9,17 +9,18 @@ import {
   IUserProfileResponse,
 } from '../interfaces/userProfile.interface';
 import { UserRole } from '../../../common/types/enum';
+import { User } from '../../../models/user.model';
 
 
 export class UserProfileService {
   private readonly userRepo = userRepository;
   async getProfile(userId: string): Promise<IUserProfileResponse> {
-      const user = await this.userRepo.findById(userId);
-      if (!user) throw new NotFoundError('User not found');
+    const user = await this.userRepo.findById(userId);
+    if (!user) throw new NotFoundError('User not found');
 
-      const roleDoc = await findRoleDocByUserId(userId, user.role as UserRole);
+    const roleDoc = await findRoleDocByUserId(userId, user.role as UserRole);
 
-      return this.buildProfileResponse(user, roleDoc);
+    return this.buildProfileResponse(user, roleDoc);
   }
 
   // ─── updateProfile ──────────────────────────────────────────────────────────
@@ -89,13 +90,18 @@ export class UserProfileService {
 
     const role_data = roleDoc
       ? (() => {
-          const { __v, user_id, ...safeRole } =
-            typeof roleDoc.toObject === 'function' ? roleDoc.toObject() : { ...roleDoc };
-          return safeRole;
-        })()
+        const { __v, user_id, ...safeRole } =
+          typeof roleDoc.toObject === 'function' ? roleDoc.toObject() : { ...roleDoc };
+        return safeRole;
+      })()
       : null;
 
     return { ...safeUser, role_data };
+  }
+
+  async resolveUserBranch(userId: string): Promise<string | undefined> {
+    const user = await User.findById(userId).lean();
+    return user?.branch_id ? user.branch_id.toString() : undefined;
   }
 }
 

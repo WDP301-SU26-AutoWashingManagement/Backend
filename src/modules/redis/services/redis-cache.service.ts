@@ -1,6 +1,7 @@
 import cron, { ScheduledTask } from 'node-cron';
 import { logger } from '../../../common/utils/logger';
 import { redisClient } from '../../../configs/redis.config';
+import cronstrue from 'cronstrue';
 
 export interface RefreshTask {
   key: string;
@@ -15,7 +16,7 @@ export class RedisCacheService {
   /**
    * Helper to check if Redis connection is active and ready.
    */
-  private isConnected(): boolean {
+  isConnected(): boolean {
     return redisClient.isOpen && redisClient.isReady;
   }
 
@@ -164,7 +165,7 @@ export class RedisCacheService {
       logger.info(`[RedisCache] Auto-refresh background job finished.`);
     });
 
-    logger.info(`[RedisCache] Cron auto-refresh schedule configured with: "${cronExpression}"`);
+    logger.info(`[RedisCache] Cron auto-refresh schedule configured with: "${cronstrue.toString(cronExpression)}"`);
   }
 
   /**

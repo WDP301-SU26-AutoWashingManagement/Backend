@@ -12,11 +12,6 @@ export interface BookingStatusUpdate {
     vehicle_plate: string | null;
 }
 
-export interface WashingStatus {
-    id: string;
-    action: ActionType;
-}
-
 export enum ActionType {
     PREPAIRING = 'PREPAIRING',
     WASHING = 'WASHING',
