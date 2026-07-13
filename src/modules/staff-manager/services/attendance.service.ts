@@ -42,6 +42,25 @@ export class AttendanceService {
       });
     }
 
+    // Validate thời gian Check-in
+    const now = new Date();
+    const [h, m] = schedule.start_time.split(':').map(Number);
+    const shiftStart = new Date(schedule.shift_date);
+    shiftStart.setHours(h, m, 0, 0);
+
+    const earliestAllowed = new Date(shiftStart.getTime() - 30 * 60 * 1000);
+    const deadline = new Date(shiftStart.getTime() + 30 * 60 * 1000);
+
+    if (now < earliestAllowed) {
+      throw new BadRequestError('Chưa đến giờ Check-in (chỉ được Check-in trước 30 phút)');
+    }
+
+    if (now > deadline) {
+      await this.attendanceRepo.markAbsent((attendance!._id as Types.ObjectId).toString());
+      throw new BadRequestError('Đã quá thời gian Check-in (trễ hơn 30 phút). Ca này đã bị đánh dấu vắng mặt.');
+    }
+
+
     if (attendance!.status === AttendanceStatus.CHECKED_IN || attendance!.status === AttendanceStatus.CHECKED_OUT) {
       throw new BadRequestError('Ca này đã được check-in trước đó');
     }

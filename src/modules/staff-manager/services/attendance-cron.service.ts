@@ -1,7 +1,9 @@
 import cron from 'node-cron';
 import { attendanceRepository } from '../repositories/attendance.repository';
+import { scheduleRepository } from '../repositories/schedule.repository';
 import { CronLog } from '../../../models/cronLog.model';
 import { AttendanceStatus } from '../../../models/attendance.model';
+import { Types } from 'mongoose';
 
 const GRACE_PERIOD_MINUTES = 30;
 
@@ -14,6 +16,7 @@ function combineDateTime(shiftDate: Date, timeStr: string): Date {
 
 export class AttendanceCronService {
   private readonly attendanceRepo = attendanceRepository;
+  private readonly scheduleRepo = scheduleRepository;
   private isRunning = false;
 
   private async saveLog(message: string, status: 'info' | 'success' | 'warning' | 'error' = 'info') {
@@ -55,20 +58,51 @@ export class AttendanceCronService {
 
   async autoMarkAbsent(): Promise<number> {
     const now = new Date();
-    const pending = await this.attendanceRepo.findPendingWithSchedule();
+    
+    // Lấy tất cả ca làm việc của ngày hôm nay
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
 
+    const todaySchedules = await this.scheduleRepo.findByDateRange(startOfDay, endOfDay);
+    
     let markedCount = 0;
 
-    for (const att of pending) {
-      const schedule = att.schedule_id as any;
-      if (!schedule || !schedule.shift_date || !schedule.start_time) continue;
-
+    for (const schedule of todaySchedules) {
+      if (!schedule.start_time) continue;
+      
       const shiftStart = combineDateTime(schedule.shift_date, schedule.start_time);
       const deadline = new Date(shiftStart.getTime() + GRACE_PERIOD_MINUTES * 60 * 1000);
 
+      // Nếu đã quá hạn Check-in
       if (now > deadline) {
-        await this.attendanceRepo.markAbsent((att._id as any).toString());
-        markedCount += 1;
+        for (const staffId of schedule.assigned_staff) {
+          // Kiểm tra xem staff đã có record chưa
+          const att = await this.attendanceRepo.findByScheduleAndStaff(
+            (schedule._id as Types.ObjectId).toString(),
+            staffId.toString()
+          );
+
+          if (!att) {
+            // Chưa từng check-in -> Tạo placeholder (mặc định NOT_CHECKED)
+            const newAtt = await this.attendanceRepo.createPlaceholder({
+              schedule_id: (schedule._id as Types.ObjectId).toString(),
+              staff_id: staffId.toString(),
+              branch_id: (schedule.branch_id as Types.ObjectId).toString()
+            });
+            
+            // Cập nhật thành ABSENT ngay lập tức
+            if (newAtt) {
+              await this.attendanceRepo.markAbsent((newAtt._id as Types.ObjectId).toString());
+              markedCount += 1;
+            }
+          } else if (att.status === AttendanceStatus.NOT_CHECKED) {
+            // Có record nhưng đang pending -> Cập nhật thành Vắng mặt
+            await this.attendanceRepo.markAbsent((att._id as Types.ObjectId).toString());
+            markedCount += 1;
+          }
+        }
       }
     }
 
