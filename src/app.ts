@@ -90,6 +90,7 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 import { iotService } from './modules/iot/services/iot.service';
+import { attendanceCronService } from '@modules/staff-manager/services/attendance-cron.service';
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 const bootstrap = async (): Promise<void> => {
@@ -104,6 +105,7 @@ const bootstrap = async (): Promise<void> => {
   console.log('[SERVER] Starting cron...');
   scheduleCronService.init();
   bookingCronService.init();
+  attendanceCronService.init();
 
   console.log('[SERVER] Starting MQTT IoT Service...');
   iotService.init();

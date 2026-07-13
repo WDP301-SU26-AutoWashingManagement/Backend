@@ -13,7 +13,7 @@ import {
 import { StaffRole } from "../../../common/types/enum";
 import mongoose from "mongoose";
 import { Types } from "mongoose";
-import { IUser } from "src/models/user.model";
+import { IUser } from "../../../models/user.model";
 
 export class StaffService {
     /**

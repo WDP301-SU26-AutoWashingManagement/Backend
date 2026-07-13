@@ -1,5 +1,7 @@
 import { scheduleRepository } from '../repositories/schedule.repository';
 import { staffRepository } from '../repositories/staff.repository';
+import { attendanceRepository } from '../repositories/attendance.repository';
+import { AttendanceStatus } from '../../../models/attendance.model';
 import { NotFoundError, BadRequestError, ForbiddenError } from '../../../common/utils/AppError';
 import { StaffRole } from '../../../common/types/enum';
 import { Types } from 'mongoose';
@@ -70,6 +72,17 @@ export class ScheduleService {
         const updatedSchedule = await this.scheduleRepo.addStaff(scheduleId, staffId);
         if (!updatedSchedule) {
         throw new BadRequestError('Thêm nhân viên vào lịch thất bại');
+        }
+
+        // Tạo bản ghi chấm công (attendance) placeholder cho ca này
+        try {
+            await attendanceRepository.createPlaceholder({
+                schedule_id: scheduleId,
+                staff_id: staffId,
+                branch_id: schedule.branch_id,
+            });
+        } catch (err) {
+            console.error('Failed to create attendance placeholder', err);
         }
 
         // Gửi email thông báo cho staff
@@ -180,6 +193,16 @@ export class ScheduleService {
             throw new BadRequestError('Nhân viên thứ nhất đã có mặt trong lịch làm việc thứ hai (không thể đổi ca)');
         }
 
+        // Kiểm tra attendance: không cho đổi ca nếu đã check-in/check-out ca đó
+        const attendance1 = await attendanceRepository.findByScheduleAndStaff(scheduleId1, staffId1);
+        if (attendance1 && attendance1.status !== AttendanceStatus.NOT_CHECKED) {
+            throw new BadRequestError('Nhân viên thứ nhất đã check-in/check-out ca này, không thể đổi ca');
+        }
+        const attendance2 = await attendanceRepository.findByScheduleAndStaff(scheduleId2, staffId2);
+        if (attendance2 && attendance2.status !== AttendanceStatus.NOT_CHECKED) {
+            throw new BadRequestError('Nhân viên thứ hai đã check-in/check-out ca này, không thể đổi ca');
+        }
+
         // Thực hiện switch
         // Xóa staff 1 khỏi schedule 1
         let updatedSchedule1 = await this.scheduleRepo.removeStaff(scheduleId1, staffId1);
@@ -203,6 +226,25 @@ export class ScheduleService {
         updatedSchedule2 = await this.scheduleRepo.addStaff(scheduleId2, staffId1);
         if (!updatedSchedule2) {
         throw new BadRequestError('Thao tác switch thất bại');
+        }
+
+        // Đồng bộ attendance: dọn record cũ (chưa checkin nên an toàn để xóa) và tạo record mới
+        try {
+            await attendanceRepository.removeByScheduleAndStaff(scheduleId1, staffId1);
+            await attendanceRepository.removeByScheduleAndStaff(scheduleId2, staffId2);
+
+            await attendanceRepository.createPlaceholder({
+                schedule_id: scheduleId1,
+                staff_id: staffId2,
+                branch_id: schedule1.branch_id,
+            });
+            await attendanceRepository.createPlaceholder({
+                schedule_id: scheduleId2,
+                staff_id: staffId1,
+                branch_id: schedule2.branch_id,
+            });
+        } catch (err) {
+            console.error('Failed to sync attendance after switchStaff', err);
         }
 
         // Gửi email thông báo cho cả 2 staff
@@ -318,10 +360,23 @@ export class ScheduleService {
             throw new BadRequestError('Nhân viên mới đã có trong lịch làm việc này');
         }
 
+        // Kiểm tra attendance: không cho thay thế nếu nhân viên cũ đã check-in/check-out
+        const oldAttendance = await attendanceRepository.findByScheduleAndStaff(scheduleId, oldStaffId);
+        if (oldAttendance && oldAttendance.status !== AttendanceStatus.NOT_CHECKED) {
+            throw new BadRequestError('Nhân viên cũ đã check-in/check-out ca này, không thể thay thế');
+        }
+
         // Xóa staff cũ
         let updatedSchedule = await this.scheduleRepo.removeStaff(scheduleId, oldStaffId);
         if (!updatedSchedule) {
             throw new BadRequestError('Thao tác xóa nhân viên cũ thất bại');
+        }
+
+        // Dọn attendance record cũ (chưa checkin nên an toàn để xóa)
+        try {
+            await attendanceRepository.removeByScheduleAndStaff(scheduleId, oldStaffId);
+        } catch (err) {
+            console.error('Failed to remove old attendance record in replaceStaff', err);
         }
 
         // Thêm staff mới
@@ -329,7 +384,27 @@ export class ScheduleService {
         if (!updatedSchedule) {
             // Rollback (cố gắng add lại nhân viên cũ)
             await this.scheduleRepo.addStaff(scheduleId, oldStaffId);
+            try {
+                await attendanceRepository.createPlaceholder({
+                    schedule_id: scheduleId,
+                    staff_id: oldStaffId,
+                    branch_id: schedule.branch_id,
+                });
+            } catch (err) {
+                console.error('Failed to restore attendance record after rollback', err);
+            }
             throw new BadRequestError('Thao tác thêm nhân viên mới thất bại');
+        }
+
+        // Tạo attendance record cho staff mới
+        try {
+            await attendanceRepository.createPlaceholder({
+                schedule_id: scheduleId,
+                staff_id: newStaffId,
+                branch_id: schedule.branch_id,
+            });
+        } catch (err) {
+            console.error('Failed to create attendance placeholder in replaceStaff', err);
         }
 
         // Gửi email cho staff mới
@@ -437,9 +512,38 @@ export class ScheduleService {
         const newlyAdded = staffIds.filter(id => !oldStaffIds.includes(id));
         const removedStaffs = oldStaffIds.filter(id => !staffIds.includes(id));
 
+        // Kiểm tra attendance: không cho gỡ staff đã check-in/check-out ca này
+        for (const removedStaffId of removedStaffs) {
+            const attendance = await attendanceRepository.findByScheduleAndStaff(scheduleId, removedStaffId);
+            if (attendance && attendance.status !== AttendanceStatus.NOT_CHECKED) {
+                const staff = await this.staffRepo.findById(removedStaffId);
+                const label = staff?.staff_code ?? removedStaffId;
+                throw new BadRequestError(
+                    `Nhân viên ${label} đã check-in/check-out ca này, không thể gỡ khỏi lịch`
+                );
+            }
+        }
+
         const updatedSchedule = await this.scheduleRepo.updateStaffList(scheduleId, staffIds);
         if (!updatedSchedule) {
             throw new BadRequestError('Cập nhật nhân viên thất bại');
+        }
+
+        // Đồng bộ attendance: xóa record của staff bị gỡ (đã đảm bảo an toàn ở bước validate trên),
+        // tạo record mới cho staff vừa được thêm vào
+        try {
+            for (const removedStaffId of removedStaffs) {
+                await attendanceRepository.removeByScheduleAndStaff(scheduleId, removedStaffId);
+            }
+            for (const newStaffId of newlyAdded) {
+                await attendanceRepository.createPlaceholder({
+                    schedule_id: scheduleId,
+                    staff_id: newStaffId,
+                    branch_id: schedule.branch_id,
+                });
+            }
+        } catch (err) {
+            console.error('Failed to sync attendance after updateScheduleStaff', err);
         }
 
         // Gửi email cho các staff mới được thêm vào ca

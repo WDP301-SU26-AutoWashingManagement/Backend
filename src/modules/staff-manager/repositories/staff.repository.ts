@@ -3,7 +3,7 @@ import { BaseRepository } from '../../../common/repositories/base.repository';
 import { Staff, IStaff } from '../../../models/staff.model';
 import { IPaginatedStaffResponse, IStaffResponse, SortableStaffField } from '../dto/staff.dto';
 import { Types } from 'mongoose';
-import { IUser } from 'src/models/user.model';
+import { IUser } from '../../../models/user.model';
 
 const POPULATE_USER = 'email full_name avatar_url phone is_active';
 

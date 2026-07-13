@@ -9,7 +9,7 @@ import {
   IUserProfileResponse,
 } from '../interfaces/userProfile.interface';
 import { UserRole } from '../../../common/types/enum';
-import { User } from 'src/models/user.model';
+import { User } from '../../../models/user.model';
 
 
 export class UserProfileService {
