@@ -91,7 +91,7 @@ export class ScheduleService {
         const userId = (staff.user_id as any)._id ? (staff.user_id as any)._id.toString() : staff.user_id.toString();
         const user = await this.getUserById(userId);
         if (user && user.email) {
-            const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+            const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
             const branchAddress = await this.getBranchAddress(schedule.branch_id.toString());
             const emailContent = {
                 to: user.email,
@@ -253,14 +253,14 @@ export class ScheduleService {
         const userId1 = (staff1.user_id as any)._id ? (staff1.user_id as any)._id.toString() : staff1.user_id.toString();
         const user1 = await this.getUserById(userId1);
         if (user1 && user1.email) {
-            const shiftDate2 = new Date(schedule2.shift_date).toLocaleDateString('vi-VN');
+            const shiftDate2 = new Date(schedule2.shift_date).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
             const emailContent1 = {
             to: user1.email,
             subject: 'Thông báo đổi ca làm việc',
             template: 'shift-switch',
             data: {
                 staffName: user1.full_name || 'Nhân viên',
-                oldShiftDate: new Date(schedule1.shift_date).toLocaleDateString('vi-VN'),
+                oldShiftDate: new Date(schedule1.shift_date).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
                 oldStartTime: schedule1.start_time,
                 oldEndTime: schedule1.end_time,
                 newShiftDate: shiftDate2,
@@ -279,14 +279,14 @@ export class ScheduleService {
         const userId2 = (staff2.user_id as any)._id ? (staff2.user_id as any)._id.toString() : staff2.user_id.toString();
         const user2 = await this.getUserById(userId2);
         if (user2 && user2.email) {
-            const shiftDate1 = new Date(schedule1.shift_date).toLocaleDateString('vi-VN');
+            const shiftDate1 = new Date(schedule1.shift_date).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
             const emailContent2 = {
             to: user2.email,
             subject: 'Thông báo đổi ca làm việc',
             template: 'shift-switch',
             data: {
                 staffName: user2.full_name || 'Nhân viên',
-                oldShiftDate: new Date(schedule2.shift_date).toLocaleDateString('vi-VN'),
+                oldShiftDate: new Date(schedule2.shift_date).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
                 oldStartTime: schedule2.start_time,
                 oldEndTime: schedule2.end_time,
                 newShiftDate: shiftDate1,
@@ -412,7 +412,7 @@ export class ScheduleService {
             const userIdNew = (newStaff.user_id as any)._id ? (newStaff.user_id as any)._id.toString() : newStaff.user_id.toString();
             const userNew = await this.getUserById(userIdNew);
             if (userNew && userNew.email) {
-                const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+                const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
                 const branchAddress = await this.getBranchAddress(schedule.branch_id.toString());
                 const emailContent = {
                     to: userNew.email,
@@ -447,7 +447,7 @@ export class ScheduleService {
             const userIdOld = (oldStaff.user_id as any)._id ? (oldStaff.user_id as any)._id.toString() : oldStaff.user_id.toString();
             const userOld = await this.getUserById(userIdOld);
             if (userOld && userOld.email) {
-                const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+                const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
                 const branchAddress = await this.getBranchAddress(schedule.branch_id.toString());
                 await sendEmail(
                     userOld.email,
@@ -554,7 +554,7 @@ export class ScheduleService {
                     const userIdNew = (staff.user_id as any)._id ? (staff.user_id as any)._id.toString() : staff.user_id.toString();
                     const userNew = await this.getUserById(userIdNew);
                     if (userNew && userNew.email) {
-                        const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+                        const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
                         const branchAddress = await this.getBranchAddress(schedule.branch_id.toString());
                         await sendEmail(
                             userNew.email,
@@ -582,7 +582,7 @@ export class ScheduleService {
                     const userIdRemoved = (staff.user_id as any)._id ? (staff.user_id as any)._id.toString() : staff.user_id.toString();
                     const userRemoved = await this.getUserById(userIdRemoved);
                     if (userRemoved && userRemoved.email) {
-                        const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN');
+                        const shiftDate = new Date(schedule.shift_date).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
                         const branchAddress = await this.getBranchAddress(schedule.branch_id.toString());
                         await sendEmail(
                             userRemoved.email,
