@@ -44,9 +44,9 @@ export class AttendanceService {
 
     // Validate thời gian Check-in
     const now = new Date();
-    const [h, m] = schedule.start_time.split(':').map(Number);
-    const shiftStart = new Date(schedule.shift_date);
-    shiftStart.setHours(h, m, 0, 0);
+    const [h, m] = schedule.start_time.split(':');
+    const dateStr = new Date(schedule.shift_date).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+    const shiftStart = new Date(`${dateStr}T${h.padStart(2, '0')}:${m.padStart(2, '0')}:00+07:00`);
 
     const earliestAllowed = new Date(shiftStart.getTime() - 30 * 60 * 1000);
     const deadline = new Date(shiftStart.getTime() + 30 * 60 * 1000);
