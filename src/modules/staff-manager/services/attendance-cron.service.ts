@@ -8,10 +8,9 @@ import { Types } from 'mongoose';
 const GRACE_PERIOD_MINUTES = 30;
 
 function combineDateTime(shiftDate: Date, timeStr: string): Date {
-  const [h, m] = timeStr.split(':').map(Number);
-  const d = new Date(shiftDate);
-  d.setHours(h, m, 0, 0);
-  return d;
+  const [h, m] = timeStr.split(':');
+  const dateStr = new Date(shiftDate).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  return new Date(`${dateStr}T${h.padStart(2, '0')}:${m.padStart(2, '0')}:00+07:00`);
 }
 
 export class AttendanceCronService {
@@ -59,11 +58,10 @@ export class AttendanceCronService {
   async autoMarkAbsent(): Promise<number> {
     const now = new Date();
     
-    // Lấy tất cả ca làm việc của ngày hôm nay
-    const startOfDay = new Date(now);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(now);
-    endOfDay.setHours(23, 59, 59, 999);
+    // Lấy tất cả ca làm việc của ngày hôm nay theo múi giờ Việt Nam
+    const vnDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+    const startOfDay = new Date(`${vnDateStr}T00:00:00+07:00`);
+    const endOfDay = new Date(`${vnDateStr}T23:59:59.999+07:00`);
 
     const todaySchedules = await this.scheduleRepo.findByDateRange(startOfDay, endOfDay);
     
