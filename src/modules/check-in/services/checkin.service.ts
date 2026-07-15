@@ -1,21 +1,25 @@
-import axios from 'axios';
-import { Appointment, BookingStatus } from '../../../models/appointment.model';
-import { Vehicle } from '../../../models/vehicle.model';
-import { iotService } from '@modules/iot/services/iot.service';
-import { bookingService } from '@modules/booking/services/booking.service';
-import { redisService } from '@modules/redis/services/redis.service';
-import { ActionType } from '@modules/sse-notifications/interfaces/washingStatus.interface';
+import axios from "axios";
+import { Appointment, BookingStatus } from "../../../models/appointment.model";
+import { Vehicle } from "../../../models/vehicle.model";
+import { iotService } from "@modules/iot/services/iot.service";
+import { bookingService } from "@modules/booking/services/booking.service";
+import { redisService } from "@modules/redis/services/redis.service";
+import { ActionType } from "@modules/sse-notifications/interfaces/washingStatus.interface";
 
-const LICENSE_DETECT_API_URL = process.env.LICENSE_DETECT_API_URL || 'http://localhost:8000';
+const LICENSE_DETECT_API_URL =
+  process.env.LICENSE_DETECT_API_URL || "http://localhost:8000";
 
 // -------------------------------------------------------
 // 1. Fetch biển số từ Python service
 // -------------------------------------------------------
-async function fetchPlatesFromImage(imageBuffer: Buffer, mimeType: string): Promise<string[]> {
-  const FormData = (await import('form-data')).default;
+async function fetchPlatesFromImage(
+  imageBuffer: Buffer,
+  mimeType: string,
+): Promise<string[]> {
+  const FormData = (await import("form-data")).default;
   const form = new FormData();
-  form.append('file', imageBuffer, {
-    filename: 'frame.jpg',
+  form.append("file", imageBuffer, {
+    filename: "frame.jpg",
     contentType: mimeType,
   });
 
@@ -24,7 +28,7 @@ async function fetchPlatesFromImage(imageBuffer: Buffer, mimeType: string): Prom
     timeout: 30000, // 30s timeout
   });
 
-  console.table(response.data)
+  console.table(response.data);
 
   return response.data.plates as string[]; // ["99E1-22268", ...]
 }
@@ -56,7 +60,35 @@ export async function findAppointmentByPlates(plates: string[]) {
     scheduled_at: { $gte: startOfDay, $lte: endOfDay },
     booking_status: BookingStatus.CONFIRMED,
   });
-  console.log(appointment)
+  console.log(appointment);
+  return appointment ? { appointment, vehicle } : null;
+}
+
+export async function findCheckInPlates(plates: string) {
+  if (plates === "") return null;
+
+  // Tìm vehicle có license_plate khớp với bất kỳ biển nào trong list
+  const vehicle = await Vehicle.findOne({
+    license_plate: { $eq: plates },
+  });
+
+  if (!vehicle) return null;
+  console.log("plates:", plates);
+  console.log("vehicle:", vehicle);
+  // Lấy khoảng thời gian hôm nay (00:00:00 → 23:59:59)
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const endOfDay = new Date();
+  endOfDay.setHours(23, 59, 59, 999);
+
+  // Tìm appointment của xe này, hôm nay, đang ở trạng thái confirmed
+  const appointment = await Appointment.findOne({
+    vehicle_id: vehicle._id,
+    scheduled_at: { $gte: startOfDay, $lte: endOfDay },
+    booking_status: BookingStatus.CHECKED_IN,
+  });
+  console.log(appointment);
   return appointment ? { appointment, vehicle } : null;
 }
 
@@ -70,7 +102,7 @@ export async function checkInAppointment(appointmentId: string) {
       booking_status: BookingStatus.CHECKED_IN,
       checkedin_at: new Date(),
     },
-    { new: true }
+    { new: true },
   );
 }
 
@@ -79,7 +111,7 @@ export async function checkInAppointment(appointmentId: string) {
 // -------------------------------------------------------
 export async function processCheckinFromImage(
   imageBuffer: Buffer,
-  mimeType: string
+  mimeType: string,
 ): Promise<{
   success: boolean;
   message: string;
@@ -90,7 +122,7 @@ export async function processCheckinFromImage(
   const plates = await fetchPlatesFromImage(imageBuffer, mimeType);
 
   if (plates.length === 0) {
-    return { success: false, message: 'Không nhận diện được biển số.' };
+    return { success: false, message: "Không nhận diện được biển số." };
   }
 
   // Step 2: Tìm appointment
@@ -99,7 +131,7 @@ export async function processCheckinFromImage(
   if (!result) {
     return {
       success: false,
-      message: 'Không tìm thấy lịch hẹn hôm nay cho biển số này.',
+      message: "Không tìm thấy lịch hẹn hôm nay cho biển số này.",
       license_plate: plates[0],
     };
   }
@@ -108,17 +140,31 @@ export async function processCheckinFromImage(
   const updated = await checkInAppointment(result.appointment._id.toString());
 
   if (!updated) {
-    return { success: false, message: 'Cập nhật trạng thái thất bại.' };
+    return { success: false, message: "Cập nhật trạng thái thất bại." };
   }
 
   await bookingService.startService(result.appointment._id.toString());
-  await redisService.updateWashingStatus(result.appointment.branch_id.toString(), ActionType.WASHING);
+  await redisService.updateWashingStatus(
+    result.appointment.branch_id.toString(),
+    ActionType.WASHING,
+  );
   iotService.turnOnWaterPump(result.appointment.branch_id.toString());
 
   return {
     success: true,
-    message: 'Check-in thành công.',
+    message: "Check-in thành công.",
     appointment_id: updated._id.toString(),
     license_plate: result.vehicle.license_plate,
   };
+}
+
+export async function rollbackBooking(appointmentId: string) {
+  return Appointment.findByIdAndUpdate(
+    appointmentId,
+    {
+      booking_status: BookingStatus.CHECKED_IN,
+      checkedin_at: new Date(),
+    },
+    { new: true },
+  );
 }
