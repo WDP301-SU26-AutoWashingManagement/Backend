@@ -1,4 +1,4 @@
-import { findAppointmentByPlates } from '@modules/check-in/services/checkin.service';
+import { findCheckInPlates } from '@modules/check-in/services/checkin.service';
 import { redisService } from '@modules/redis/services/redis.service';
 import { ActionType } from '@modules/sse-notifications/interfaces/washingStatus.interface';
 import { bookingService } from '@modules/booking/services/booking.service';
@@ -130,11 +130,10 @@ export class IOTService {
     }
 
     async checkPlate(plate: string) {
-        const plates: string[] = [plate];
-        const result = await findAppointmentByPlates(plates);
+        const result = await findCheckInPlates(plate);
 
         if (!result) {
-            return 'Không tìm thấy lịch hẹn hôm nay cho biển số này.';
+            return 'Biển số chưa được Check-in';
         }
         return result;
     }
