@@ -7,7 +7,7 @@ export interface IGetBookingRecommendation {
 
 // ─── Response ────────────────────────────────────────────────────────────────
 
-export type RecommendationSource = 'ai' | 'fallback';
+export type RecommendationSource = 'algorithm';
 
 export interface IRecommendedItem {
   service_id          : string;
@@ -28,6 +28,16 @@ export interface IApplicablePromotion {
   min_order_amount     : number;
 }
 
+/** Gợi ý combo khi có >=2 service trong recommended_items cùng nằm trong 1 package active. */
+export interface ISuggestedCombo {
+  package_id           : string;
+  package_name         : string;
+  discount_percentage  : number;
+  matched_service_ids  : string[]; // service_id trong recommended_items thuộc combo này
+  original_price       : number;   // tổng giá gốc của các service matched (chưa giảm)
+  discounted_price     : number;   // giá sau khi áp discount của package
+}
+
 export interface IBookingRecommendation {
   vehicle_id               : string;
   branch_id                : string | null;
@@ -35,6 +45,7 @@ export interface IBookingRecommendation {
   reason                   : string;
   applicable_promotion_id  : string | null;
   applicable_promotion     : IApplicablePromotion | null;
+  suggested_combo          : ISuggestedCombo | null;
   estimated_total          : number;
   suggested_scheduled_at   : string | null;
   source                   : RecommendationSource;
@@ -42,25 +53,3 @@ export interface IBookingRecommendation {
 }
 
 // ─── Internal ────────────────────────────────────────────────────────────────
-
-/** 1 ứng viên (service hoặc package) trong tập retrieval, đã chuẩn hoá để so sánh/rank. */
-export interface ICandidateItem {
-  id                   : string;
-  kind                 : 'service' | 'package';
-  name                 : string;
-  description          : string;
-  price                : number;            // service: service_price | package: tổng giá đã trừ discount
-  duration_minutes     : number;            // package: tổng duration các service trong gói
-  discount_percentage? : number;            // chỉ có ở package
-  service_ids          : string[];          // service: [chính nó] | package: các service con
-  embedding            : number[];
-  score?               : number;
-}
-
-/** Kết quả thô gọi Gemini generateContent (trước khi validate lại id). */
-export interface IGeminiRecommendationDraft {
-  recommended_package_id?  : string;
-  recommended_service_ids? : string[];
-  promotion_id?            : string;
-  reason?                  : string;
-}
