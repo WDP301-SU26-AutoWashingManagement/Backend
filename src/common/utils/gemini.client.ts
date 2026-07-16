@@ -22,6 +22,9 @@ export async function embedText(text: string): Promise<number[] | null> {
   }
   if (!text?.trim()) return null;
 
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), env.GEMINI_TIMEOUT_MS);
+
   try {
     const url = `${env.GEMINI_API_BASE}/models/${env.GEMINI_EMBEDDING_MODEL}:embedContent?key=${env.GEMINI_API_KEY}`;
     const res = await fetch(url, {
@@ -31,6 +34,7 @@ export async function embedText(text: string): Promise<number[] | null> {
         model: `models/${env.GEMINI_EMBEDDING_MODEL}`,
         content: { parts: [{ text }] },
       }),
+      signal: controller.signal,
     });
 
     if (!res.ok) {
@@ -41,9 +45,12 @@ export async function embedText(text: string): Promise<number[] | null> {
     const data = (await res.json()) as any;
     const values = data?.embedding?.values;
     return Array.isArray(values) ? values : null;
-  } catch (err) {
-    logger.error('[gemini] embedText error', err);
+  } catch (err: any) {
+    // AbortError (mạng lag/quá timeout) cũng rơi vào đây → trả null, caller đã có fallback sẵn.
+    logger.error(`[gemini] embedText error${err?.name === 'AbortError' ? ` (timeout ${env.GEMINI_TIMEOUT_MS}ms)` : ''}`, err);
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -62,6 +69,9 @@ export async function generateStructuredContent<T = Record<string, unknown>>(
     return null;
   }
 
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), env.GEMINI_TIMEOUT_MS);
+
   try {
     const url = `${env.GEMINI_API_BASE}/models/${env.GEMINI_GENERATION_MODEL}:generateContent?key=${env.GEMINI_API_KEY}`;
     const res = await fetch(url, {
@@ -75,6 +85,7 @@ export async function generateStructuredContent<T = Record<string, unknown>>(
           temperature: 0.4,
         },
       }),
+      signal: controller.signal,
     });
 
     if (!res.ok) {
@@ -87,8 +98,10 @@ export async function generateStructuredContent<T = Record<string, unknown>>(
     if (!rawText) return null;
 
     return JSON.parse(rawText) as T;
-  } catch (err) {
-    logger.error('[gemini] generateStructuredContent error', err);
+  } catch (err: any) {
+    logger.error(`[gemini] generateStructuredContent error${err?.name === 'AbortError' ? ` (timeout ${env.GEMINI_TIMEOUT_MS}ms)` : ''}`, err);
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

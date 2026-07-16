@@ -15,11 +15,19 @@ import { RequestStatus } from '../../../common/types/enum';
 
 /** Map từ slot time string ("HH:mm") → số booking lịch sử */
 export type SlotCongestionMap = Map<string, number>;
-
+const SLOTWINDOW = 7
 export interface IHistoryEntry {
   scheduled_at : Date;
   branch_id    : string | null;
   services     : string[]; // service_name[]
+}
+
+/** Package active kèm danh sách service_id thành viên (chỉ service active). */
+export interface IPackageWithServices {
+  package_id                  : string;
+  package_name                 : string;
+  package_discount_percentage  : number;
+  service_ids                  : string[];
 }
 
 export class RecommendationRepository {
@@ -56,6 +64,39 @@ export class RecommendationRepository {
       .lean();
   }
 
+  /**
+   * Active packages kèm danh sách service_id thành viên (chỉ tính service ACTIVE).
+   * Dùng để đề xuất combo: nếu recommended_items có >=2 service cùng nằm trong 1 package → gợi ý package đó.
+   */
+  async findActivePackagesWithServices(): Promise<IPackageWithServices[]> {
+    const packages = await ServicePackage.find({ is_active: true })
+      .select('package_name package_discount_percentage')
+      .lean();
+    if (!packages.length) return [];
+
+    const packageIds = packages.map((p) => p._id as Types.ObjectId);
+    const links = await PackageService.find({ service_package_id: { $in: packageIds } })
+      .populate('service_id', 'is_active')
+      .lean();
+
+    const membersMap = new Map<string, string[]>();
+    for (const link of links) {
+      const svc = link.service_id as any;
+      if (!svc || !svc.is_active) continue; // chỉ tính service còn active trong combo
+      const pkgId = link.service_package_id.toString();
+      const list  = membersMap.get(pkgId) ?? [];
+      list.push(svc._id.toString());
+      membersMap.set(pkgId, list);
+    }
+
+    return packages.map((p) => ({
+      package_id                 : (p._id as Types.ObjectId).toString(),
+      package_name                : p.package_name,
+      package_discount_percentage : p.package_discount_percentage,
+      service_ids                 : membersMap.get((p._id as Types.ObjectId).toString()) ?? [],
+    }));
+  }
+
   findActivePromotions() {
     const now = new Date();
     return Promotion.find({
@@ -80,14 +121,14 @@ export class RecommendationRepository {
     windowEnd.setHours(0, 0, 0, 0); // 00:00 của ngày đặt
 
     const windowStart = new Date(windowEnd);
-    windowStart.setDate(windowStart.getDate() - 7); // 00:00 của 7 ngày trước
+    windowStart.setDate(windowStart.getDate() - SLOTWINDOW); // 00:00 của 7 ngày trước
 
     // Aggregation: group theo "HH:mm" của scheduled_at, đếm số booking
     const pipeline = [
       {
         $match: {
           branch_id     : new Types.ObjectId(branchId),
-          booking_status: { $ne: BookingStatus.CANCELLED },
+          booking_status: { $ne: [BookingStatus.CANCELLED, BookingStatus.PENDING] },
           scheduled_at  : { $gte: windowStart, $lt: windowEnd },
         },
       },
@@ -183,6 +224,34 @@ export class RecommendationRepository {
     }
 
     return false;
+  }
+
+  /**
+   * Đếm số lần mỗi service được dùng (xuất hiện trong AppointmentService của appointment
+   * KHÔNG bị hủy). Dùng để xếp hạng "service ít được dùng nhất" — đẩy dịch vụ đang thừa
+   * công suất lên gợi ý nhằm cân bằng tải và tăng doanh thu, thay vì luôn gợi ý dịch vụ vốn đã hot.
+   */
+  async findServiceUsageCounts(): Promise<Map<string, number>> {
+    const pipeline = [
+      {
+        $lookup: {
+          from         : Appointment.collection.name,
+          localField   : 'appointment_id',
+          foreignField : '_id',
+          as           : 'appointment',
+        },
+      },
+      { $unwind: '$appointment' },
+      { $match: { 'appointment.booking_status': { $ne: BookingStatus.CANCELLED } } },
+      { $group: { _id: '$service_id', count: { $sum: 1 } } },
+    ] as any[];
+
+    const results = await AppointmentService.aggregate(pipeline);
+    const map = new Map<string, number>();
+    for (const r of results) {
+      map.set((r._id as Types.ObjectId).toString(), r.count as number);
+    }
+    return map;
   }
 
   /** N appointment gần nhất ĐÃ HOÀN THÀNH của 1 xe, kèm tên các service đã dùng. */
