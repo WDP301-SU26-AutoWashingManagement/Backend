@@ -162,7 +162,7 @@ export async function rollbackBooking(appointmentId: string) {
   return Appointment.findByIdAndUpdate(
     appointmentId,
     {
-      booking_status: BookingStatus.CONFIRMED,
+      booking_status: BookingStatus.CHECKED_IN,
       checkedin_at: new Date(),
     },
     { new: true },
