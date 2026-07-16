@@ -4,7 +4,7 @@ import { sendSuccess } from "../../../common/utils/apiResponse";
 import { AuthenticatedRequest } from "../../../common/types";
 import { ActionType } from "@modules/sse-notifications/interfaces/washingStatus.interface";
 import { redisService } from "@modules/redis/services/redis.service";
-import { checkInAppointment } from "@modules/check-in/services/checkin.service";
+import { checkInAppointment, rollbackBooking } from "@modules/check-in/services/checkin.service";
 import { bookingService } from "@modules/booking/services/booking.service";
 import { userProfileService } from "@modules/userProfile/services/userProfile.service";
 
@@ -32,16 +32,6 @@ export class IOTController {
                     return res.status(400).json({
                         success: false,
                         message: 'Máy rửa xe đang bận.',
-                    });
-                }
-
-                // Check in the appointment
-                const updated = await checkInAppointment(result.appointment._id.toString());
-
-                if (!updated) {
-                    return res.status(404).json({
-                        success: false,
-                        message: 'Cập nhật trạng thái thất bại.',
                     });
                 }
 
@@ -74,6 +64,12 @@ export class IOTController {
                 return res.status(400).json({ success: false, message: 'Không nhận diện được chi nhánh.' });
             }
 
+            await redisService.getStoreBookingId(branchId).then(async (bookingId) => {
+                if (bookingId) {
+                    await rollbackBooking(bookingId);
+                }
+            });
+            await redisService.deleteStoreBookingId(branchId);
             await redisService.updateWashingStatus(branchId, ActionType.PREPAIRING);
             await iotService.turnOffWaterPump(branchId);
 
