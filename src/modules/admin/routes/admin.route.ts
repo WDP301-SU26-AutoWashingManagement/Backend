@@ -27,6 +27,18 @@ router.get(
     authorize(UserRole.BOSS),
     adminController.getAdmins,
 );
+
+router.get(
+    "/trash",
+    authorize(UserRole.BOSS),
+    adminController.getAdminTrash,
+);
+
+router.put(
+    "/:id/restore",
+    authorize(UserRole.BOSS),
+    adminController.restoreAdmin,
+);
  
 router.get(
     "/:id",

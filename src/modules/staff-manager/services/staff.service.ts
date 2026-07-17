@@ -1,4 +1,4 @@
-import {staffRepository} from "../repositories/staff.repository";
+import { staffRepository } from "../repositories/staff.repository";
 import {
     ICreateStaffRequest,
     IUpdateStaffRequest,
@@ -13,7 +13,8 @@ import {
 import { StaffRole } from "../../../common/types/enum";
 import mongoose from "mongoose";
 import { Types } from "mongoose";
-import { IUser } from "../../../models/user.model";
+import { IUser, User } from "../../../models/user.model";
+import { Staff } from "../../../models/staff.model";
 
 export class StaffService {
     /**
@@ -99,9 +100,20 @@ export class StaffService {
         // Prepare update data
         const updateData: any = {};
 
+        if ((data.is_active !== undefined || data.branch_id !== undefined) && existingStaff.user_id) {
+            const userId = (existingStaff.user_id as any)._id || existingStaff.user_id;
+            const userUpdate: any = {};
+            if (data.is_active !== undefined) userUpdate.is_active = data.is_active;
+            if (data.branch_id !== undefined) userUpdate.branch_id = data.branch_id ? new mongoose.Types.ObjectId(data.branch_id) : null;
+
+            if (Object.keys(userUpdate).length > 0) {
+                await User.findByIdAndUpdate(userId, userUpdate);
+            }
+        }
+
         if (data.branch_id !== undefined) {
-            updateData.branch_id = data.branch_id 
-                ? new mongoose.Types.ObjectId(data.branch_id) 
+            updateData.branch_id = data.branch_id
+                ? new mongoose.Types.ObjectId(data.branch_id)
                 : null;
         }
 
@@ -147,9 +159,48 @@ export class StaffService {
             throw new Error("Staff not found");
         }
 
-        const deleted = await staffRepository.deleteById(staffId);
+        await (Staff as any).delete({ _id: staffId });
 
-        return deleted !== null;
+        if (existingStaff.user_id) {
+            const userId = (existingStaff.user_id as any)._id || existingStaff.user_id;
+            await (User as any).delete({ _id: userId });
+        }
+
+        return true;
+    }
+
+    async getStaffTrash(branchId?: string | null) {
+        const query: any = {};
+        if (branchId) query.branch_id = branchId;
+        const staffs = await (Staff as any).findDeleted(query);
+        const userIds = staffs.map((s: any) => s.user_id);
+        const users = await (User as any).findWithDeleted({ _id: { $in: userIds } }).select("email full_name avatar_url phone is_active role createdAt");
+        
+        const userMap = new Map();
+        users.forEach((u: any) => userMap.set(u._id.toString(), u));
+
+        return staffs.map((staff: any) => {
+            const staffObj = staff.toObject ? staff.toObject() : staff;
+            const user = userMap.get(staffObj.user_id.toString());
+            if (user) {
+                staffObj.user_id = user;
+            }
+            return this.mapToResponse(staffObj);
+        });
+    }
+
+    async restoreStaff(staffId: string) {
+        const staff = await (Staff as any).findOneDeleted({ _id: staffId });
+        if (!staff) throw new Error("Staff not found in trash");
+
+        await staff.restore();
+
+        if (staff.user_id) {
+            const userId = (staff.user_id as any)._id || staff.user_id;
+            await (User as any).restore({ _id: userId });
+        }
+
+        return this.mapToResponse(staff);
     }
     /**
      * Get staff list with filters and sorting

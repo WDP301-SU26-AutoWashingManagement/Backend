@@ -236,6 +236,33 @@ export class AdminController {
           next(error);
       }
   };
+
+  getAdminTrash = async (
+      req: Request,
+      res: Response,
+      next: NextFunction,
+  ) => {
+      try {
+          const branchId = req.query.branch_id as string | undefined;
+          const admins = await this.adminService.getAdminTrash(branchId);
+          sendSuccess(res, admins, "Lấy danh sách admin đã xóa thành công");
+      } catch (error) {
+          next(error);
+      }
+  };
+
+  restoreAdmin = async (
+      req: Request,
+      res: Response,
+      next: NextFunction,
+  ) => {
+      try {
+          const result = await this.adminService.restoreAdmin(req.params.id);
+          sendSuccess(res, result, result.message);
+      } catch (error) {
+          next(error);
+      }
+  };
 }
 
 export const adminController = new AdminController();
