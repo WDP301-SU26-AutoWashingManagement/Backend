@@ -234,11 +234,11 @@ class BookingChecklistService {
         const bg = idx % 2 === 0;
         const y  = doc.y;
         if (bg) doc.rect(COL_LEFT, y, PAGE_WIDTH, ROW_H).fill(LIGHT_GRAY);
-        const mark = item.checked ? '☑' : '☐';
+        const mark = item.checked ? '[X]' : '[  ]';
         doc
-          .fillColor(item.checked ? '#1B5E20' : DARK_TEXT)
+          .fillColor(item.checked ? ACCENT : DARK_TEXT)
           .fontSize(10)
-          .font('NotoSans')
+          .font(item.checked ? 'NotoSans-Bold' : 'NotoSans')
           .text(`${mark}  ${item.label}`, COL_LEFT + 8, y + 6, { width: PAGE_WIDTH - 16, lineBreak: false });
         doc.y = y + ROW_H;
       });

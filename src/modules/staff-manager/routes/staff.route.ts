@@ -68,6 +68,22 @@ router.get("/code/:staffCode", async (req, res) => {
 });
 
 /**
+ * GET /api/staff/trash
+ * Get soft-deleted staff
+ */
+router.get("/trash", async (req, res) => {
+    await staffController.getTrash(req, res);
+});
+
+/**
+ * PUT /api/staff/:id/restore
+ * Restore soft-deleted staff
+ */
+router.put("/:id/restore", validateObjectId, async (req, res) => {
+    await staffController.restore(req, res);
+});
+
+/**
  * GET /api/staff/:id
  * Get staff details by ID
  * Parameters:

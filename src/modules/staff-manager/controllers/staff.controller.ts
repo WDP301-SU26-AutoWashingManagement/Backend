@@ -246,6 +246,57 @@ export class StaffController {
         }
     }
 
+    async getTrash(req: Request, res: Response): Promise<void> {
+        try {
+            const branchId = req.query.branch_id as string | undefined;
+            const result = await staffService.getStaffTrash(branchId);
+            
+            const response: IApiResponse<any> = {
+                success: true,
+                code: 200,
+                message: "Retrieved staff trash successfully",
+                data: result,
+            };
+
+            res.status(200).json(response);
+        } catch (error: any) {
+            const response: IApiResponse<null> = {
+                success: false,
+                code: 400,
+                message: "Failed to retrieve staff trash",
+                error: error.message,
+            };
+
+            res.status(400).json(response);
+        }
+    }
+
+    async restore(req: Request, res: Response): Promise<void> {
+        try {
+            const { id } = req.params;
+            const result = await staffService.restoreStaff(id);
+
+            const response: IApiResponse<any> = {
+                success: true,
+                code: 200,
+                message: "Staff restored successfully",
+                data: result,
+            };
+
+            res.status(200).json(response);
+        } catch (error: any) {
+            const statusCode = error.message.includes("not found") ? 404 : 400;
+            const response: IApiResponse<null> = {
+                success: false,
+                code: statusCode,
+                message: "Failed to restore staff",
+                error: error.message,
+            };
+
+            res.status(statusCode).json(response);
+        }
+    }
+
     /**
      * GET /api/staff/:id/leave-summary
      * Get leave days summary for a staff

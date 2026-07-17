@@ -40,7 +40,7 @@ export class AppointmentRepository extends BaseRepository<IAppointment> {
     // exists() trong BaseRepository đã dùng rm
     return this.exists({
       vehicle_id: new Types.ObjectId(vehicleId),
-      booking_status: { $in: [BookingStatus.PENDING, BookingStatus.CONFIRMED] },
+      booking_status: { $nin: [BookingStatus.COMPLETED, BookingStatus.CANCELLED] },
       scheduled_at: scheduledAt,
     });
   }
