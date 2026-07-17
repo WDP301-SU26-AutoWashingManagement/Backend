@@ -143,12 +143,12 @@ export async function processCheckinFromImage(
     return { success: false, message: "Cập nhật trạng thái thất bại." };
   }
 
-  await bookingService.startService(result.appointment._id.toString());
-  await redisService.updateWashingStatus(
-    result.appointment.branch_id.toString(),
-    ActionType.WASHING,
-  );
-  iotService.turnOnWaterPump(result.appointment.branch_id.toString());
+// await bookingService.startService(result.appointment._id.toString());
+// await redisService.updateWashingStatus(
+//   result.appointment.branch_id.toString(),
+//   ActionType.WASHING,
+// );
+// iotService.turnOnWaterPump(result.appointment.branch_id.toString());
 
   return {
     success: true,
