@@ -24,6 +24,7 @@ export interface IUpdateStaffRequest {
     used_leave_days?: number;
     hire_date?: Date;
     staff_type?: StaffRole;
+    is_active?: boolean;
 }
 
 export interface IListStaffQuery {

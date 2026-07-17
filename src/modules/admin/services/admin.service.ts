@@ -8,6 +8,7 @@ import { Types } from 'mongoose';
 import { adminRepository } from '../repositories/admin.repository';
 import { BadRequestError, NotFoundError } from '@common/utils/AppError';
 import { User } from '../../../models/user.model';
+import { Admin } from '../../../models/admin.model';
 import { Branch } from '../../../models/branch.model';
 
 class AdminService {
@@ -552,7 +553,21 @@ class AdminService {
           }
       }
 
-      await this.adminRepo.updateById(adminId, data);
+      if ((data.is_active !== undefined || data.branch_id !== undefined) && admin.user_id) {
+          const userId = (admin.user_id as any)._id || admin.user_id;
+          const userUpdate: any = {};
+          if (data.is_active !== undefined) userUpdate.is_active = data.is_active;
+          if (data.branch_id !== undefined) userUpdate.branch_id = data.branch_id || null;
+          
+          if (Object.keys(userUpdate).length > 0) {
+              await User.findByIdAndUpdate(userId, userUpdate);
+          }
+      }
+
+      const updateData = { ...data } as any;
+      delete updateData.is_active;
+
+      await this.adminRepo.updateById(adminId, updateData);
       return this.adminRepo.findById(adminId);
   }
 
@@ -560,9 +575,48 @@ class AdminService {
       const admin = await this.adminRepo.findById(adminId);
       if (!admin) throw new NotFoundError("Không tìm thấy admin");
 
-      await this.adminRepo.deleteById(adminId);
+      await (Admin as any).delete({ _id: adminId });
+      
+      if (admin.user_id) {
+          const userId = (admin.user_id as any)._id || admin.user_id;
+          await (User as any).delete({ _id: userId });
+      }
 
       return { message: "Xóa admin thành công" };
+  }
+
+  async getAdminTrash(branchId?: string | null) {
+      const query: any = {};
+      if (branchId) query.branch_id = branchId;
+      const admins = await (Admin as any).findDeleted(query);
+      const userIds = admins.map((a: any) => a.user_id);
+      const users = await (User as any).findWithDeleted({ _id: { $in: userIds } }).select("email full_name avatar_url phone is_active role createdAt");
+      
+      const userMap = new Map();
+      users.forEach((u: any) => userMap.set(u._id.toString(), u));
+
+      return admins.map((admin: any) => {
+          const adminObj = admin.toObject ? admin.toObject() : admin;
+          const user = userMap.get(adminObj.user_id.toString());
+          if (user) {
+              adminObj.user_id = user;
+          }
+          return adminObj;
+      });
+  }
+
+  async restoreAdmin(adminId: string) {
+      const admin = await (Admin as any).findOneDeleted({ _id: adminId });
+      if (!admin) throw new NotFoundError("Không tìm thấy admin trong thùng rác");
+
+      await admin.restore();
+
+      if (admin.user_id) {
+          const userId = (admin.user_id as any)._id || admin.user_id;
+          await (User as any).restore({ _id: userId });
+      }
+
+      return { message: "Khôi phục admin thành công" };
   }
 
   @CacheAside({

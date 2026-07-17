@@ -40,6 +40,8 @@ export interface ITopIndividualServiceRevenue {
 
 export interface IAdminUpdate {
     user_id?: string;
+    branch_id?: string;
+    is_active?: boolean;
 }
 
 export interface IHourlyBooking {
