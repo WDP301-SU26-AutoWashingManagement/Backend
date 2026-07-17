@@ -41,7 +41,7 @@ export const env = {
   EMAIL_USER: process.env.EMAIL_USER ?? '',
   EMAIL_PASS: process.env.EMAIL_PASS ?? '',
   EMAIL_FROM: process.env.EMAIL_FROM ?? '',
-  EMAIL_FROM_NAME: process.env.EMAIL_FROM_NAME ?? 'AutoWash',
+  EMAIL_FROM_NAME: process.env.EMAIL_FROM_NAME ?? 'Hybrid Wash',
   BREVO_API_KEY: process.env.BREVO_API_KEY ?? '',
 
   // ── CORS ─────────────────────────────────────────────────────────────────────

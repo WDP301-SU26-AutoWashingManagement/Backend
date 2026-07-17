@@ -41,11 +41,11 @@ export const EMAIL_TEMPLATE = {
             <br />
 
             <p>Best regards,</p>
-            <p><strong>Your System</strong></p>
+            <p><strong>Hybrid Wash</strong></p>
         </div>
 
         <div style="background: #f9fafb; padding: 15px; text-align: center; font-size: 12px; color: #6b7280;">
-            © 2026 Your Company. All rights reserved.
+            © 2026 Hybrid Wash. All rights reserved.
         </div>
 
         </div>
@@ -99,7 +99,7 @@ export const EMAIL_TEMPLATE = {
         <div class="container">
 
             <div class="logo">
-            <span>🚗 AutoWash</span>
+            <span>🚗 Hybrid Wash</span>
             </div>
 
             <h2>Đặt lại mật khẩu</h2>
@@ -117,7 +117,7 @@ export const EMAIL_TEMPLATE = {
             <p>Nếu bạn không yêu cầu, hãy bỏ qua email này.</p>
 
             <div class="footer">
-            © ${new Date().getFullYear()} AutoWash
+            © ${new Date().getFullYear()} Hybrid Wash
             </div>
 
         </div>
@@ -164,7 +164,7 @@ export const EMAIL_TEMPLATE = {
             </div>
 
             <div style="background: #f9fafb; padding: 15px; text-align: center; font-size: 12px; color: #6b7280;">
-                © ${new Date().getFullYear()} Your System. All rights reserved.
+                © ${new Date().getFullYear()} Hybrid Wash. All rights reserved.
             </div>
 
         </div>
@@ -274,7 +274,7 @@ export const EMAIL_TEMPLATE = {
                         font-size:12px;
                     "
                 >
-                    Đây là email tự động, vui lòng không trả lời email này.
+                    Đây là email tự động của Hybrid Wash, vui lòng không trả lời email này.
                 </div>
             </div>
         </body>
@@ -377,7 +377,7 @@ export const EMAIL_TEMPLATE = {
                         font-size:12px;
                     "
                 >
-                    Đây là email tự động, vui lòng không trả lời email này.
+                    Đây là email tự động của Hybrid Wash, vui lòng không trả lời email này.
                 </div>
 
             </div>
@@ -487,7 +487,7 @@ export const EMAIL_TEMPLATE = {
                         font-size:12px;
                     "
                 >
-                    Đây là email tự động, vui lòng không trả lời email này.
+                    Đây là email tự động của Hybrid Wash, vui lòng không trả lời email này.
                 </div>
             </div>
         </body>
