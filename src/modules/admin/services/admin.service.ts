@@ -619,11 +619,11 @@ class AdminService {
       return { message: "Khôi phục admin thành công" };
   }
 
-  @CacheAside({
-    keyPrefix: 'admin:paid-bookings',
-    ttl: 300,
-    hydrate: false
-  })
+  // @CacheAside({
+  //   keyPrefix: 'admin:paid-bookings',
+  //   ttl: 300,
+  //   hydrate: false
+  // })
   async getPaidBookings(dates: { startDate?: string, endDate?: string }, branchId?: string | null) {
     let start = new Date(0);
     let end = new Date();
