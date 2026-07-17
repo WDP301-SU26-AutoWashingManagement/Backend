@@ -20,7 +20,7 @@ export class PasswordService {
     if (!customer) return;
 
     const otp = await passwordRepository.createOtp(email, OTP_TYPE, 5);
-    await sendEmail(email, 'Mã OTP đặt lại mật khẩu - AutoWash', EMAIL_TEMPLATE.FORGOT_PASSWORD(otp));
+    await sendEmail(email, 'Mã OTP đặt lại mật khẩu - Hybrid Wash', EMAIL_TEMPLATE.FORGOT_PASSWORD(otp));
   }
 
   async verifyOtp({ email, otp }: IVerifyOtpData): Promise<void> {

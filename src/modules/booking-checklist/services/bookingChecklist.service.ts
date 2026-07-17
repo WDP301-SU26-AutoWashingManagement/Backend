@@ -135,7 +135,7 @@ class BookingChecklistService {
       margin: 40,
       info  : {
         Title  : `Biên bản tiếp nhận xe – ${apptCode}`,
-        Author : 'AutoWash System',
+        Author : 'Hybrid Wash System',
         Subject: 'Checklist tiếp nhận xe',
       },
     });
@@ -168,7 +168,7 @@ class BookingChecklistService {
       .fillColor('#FFFFFF')
       .fontSize(22)
       .font('NotoSans-Bold')
-      .text('AutoWash', COL_LEFT, 20, { align: 'left' });
+      .text('Hybrid Wash', COL_LEFT, 20, { align: 'left' });
 
     doc
       .fontSize(11)
@@ -359,7 +359,7 @@ class BookingChecklistService {
       .fontSize(8)
       .font('NotoSans')
       .text(
-        `Biên bản được tạo lúc: ${createdAt}   |   AutoWash System`,
+        `Biên bản được tạo lúc: ${createdAt}   |   Hybrid Wash System`,
         COL_LEFT,
         FOOTER_Y + 6,
         { align: 'center', width: PAGE_WIDTH },
