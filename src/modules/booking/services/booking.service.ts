@@ -460,6 +460,31 @@ export class BookingService {
         };
     }
 
+    
+    // ─── 11. Get Washing Booking ────────────────────────────────────────────────
+
+    async getWashingBooking(dto: IGetBookingList, branchId: string): Promise<any[]> {
+        const appointments = await this.appointmentRepo.findWashingBookings(
+            branchId,
+            dto.from_date,
+            dto.to_date
+        );
+
+        if (appointments.length === 0) return [];
+
+        const appointmentIds = appointments.map(doc => doc._id);
+        const services = await this.appointmentServiceRepo.findByAppointmentIds(appointmentIds);
+
+        return appointments.map(doc => {
+            const docObj = doc.toObject ? doc.toObject() : doc;
+            const docServices = services.filter(s => s.appointment_id.toString() === doc._id.toString());
+            return {
+                ...docObj,
+                services: docServices
+            };
+        });
+    }
+
     // ─── 4. Get By ID ────────────────────────────────────────────────────────
 
     async getBookingById(

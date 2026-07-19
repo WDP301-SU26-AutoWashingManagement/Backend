@@ -8,7 +8,6 @@ import { env } from '../../../configs/env.config';
 import { logger } from '../../../common/utils/logger';
 import { ForbiddenError, NotFoundError } from '../../../common/utils/AppError';
 import {
-  IApplicablePromotion,
   IBookingRecommendation,
   IGetBookingRecommendation,
   IRecommendedItem,
@@ -28,6 +27,10 @@ const COMBO_MIN_MATCH      = 2;   // số service trùng tối thiểu để đ�
 export class RecommendationService {
   private readonly repo = recommendationRepository;
 
+  private buildCacheKey(customerId: string, vehicleId: string, branchId?: string | null): string {
+    return `reco:${customerId}:${vehicleId}:${branchId ?? 'auto'}`;
+  }
+
   async getBookingRecommendation(
     userId: string,
     dto: IGetBookingRecommendation,
@@ -41,7 +44,7 @@ export class RecommendationService {
       throw new ForbiddenError('Vehicle does not belong to this customer');
     }
 
-    const cacheKey = `reco:${customer._id}:${dto.vehicle_id}:${dto.branch_id ?? 'auto'}`;
+    const cacheKey = this.buildCacheKey(customer._id.toString(), dto.vehicle_id, dto.branch_id);
     const cached = await this.readCache(cacheKey);
     if (cached) {
       let slotStillValid = false;
@@ -91,11 +94,6 @@ export class RecommendationService {
     // ── 1.5. Nếu >=2 service trong recommendedItems cùng nằm trong 1 combo/package active → đề xuất combo đó ──
     const suggestedCombo = await this.findComboSuggestion(recommendedItems);
 
-    // ── 2. Tự động chọn promotion tốt nhất mà đơn hàng đủ điều kiện áp dụng ──
-    const promotions  = await this.repo.findActivePromotions();
-    const promotionId = this.pickBestPromotion(promotions, estimatedTotal);
-    const applicablePromotion = this.toApplicablePromotion(promotionId, promotions);
-
     // ── 3. Chọn branch (ưu tiên branch khách hay dùng nhất) + tìm slot tối ưu (giữ nguyên thuật toán) ──
     const history   = await this.repo.findRecentHistory(dto.vehicle_id, HISTORY_LIMIT);
     const branchId  = dto.branch_id ?? this.pickMostUsedBranch(history);
@@ -116,8 +114,6 @@ export class RecommendationService {
       branch_id               : branchId,
       recommended_items       : recommendedItems,
       reason,
-      applicable_promotion_id : promotionId,
-      applicable_promotion    : applicablePromotion,
       suggested_combo          : suggestedCombo,
       estimated_total         : estimatedTotal,
       suggested_scheduled_at  : suggestedScheduledAt,
@@ -127,6 +123,25 @@ export class RecommendationService {
 
     await this.writeCache(cacheKey, result);
     return result;
+  }
+
+  async clearBookingRecommendationCache(
+    userId: string,
+    dto: IGetBookingRecommendation,
+  ): Promise<{ deleted: boolean }> {
+    const customer = await this.repo.findCustomerWithTier(userId);
+    if (!customer) throw new NotFoundError('Customer profile not found');
+
+    const vehicle = await this.repo.findVehicleWithClass(dto.vehicle_id);
+    if (!vehicle) throw new NotFoundError('Vehicle not found');
+    if (vehicle.customer_id.toString() !== (customer._id as Types.ObjectId).toString()) {
+      throw new ForbiddenError('Vehicle does not belong to this customer');
+    }
+
+    const cacheKey = this.buildCacheKey(customer._id.toString(), dto.vehicle_id, dto.branch_id);
+    await this.deleteCache(cacheKey);
+
+    return { deleted: true };
   }
 
   // ─── Ranking helpers (thuật toán, không AI) ────────────────────────────────
@@ -208,43 +223,6 @@ export class RecommendationService {
       discounted_price     : discountedPrice,
     };
   }
- 
-  /** Tự động chọn promotion đang active có mức giảm cao nhất mà đơn hàng đủ điều kiện áp dụng (min_order_amount). */
-  private pickBestPromotion(promotions: any[], estimatedTotal: number): string | null {
-    const eligible = promotions.filter((p: any) => (p.min_order_amount ?? 0) <= estimatedTotal);
-    if (!eligible.length) return null;
-
-    const best = eligible.reduce((a: any, b: any) => {
-      const aVal = a.discount_percentage ?? 0;
-      const bVal = b.discount_percentage ?? 0;
-      if (bVal !== aVal) return bVal > aVal ? b : a;
-      return (b.discount_amount ?? 0) > (a.discount_amount ?? 0) ? b : a;
-    });
-
-    return best._id.toString();
-  }
-
-  /** Tra full thông tin promotion từ mảng đã fetch sẵn — không query DB thêm lần nào. */
-  private toApplicablePromotion(
-    promotionId: string | null,
-    promotions: any[],
-  ): IApplicablePromotion | null {
-    if (!promotionId) return null;
-
-    const promo = promotions.find((p: any) => p._id.toString() === promotionId);
-    if (!promo) return null;
-
-    return {
-      id                  : promo._id.toString(),
-      promotion_name      : promo.promotion_name,
-      code                : promo.code,
-      type                : promo.type,
-      discount_percentage : promo.discount_percentage,
-      discount_amount     : promo.discount_amount,
-      min_order_amount    : promo.min_order_amount,
-    };
-  }
-
   private pickMostUsedBranch(history: IHistoryEntry[]): string | null {
     const counts = new Map<string, number>();
     for (const h of history) {

@@ -22,4 +22,11 @@ router.get(
   recommendationController.getBookingRecommendation,
 );
 
+router.delete(
+  '/cache',
+  authorize(UserRole.CUSTOMER),
+  validate(getBookingRecommendationSchema, 'query'),
+  recommendationController.clearBookingRecommendationCache,
+);
+
 export default router;
