@@ -16,6 +16,18 @@ class RecommendationController {
       next(err);
     }
   };
+
+  clearBookingRecommendationCache = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      await recommendationService.clearBookingRecommendationCache(
+        req.user.id,
+        req.query as unknown as IGetBookingRecommendation,
+      );
+      sendSuccess(res, { deleted: true }, 'Booking recommendation cache cleared successfully');
+    } catch (err) {
+      next(err);
+    }
+  };
 }
 
 export const recommendationController = new RecommendationController();
