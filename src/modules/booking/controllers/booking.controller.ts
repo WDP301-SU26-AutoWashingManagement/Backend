@@ -13,6 +13,9 @@ import {
     IGetBookingList,
     IAvailableSlotsQuery,
 } from '../interfaces/booking.interface';
+import { userProfileService } from '@modules/userProfile/services/userProfile.service';
+import { BadRequestError } from '../../../common/utils/AppError';
+import { UserRole } from '../../../common/types/enum';
 
 export class BookingController {
     private readonly bookingService = bookingService;
@@ -41,6 +44,27 @@ export class BookingController {
                 req.body as ICreateBooking,
             );
             sendCreated(res, appointment, 'Booking created successfully');
+        } catch (err) {
+            next(err);
+        }
+    };
+
+    // ─── GET /bookings/washing ──────────────────────────────────────────────────
+
+    getWashing = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+        try {
+            let branchId = await userProfileService.resolveUserBranch(req.user.id);
+            if (!branchId && req.user.role === UserRole.BOSS) {
+                branchId = req.query.branch_id as string;
+            }
+            if (!branchId){
+                throw new BadRequestError('Branch ID is required');
+            }
+            const data = await this.bookingService.getWashingBooking(
+                req.query as unknown as IGetBookingList,
+                branchId
+            );
+            sendSuccess(res, data, 'Washing bookings fetched successfully');
         } catch (err) {
             next(err);
         }

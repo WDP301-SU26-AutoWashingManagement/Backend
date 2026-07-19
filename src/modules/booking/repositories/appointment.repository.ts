@@ -54,12 +54,14 @@ export class AppointmentRepository extends BaseRepository<IAppointment> {
       ...options,
       sort: { scheduled_at: -1 },
       populate: [
-        { path: 'branch_id',   select: 'branch_address operating_time bay_counts' },
-        { path: 'vehicle_id',  select: 'license_plate vehicle_model color fuel_type vehicle_class_id model_id' },
-        { path: 'customer_id', populate: [
-          { path: 'user_id', select: 'full_name email phone avatar_url' },
-          { path: 'tier_id', select: 'tier_name discount_percentage' },
-        ] },
+        { path: 'branch_id', select: 'branch_address operating_time bay_counts' },
+        { path: 'vehicle_id', select: 'license_plate vehicle_model color fuel_type vehicle_class_id model_id' },
+        {
+          path: 'customer_id', populate: [
+            { path: 'user_id', select: 'full_name email phone avatar_url' },
+            { path: 'tier_id', select: 'tier_name discount_percentage' },
+          ]
+        },
       ],
     });
   }
@@ -67,7 +69,7 @@ export class AppointmentRepository extends BaseRepository<IAppointment> {
   findByIdPopulated(id: string) {
     // Đây là deep-populated read → dùng rm
     return this.rm.findById(id)
-      .populate('branch_id',  'branch_address operating_time bay_counts web_url branch_phone')
+      .populate('branch_id', 'branch_address operating_time bay_counts web_url branch_phone')
       .populate('vehicle_id', 'license_plate vehicle_model color fuel_type vehicle_class_id model_id')
       .populate({
         path: 'customer_id',
@@ -76,6 +78,27 @@ export class AppointmentRepository extends BaseRepository<IAppointment> {
           { path: 'tier_id', select: 'tier_name discount_percentage' },
         ],
       })
+  }
+
+  findWashingBookings(branchId: string, fromDate?: string, toDate?: string): Promise<IAppointment[]> {
+    const filter: FilterQuery<IAppointment> = {
+      branch_id: new Types.ObjectId(branchId),
+      booking_status: BookingStatus.IN_PROGRESS,
+    };
+
+    if (fromDate || toDate) {
+      filter.scheduled_at = {};
+      if (fromDate) filter.scheduled_at.$gte = new Date(fromDate);
+      if (toDate) filter.scheduled_at.$lte = new Date(toDate);
+    }
+
+    return this.rm.find(filter)
+      .populate('vehicle_id', 'license_plate vehicle_model color fuel_type vehicle_class_id model_id')
+      .populate({
+        path: 'customer_id',
+        populate: { path: 'user_id', select: 'full_name phone' }
+      })
+      .exec();
   }
 }
 

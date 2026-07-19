@@ -50,6 +50,13 @@ router.get(
   ctrl.getList,
 );
 
+router.get(
+  '/washing-bookings',
+  authorize(UserRole.BOSS, UserRole.STAFF),
+  validate(getBookingListSchema, 'query'),
+  ctrl.getWashing,
+);
+
 /**
  * GET /bookings/:id
  * Customer thấy booking của mình; Staff/Admin/Boss thấy any.
