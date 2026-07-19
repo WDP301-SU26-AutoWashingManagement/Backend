@@ -222,6 +222,15 @@ export class BookingService {
             throw new ConflictError('No available bays at this time slot. Please choose another time.');
         }
 
+        // ── Ensure "Dịch vụ rửa xe" is always included ──
+        const washingService = await Service.findOne({ service_name: 'Dịch vụ rửa xe', is_active: true }).lean();
+        if (washingService) {
+            const hasWashing = dto.services.some(s => s.service_id.toString() === washingService._id.toString());
+            if (!hasWashing) {
+                dto.services.push({ service_id: washingService._id.toString() });
+            }
+        }
+
         // ── Validate & snapshot services ──
         const serviceSnapshots = await this.resolveServiceSnapshots(dto.services);
 
