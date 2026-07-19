@@ -448,6 +448,7 @@ export class BookingService {
                 discount_amount,
                 applied_tier_discount,
                 applied_promotion_discount,
+                payment_method: invoice ? invoice.payment_method : undefined,
                 // frontend expects service_package_id as object for package name
                 service_package_id: mainPackage ? mainPackage.service_package_id : (mainService ? mainService.service_id : null)
             };
@@ -457,6 +458,31 @@ export class BookingService {
             ...result,
             docs: docsWithServices
         };
+    }
+
+    
+    // ─── 11. Get Washing Booking ────────────────────────────────────────────────
+
+    async getWashingBooking(dto: IGetBookingList, branchId: string): Promise<any[]> {
+        const appointments = await this.appointmentRepo.findWashingBookings(
+            branchId,
+            dto.from_date,
+            dto.to_date
+        );
+
+        if (appointments.length === 0) return [];
+
+        const appointmentIds = appointments.map(doc => doc._id);
+        const services = await this.appointmentServiceRepo.findByAppointmentIds(appointmentIds);
+
+        return appointments.map(doc => {
+            const docObj = doc.toObject ? doc.toObject() : doc;
+            const docServices = services.filter(s => s.appointment_id.toString() === doc._id.toString());
+            return {
+                ...docObj,
+                services: docServices
+            };
+        });
     }
 
     // ─── 4. Get By ID ────────────────────────────────────────────────────────
@@ -574,7 +600,8 @@ export class BookingService {
             final_price,
             discount_amount,
             applied_tier_discount,
-            applied_promotion_discount
+            applied_promotion_discount,
+            payment_method: invoice ? invoice.payment_method : undefined
         };
 
         return { appointment: resultAppt as any, services };
