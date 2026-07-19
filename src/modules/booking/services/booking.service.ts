@@ -663,10 +663,24 @@ export class BookingService {
         const appointment = await this.appointmentRepo.findById(appointmentId);
         if (!appointment) throw new NotFoundError('Booking not found');
 
-        if (appointment.booking_status !== BookingStatus.CONFIRMED) {
+        if (appointment.booking_status !== BookingStatus.CONFIRMED && appointment.booking_status !== BookingStatus.ARRIVED) {
             throw new BadRequestError(
-                `Cannot check-in a booking with status "${appointment.booking_status}". Booking must be confirmed first.`,
+                `Cannot check-in a booking with status "${appointment.booking_status}". Booking must be confirmed or arrived first.`,
             );
+        }
+
+        // Validate that all manual services are completed
+        const services = await this.appointmentServiceRepo.findByAppointmentId(appointmentId);
+        
+        // Loop through services and check if any manual service is not completed
+        for (const s of services as any[]) {
+            const serviceDoc = await Service.findById(s.service_id).lean();
+            if (serviceDoc) {
+                const isAutomated = serviceDoc.is_automated || serviceDoc.service_name.toLowerCase() === 'dịch vụ rửa xe';
+                if (!isAutomated && !s.is_completed) {
+                    throw new BadRequestError(`Không thể check-in: Dịch vụ thủ công "${serviceDoc.service_name}" chưa được đánh dấu hoàn thành.`);
+                }
+            }
         }
 
         const updated = await this.appointmentRepo.updateById(appointmentId, {
@@ -676,6 +690,23 @@ export class BookingService {
         if (!updated) throw new NotFoundError('Booking not found');
 
         return this.appointmentRepo.findByIdPopulated(appointmentId) as Promise<IAppointment>;
+    }
+
+    // ─── Toggle Service Status ───────────────────────────────────────────────
+
+    async toggleServiceStatus(appointmentId: string, itemId: string): Promise<any> {
+        const appointmentService = await this.appointmentServiceRepo.findById(itemId);
+
+        if (!appointmentService || appointmentService.appointment_id.toString() !== appointmentId) {
+            throw new NotFoundError('Service item not found in this booking');
+        }
+
+        const updated = await this.appointmentServiceRepo.updateById(
+            (appointmentService._id as Types.ObjectId).toString(),
+            { is_completed: !appointmentService.is_completed }
+        );
+
+        return updated;
     }
 
     // ─── 9. Start Service ────────────────────────────────────────────────────
@@ -730,6 +761,18 @@ export class BookingService {
             booking_status: BookingStatus.WASHED,
         });
         if (!updated) throw new NotFoundError('Booking not found');
+
+        // Automatically complete automated services (like Dịch vụ rửa xe)
+        const services = await this.appointmentServiceRepo.findByAppointmentId(appointmentId);
+        for (const s of services as any[]) {
+            const serviceDoc = await Service.findById(s.service_id).lean();
+            if (serviceDoc) {
+                const isAutomated = serviceDoc.is_automated || serviceDoc.service_name.toLowerCase() === 'dịch vụ rửa xe';
+                if (isAutomated && !s.is_completed) {
+                    await this.appointmentServiceRepo.updateById((s._id as Types.ObjectId).toString(), { is_completed: true } as any);
+                }
+            }
+        }
 
         return this.appointmentRepo.findByIdPopulated(appointmentId) as Promise<IAppointment>;
     }

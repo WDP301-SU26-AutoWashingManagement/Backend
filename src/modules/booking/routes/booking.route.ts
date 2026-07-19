@@ -124,4 +124,14 @@ router.patch(
   ctrl.complete,
 );
 
+/**
+ * PATCH /bookings/:id/items/:itemId/toggle
+ * Staff/Admin toggles a service item completion status
+ */
+router.patch(
+  '/:id/items/:itemId/toggle',
+  authorize(UserRole.STAFF, UserRole.ADMIN, UserRole.BOSS),
+  ctrl.toggleServiceStatus,
+);
+
 export default router;
