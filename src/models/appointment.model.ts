@@ -18,6 +18,16 @@ export enum BookingSource {
   WEB  = 'web',
 }
 
+export interface IBookingReport {
+  title       : string;
+  fullname    : string;
+  description : string | null;
+  evidence    : string[];
+  phone       : string | null;
+  email       : string | null;
+  isConfirm   : boolean;
+}
+
 export interface IAppointment extends Document {
   branch_id   : Types.ObjectId;
   vehicle_id  : Types.ObjectId;
@@ -35,6 +45,7 @@ export interface IAppointment extends Document {
   booking_source      : BookingSource;
   cancellation_reason : string | null;
   promotion_id        : Types.ObjectId | null;
+  report              : IBookingReport | null;
 }
 
 const appointmentSchema = new Schema<IAppointment>(
@@ -92,6 +103,52 @@ const appointmentSchema = new Schema<IAppointment>(
   },
   { timestamps: true }
 );
+
+const bookingReportSchema = new Schema<IBookingReport>(
+  {
+    title: {
+      type    : String,
+      required: true,
+      trim    : true,
+    },
+    fullname: {
+      type    : String,
+      required: true,
+      trim    : true,
+    },
+    description: {
+      type   : String,
+      default: null,
+      trim   : true,
+    },
+    evidence: {
+      type   : [String],
+      default: [],
+    },
+    phone: {
+      type   : String,
+      default: null,
+      trim   : true,
+    },
+    email: {
+      type   : String,
+      default: null,
+      trim   : true,
+    },
+    isConfirm: {
+      type   : Boolean,
+      default: false,
+    },
+  } as any,
+  { _id: false },
+);
+
+appointmentSchema.add({
+  report: {
+    type   : bookingReportSchema,
+    default: null,
+  },
+});
 
 appointmentSchema.plugin(applyPlugins);
 
