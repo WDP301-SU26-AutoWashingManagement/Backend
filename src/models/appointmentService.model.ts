@@ -7,6 +7,7 @@ export interface IAppointmentService extends Document {
   service_package_id : Types.ObjectId | null;
   price_snapshot    : number;
   duration_snapshot : number;
+  is_completed      : boolean;
 }
 
 const appointmentServiceSchema = new Schema<IAppointmentService>(
@@ -29,6 +30,7 @@ const appointmentServiceSchema = new Schema<IAppointmentService>(
 
     price_snapshot   : { type: Number, required: true, min: 0 },
     duration_snapshot: { type: Number, required: true, min: 0 },
+    is_completed     : { type: Boolean, default: false },
   },
   { timestamps: false }
 );

@@ -12,7 +12,7 @@ export class AppointmentServiceRepository extends BaseRepository<IAppointmentSer
   findByAppointmentId(appointmentId: string): Promise<IAppointmentService[]> {
     return this.rm
       .find({ appointment_id: new Types.ObjectId(appointmentId) })
-      .populate('service_id',         'service_name service_code duration_minutes service_price service_group_id')
+      .populate('service_id',         'service_name service_code duration_minutes service_price service_group_id is_automated')
       .populate('service_package_id', 'package_name package_code package_discount_percentage')
       .exec();
   }
@@ -20,7 +20,7 @@ export class AppointmentServiceRepository extends BaseRepository<IAppointmentSer
   findByAppointmentIds(appointmentIds: any[]): Promise<any[]> {
     return this.rm
       .find({ appointment_id: { $in: appointmentIds } })
-      .populate('service_id',         'service_name service_code duration_minutes service_price service_group_id')
+      .populate('service_id',         'service_name service_code duration_minutes service_price service_group_id is_automated')
       .populate('service_package_id', 'package_name package_code package_discount_percentage')
       .lean()
       .exec();

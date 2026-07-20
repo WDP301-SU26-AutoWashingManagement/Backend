@@ -79,6 +79,11 @@ class BookingChecklistService {
       customer_signature_after: dto.customer_signature_after ?? null,
     });
 
+    if (appt.booking_status === BookingStatus.CONFIRMED || appt.booking_status === BookingStatus.PENDING) {
+      appt.booking_status = BookingStatus.ARRIVED;
+      await appt.save();
+    }
+
     return checklist;
   }
 
