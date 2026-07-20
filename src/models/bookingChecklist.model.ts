@@ -16,6 +16,7 @@ export interface IBookingChecklist extends Document {
   note                : string | null;
   images              : string[];
   customer_signature  : string | null;
+  customer_signature_after : string | null;
 }
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
@@ -57,7 +58,12 @@ const bookingChecklistSchema = new Schema<IBookingChecklist>(
       type   : String,
       default: null,
     },
-  },
+
+    customer_signature_after: {
+      type   : String,
+      default: null,
+    },
+  } as any,
   { timestamps: true },
 );
 
