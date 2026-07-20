@@ -186,6 +186,17 @@ export class BookingController {
             next(err);
         }
     };
+
+    // ─── PATCH /bookings/:id/items/:itemId/toggle ───────────────────────
+
+    toggleServiceStatus = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+        try {
+            const appointmentService = await this.bookingService.toggleServiceStatus(req.params.id, req.params.itemId);
+            sendSuccess(res, appointmentService, 'Service status toggled successfully');
+        } catch (err) {
+            next(err);
+        }
+    };
 }
 
 export const bookingController = new BookingController();

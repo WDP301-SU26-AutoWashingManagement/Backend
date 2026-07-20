@@ -18,7 +18,7 @@ import {
   ICreateBookingChecklist,
   IUpdateBookingChecklist,
 } from '../interfaces/bookingChecklist.interface';
-import { Appointment }  from '../../../models/appointment.model';
+import { Appointment, BookingStatus }  from '../../../models/appointment.model';
 import { ConflictError, NotFoundError, BadRequestError } from '../../../common/utils/AppError';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -56,6 +56,11 @@ class BookingChecklistService {
       images            : dto.images            ?? [],
       customer_signature: dto.customer_signature ?? null,
     });
+
+    if (appt.booking_status === BookingStatus.CONFIRMED || appt.booking_status === BookingStatus.PENDING) {
+      appt.booking_status = BookingStatus.ARRIVED;
+      await appt.save();
+    }
 
     return checklist;
   }

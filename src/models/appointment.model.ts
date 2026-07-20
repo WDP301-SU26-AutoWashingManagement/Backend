@@ -6,6 +6,7 @@ import { generateCode } from './counter.model';
 export enum BookingStatus {
   PENDING     = 'pending',
   CONFIRMED   = 'confirmed',
+  ARRIVED     = 'arrived',
   CHECKED_IN  = 'checked_in',
   IN_PROGRESS = 'in_progress',
   WASHED      = 'washed',
