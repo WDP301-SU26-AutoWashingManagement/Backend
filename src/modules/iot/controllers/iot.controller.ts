@@ -2,11 +2,11 @@ import { iotService } from "../services/iot.service";
 import { Response, NextFunction } from 'express';
 import { sendSuccess } from "../../../common/utils/apiResponse";
 import { AuthenticatedRequest } from "../../../common/types";
-import { ActionType } from "@modules/sse-notifications/interfaces/washingStatus.interface";
 import { redisService } from "@modules/redis/services/redis.service";
-import { checkInAppointment, rollbackBooking } from "@modules/check-in/services/checkin.service";
+import { checkInAppointment } from "@modules/check-in/services/checkin.service";
 import { bookingService } from "@modules/booking/services/booking.service";
 import { userProfileService } from "@modules/userProfile/services/userProfile.service";
+import { ActionType } from "@modules/sse-notifications/interfaces/washingStatus.interface";
 
 export class IOTController {
     async washManual(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -27,8 +27,8 @@ export class IOTController {
             const branchId = result.appointment.branch_id.toString();
 
             if (branchId) {
-                const isBusy = await iotService.checkPrepairing(branchId);
-                if (!isBusy) {
+                const isIdle = await iotService.checkIdle(branchId);
+                if (!isIdle) {
                     return res.status(400).json({
                         success: false,
                         message: 'Máy rửa xe đang bận.',
@@ -37,7 +37,7 @@ export class IOTController {
 
                 // Start service, store booking ID, and set status to WASHING
                 await bookingService.startService(result.appointment._id.toString());
-                await redisService.updateWashingStatus(branchId, ActionType.WASHING);
+                await redisService.updateWashingStatus(branchId, ActionType.PRE_RINSE);
 
                 // Call to machine at {branchId} branch
                 await iotService.turnOnWaterPump(branchId);
@@ -64,13 +64,8 @@ export class IOTController {
                 return res.status(400).json({ success: false, message: 'Không nhận diện được chi nhánh.' });
             }
 
-            await redisService.getStoreBookingId(branchId).then(async (bookingId) => {
-                if (bookingId) {
-                    await rollbackBooking(bookingId);
-                }
-            });
-            await redisService.deleteStoreBookingId(branchId);
-            await redisService.updateWashingStatus(branchId, ActionType.PREPAIRING);
+            // Just send OFF to Arduino — it will respond with "branchId|STOPPED"
+            // and handleMessage in iot.service.ts handles rollback + IDLE reset
             await iotService.turnOffWaterPump(branchId);
 
             sendSuccess(res, null, "Water pump turned off successfully");
