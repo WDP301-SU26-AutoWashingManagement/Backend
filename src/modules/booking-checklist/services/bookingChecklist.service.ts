@@ -432,9 +432,9 @@ class BookingChecklistService {
     return updated?.report ?? updated;
   }
 
-  // ── 7. Confirm report by staff/admin ─────────────────────────────────────
+  // ── 7. Accept / Reject report by staff/admin ──────────────────────────────
 
-  async confirmReport(appointmentId: string) {
+  async acceptReport(appointmentId: string, dto: any) {
     const appointment = await Appointment.findById(appointmentId);
     if (!appointment) throw new NotFoundError('Appointment không tồn tại');
 
@@ -446,7 +446,74 @@ class BookingChecklistService {
 
     const updated = await Appointment.findByIdAndUpdate(
       appointmentId,
-      { 'report.isConfirm': true },
+      { 
+        'report.isConfirm': true,
+        'report.status': 'accepted',
+        'report.compensation': {
+          branch_info: dto.branch_info,
+          customer_info: dto.customer_info,
+          compensation_amount: dto.compensation_amount,
+          transfer_image: dto.transfer_image,
+          admin_signature: dto.admin_signature,
+          customer_signature: dto.customer_signature,
+          created_at: new Date(),
+        }
+      },
+      { new: true },
+    );
+
+    return updated?.report ?? updated;
+  }
+
+  async uploadCompensationBill(appointmentId: string, transfer_image: string) {
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) throw new NotFoundError('Appointment không tồn tại');
+
+    if (!appointment.report || appointment.report.status !== 'accepted' || !appointment.report.compensation) {
+      throw new BadRequestError('Không thể tải lên ảnh chuyển khoản vì chưa có biên bản đền bù hợp lệ');
+    }
+
+    const updated = await Appointment.findByIdAndUpdate(
+      appointmentId,
+      {
+        'report.compensation.transfer_image': transfer_image,
+        booking_status: 'compensated',
+      },
+      { new: true },
+    );
+
+    return updated?.report ?? updated;
+  }
+
+  async rejectReport(appointmentId: string, payload: { reject_reason?: string, admin_signature?: string, customer_signature?: string }) {
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) throw new NotFoundError('Appointment không tồn tại');
+
+    this.assertAppointmentWashed(appointment);
+
+    if (!appointment.report) {
+      throw new NotFoundError('Report chưa được tạo');
+    }
+
+    const { reject_reason, admin_signature, customer_signature } = payload;
+    const updateData: any = {
+      'report.isConfirm': true,
+      'report.status': 'rejected',
+    };
+    
+    if (reject_reason || admin_signature || customer_signature) {
+      updateData['report.reject_reason'] = reject_reason || '';
+      updateData['report.reject_details'] = {
+        reason: reject_reason || '',
+        admin_signature: admin_signature || '',
+        customer_signature: customer_signature || '',
+        created_at: new Date()
+      };
+    }
+
+    const updated = await Appointment.findByIdAndUpdate(
+      appointmentId,
+      updateData,
       { new: true },
     );
 
@@ -456,11 +523,13 @@ class BookingChecklistService {
   // ── 8. Lấy danh sách report (phân trang) ─────────────────────────────────
 
   async getAllReports(query: IGetReportListQuery, requesterId: string, requesterRole: string) {
-    const { page = 1, limit = 10, isConfirm } = query;
+    const { page = 1, limit = 10, isConfirm, status } = query;
 
     const filter: FilterQuery<IAppointment> = { report: { $ne: null } };
 
-    if (isConfirm !== undefined) {
+    if (status !== undefined) {
+      filter['report.status'] = status;
+    } else if (isConfirm !== undefined) {
       filter['report.isConfirm'] = isConfirm;
     }
 
