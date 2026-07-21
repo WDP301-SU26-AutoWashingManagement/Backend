@@ -435,7 +435,13 @@ class BookingChecklistService {
   // ── 7. Accept / Reject report by staff/admin ──────────────────────────────
 
   async acceptReport(appointmentId: string, dto: any) {
-    const appointment = await Appointment.findById(appointmentId);
+    const appointment = await Appointment.findById(appointmentId)
+      .populate({
+        path: 'customer_id',
+        populate: { path: 'user_id', select: 'full_name phone email' },
+      })
+      .populate('branch_id', 'branch_address');
+      
     if (!appointment) throw new NotFoundError('Appointment không tồn tại');
 
     this.assertAppointmentWashed(appointment);
@@ -444,14 +450,28 @@ class BookingChecklistService {
       throw new NotFoundError('Report chưa được tạo');
     }
 
+    const customer = appointment.customer_id as any;
+    const user = customer?.user_id as any;
+    const branch = appointment.branch_id as any;
+
+    const branchInfoStr = branch?.branch_address
+      ? [
+          branch.branch_address.street,
+          branch.branch_address.ward,
+          branch.branch_address.district,
+          branch.branch_address.city,
+        ]
+          .filter(Boolean)
+          .join(', ')
+      : 'Chi nhánh hệ thống Hybrid Wash';
+
     const updated = await Appointment.findByIdAndUpdate(
       appointmentId,
       { 
         'report.isConfirm': true,
         'report.status': 'accepted',
         'report.compensation': {
-          branch_info: dto.branch_info,
-          customer_info: dto.customer_info,
+          branch_info: branchInfoStr,
           compensation_amount: dto.compensation_amount,
           transfer_image: dto.transfer_image,
           admin_signature: dto.admin_signature,
