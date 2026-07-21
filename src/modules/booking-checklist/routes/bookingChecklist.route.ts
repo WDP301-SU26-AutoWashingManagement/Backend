@@ -57,10 +57,24 @@ router.post(
 );
 
 router.patch(
-  '/appointment/:appointmentId/report/confirm',
+  '/appointment/:appointmentId/report/accept',
   authenticate,
   authorize(UserRole.STAFF, UserRole.ADMIN),
-  bookingChecklistController.confirmReport,
+  bookingChecklistController.acceptReport,
+);
+
+router.patch(
+  '/appointment/:appointmentId/report/upload-bill',
+  authenticate,
+  authorize(UserRole.STAFF, UserRole.ADMIN),
+  bookingChecklistController.uploadCompensationBill,
+);
+
+router.patch(
+  '/appointment/:appointmentId/report/reject',
+  authenticate,
+  authorize(UserRole.STAFF, UserRole.ADMIN),
+  bookingChecklistController.rejectReport,
 );
 
 /**

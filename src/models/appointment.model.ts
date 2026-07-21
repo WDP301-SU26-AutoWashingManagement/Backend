@@ -11,6 +11,7 @@ export enum BookingStatus {
   IN_PROGRESS = 'in_progress',
   WASHED      = 'washed',
   COMPLETED   = 'completed',
+  COMPENSATED = 'compensated',
   CANCELLED   = 'cancelled',
 }
 
@@ -27,6 +28,31 @@ export interface IBookingReport {
   phone       : string | null;
   email       : string | null;
   isConfirm   : boolean;
+  status      : 'pending' | 'accepted' | 'rejected';
+  reject_reason?: string;
+  reject_details?: IRejectForm | null;
+  compensation: ICompensationForm | null;
+}
+
+export interface IRejectForm {
+  reason: string;
+  admin_signature: string;
+  customer_signature: string;
+  created_at: Date;
+}
+
+export interface ICompensationForm {
+  branch_info: string;
+  customer_info: {
+    fullname: string;
+    phone: string;
+    email: string;
+  };
+  compensation_amount: number;
+  transfer_image: string | null;
+  admin_signature: string;
+  customer_signature: string;
+  created_at: Date;
 }
 
 export interface IAppointment extends Document {
@@ -105,6 +131,27 @@ const appointmentSchema = new Schema<IAppointment>(
   { timestamps: true }
 );
 
+const compensationFormSchema = new Schema<ICompensationForm>({
+  branch_info: { type: String, required: true },
+  customer_info: {
+    fullname: { type: String, required: true },
+    phone: { type: String, required: true },
+    email: { type: String, required: true },
+  },
+  compensation_amount: { type: Number, required: true, min: 0 },
+  transfer_image: { type: String, default: null },
+  admin_signature: { type: String, required: true },
+  customer_signature: { type: String, required: true },
+  created_at: { type: Date, default: Date.now },
+}, { _id: false });
+
+const rejectFormSchema = new Schema<IRejectForm>({
+  reason: { type: String, required: true },
+  admin_signature: { type: String, required: true },
+  customer_signature: { type: String, required: true },
+  created_at: { type: Date, default: Date.now },
+}, { _id: false });
+
 const bookingReportSchema = new Schema<IBookingReport>(
   {
     title: {
@@ -139,6 +186,23 @@ const bookingReportSchema = new Schema<IBookingReport>(
     isConfirm: {
       type   : Boolean,
       default: false,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'accepted', 'rejected'],
+      default: 'pending'
+    },
+    reject_reason: {
+      type: String,
+      default: null
+    },
+    reject_details: {
+      type: rejectFormSchema,
+      default: null
+    },
+    compensation: {
+      type: compensationFormSchema,
+      default: null,
     },
   } as any,
   { _id: false },

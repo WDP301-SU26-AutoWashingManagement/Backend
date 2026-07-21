@@ -105,12 +105,33 @@ export class BookingChecklistController {
     }
   };
 
-  // ── PATCH /api/booking-checklists/appointment/:appointmentId/report/confirm
-
-  confirmReport = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  // ── PATCH /api/booking-checklists/appointment/:appointmentId/report/accept
+  acceptReport = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const report = await this.svc.confirmReport(req.params.appointmentId);
-      sendSuccess(res, report, 'Xác nhận report thành công');
+      const report = await this.svc.acceptReport(req.params.appointmentId, req.body);
+      sendSuccess(res, report, 'Chấp nhận report & tạo biên bản đền bù thành công');
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // ── PATCH /api/booking-checklists/appointment/:appointmentId/report/upload-bill
+  uploadCompensationBill = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { transfer_image } = req.body;
+      const report = await this.svc.uploadCompensationBill(req.params.appointmentId, transfer_image);
+      sendSuccess(res, report, 'Tải lên ảnh chuyển khoản thành công');
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // ── PATCH /api/booking-checklists/appointment/:appointmentId/report/reject
+  rejectReport = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { reject_reason, admin_signature, customer_signature } = req.body;
+      const report = await this.svc.rejectReport(req.params.appointmentId, { reject_reason, admin_signature, customer_signature });
+      sendSuccess(res, report, 'Từ chối report thành công');
     } catch (err) {
       next(err);
     }
@@ -125,6 +146,7 @@ export class BookingChecklistController {
         page     : query.page      ? Number(query.page)  : undefined,
         limit    : query.limit     ? Number(query.limit) : undefined,
         isConfirm: query.isConfirm !== undefined ? String(query.isConfirm) === 'true' : undefined,
+        status   : query.status    ? String(query.status) : undefined,
       };
 
       const result = await this.svc.getAllReports(dto, req.user.id, req.user.role);
