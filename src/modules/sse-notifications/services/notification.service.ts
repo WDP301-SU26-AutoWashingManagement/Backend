@@ -81,7 +81,7 @@ export class NotificationService {
 
   async getWashingStatus(branchId: string): Promise<string> {
     const cachedStatus = await redisService.getWashingStatus(branchId);
-    return cachedStatus || 'PREPAIRING';
+    return cachedStatus || 'IDLE';
   }
 }
 
