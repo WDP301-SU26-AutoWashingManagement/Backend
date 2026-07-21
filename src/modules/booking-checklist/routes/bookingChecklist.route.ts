@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { bookingChecklistController } from '../controllers/bookingChecklist.controller';
-import { uploadChecklistImages, uploadReportEvidence }      from '../middlewares/upload.middleware';
+import { uploadChecklistImages, uploadReportEvidence } from '../middlewares/upload.middleware';
 import {
   createBookingChecklistDto,
   createBookingReportDto,
@@ -35,7 +35,7 @@ function validate(schema: any) {
     const { error, value } = schema.validate(req.body, { abortEarly: false, allowUnknown: true });
     if (error) {
       const fields = error.details.map((d: any) => ({
-        field  : d.path.join('.'),
+        field: d.path.join('.'),
         message: d.message,
       }));
       return next(new ValidationError('Dữ liệu không hợp lệ', fields));
@@ -68,6 +68,20 @@ router.patch(
   authenticate,
   authorize(UserRole.STAFF, UserRole.ADMIN),
   bookingChecklistController.uploadCompensationBill,
+);
+
+router.patch(
+  '/appointment/:appointmentId/report/upload-qr',
+  authenticate,
+  authorize(UserRole.CUSTOMER, UserRole.STAFF, UserRole.ADMIN),
+  bookingChecklistController.uploadCompensationQr,
+);
+
+router.patch(
+  '/appointment/:appointmentId/report/customer-confirm',
+  authenticate,
+  authorize(UserRole.CUSTOMER),
+  bookingChecklistController.customerConfirmCompensation,
 );
 
 router.patch(
