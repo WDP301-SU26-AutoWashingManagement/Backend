@@ -43,7 +43,7 @@ export class NotificationController {
     }
 
     // Poll every 5 seconds
-    const POLL_INTERVAL_MS = 5_000;
+    const POLL_INTERVAL_MS = 2_000;
     const intervalId = setInterval(async () => {
       try {
         if (branchId) {
