@@ -39,8 +39,8 @@ export class IOTController {
                 await bookingService.startService(result.appointment._id.toString());
                 await redisService.updateWashingStatus(branchId, ActionType.PRE_RINSE);
 
-                // Call to machine at {branchId} branch
-                await iotService.turnOnWaterPump(branchId);
+                // Call to machine at {branchId} branch with license plate
+                await iotService.turnOnWaterPump(branchId, req.body.plate);
             }
             sendSuccess(res, null, "Water pump turned on successfully");
         } catch (error) {

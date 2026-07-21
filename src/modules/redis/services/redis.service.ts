@@ -16,10 +16,10 @@ export class RedisService {
         await redisClient.set(`washing-status:${branchId}`, action)
     }
 
-    async getWashingStatus(branchId: string): Promise<ActionType | null> {
+    async getWashingStatus(branchId: string): Promise<ActionType> {
         if (!redisCacheService.isConnected()) {
             logger.warn(`[RedisCache] Cannot GET "${branchId}": Redis connection is closed/not ready.`);
-            return null;
+            return ActionType.IDLE;
         }
 
         const data = await redisClient.get(`washing-status:${branchId}`);

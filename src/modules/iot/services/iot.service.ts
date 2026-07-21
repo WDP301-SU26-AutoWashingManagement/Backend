@@ -163,13 +163,15 @@ export class IOTService {
         return this.client!;
     }
 
-    async turnOnWaterPump(branchId: string): Promise<void> {
+    async turnOnWaterPump(branchId: string, licensePlate: string): Promise<void> {
         const branchTopic = this.pumpTopic + branchId;
+        const message = `ON|${licensePlate}`;
 
         const client = this.getClient();
         await new Promise<void>((resolve, reject) => {
-            client.publish(branchTopic, 'ON', (err) => (err ? reject(err) : resolve()));
+            client.publish(branchTopic, message, (err) => (err ? reject(err) : resolve()));
         });
+        logger.info(`[MQTT] Published "${message}" to topic: ${branchTopic}`);
     }
 
     async turnOffWaterPump(branchId: string): Promise<void> {
