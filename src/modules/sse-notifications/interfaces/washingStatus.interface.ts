@@ -13,8 +13,11 @@ export interface BookingStatusUpdate {
 }
 
 export enum ActionType {
-    PREPAIRING = 'PREPAIRING',
-    WASHING = 'WASHING',
+    IDLE = 'IDLE',
+    PRE_RINSE = 'PRE_RINSE',
+    SCRUBBING = 'SCRUBBING',
+    POST_RINSE = 'POST_RINSE',
+    DRYING = 'DRYING',
     DONE = 'DONE',
     ERROR = 'ERROR'
 }
