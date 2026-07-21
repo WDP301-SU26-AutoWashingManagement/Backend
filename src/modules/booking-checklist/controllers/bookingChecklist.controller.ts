@@ -18,10 +18,10 @@ export class BookingChecklistController {
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const dto: ICreateBookingChecklist = {
-        appointment_id    : req.body.appointment_id,
-        checklist_items   : req.body.checklist_items   ?? [],
-        note              : req.body.note              ?? null,
-        images            : req.body.images            ?? [],
+        appointment_id: req.body.appointment_id,
+        checklist_items: req.body.checklist_items ?? [],
+        note: req.body.note ?? null,
+        images: req.body.images ?? [],
         customer_signature: req.body.customer_signature ?? null,
         customer_signature_after: req.body.customer_signature_after ?? null,
       };
@@ -38,9 +38,9 @@ export class BookingChecklistController {
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const dto: IUpdateBookingChecklist = {
-        checklist_items   : req.body.checklist_items,
-        note              : req.body.note,
-        images            : req.body.images,
+        checklist_items: req.body.checklist_items,
+        note: req.body.note,
+        images: req.body.images,
         customer_signature: req.body.customer_signature,
         customer_signature_after: req.body.customer_signature_after,
       };
@@ -89,13 +89,13 @@ export class BookingChecklistController {
   createReport = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
       const dto: ICreateBookingReport = {
-        title      : req.body.title,
-        fullname   : req.body.fullname,
+        title: req.body.title,
+        fullname: req.body.fullname,
         description: req.body.description ?? null,
-        evidence   : req.body.evidence ?? [],
-        phone      : req.body.phone ?? null,
-        email      : req.body.email ?? null,
-        isConfirm  : req.body.isConfirm ?? false,
+        evidence: req.body.evidence ?? [],
+        phone: req.body.phone ?? null,
+        email: req.body.email ?? null,
+        isConfirm: req.body.isConfirm ?? false,
       };
 
       const report = await this.svc.createReport(req.params.appointmentId, req.user.id, dto);
@@ -126,6 +126,28 @@ export class BookingChecklistController {
     }
   };
 
+  // ── PATCH /api/booking-checklists/appointment/:appointmentId/report/upload-qr
+  uploadCompensationQr = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { qr_image } = req.body;
+      const report = await this.svc.uploadCompensationQr(req.params.appointmentId, qr_image);
+      sendSuccess(res, report, 'Tải lên ảnh QR thành công');
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // ── PATCH /api/booking-checklists/appointment/:appointmentId/report/customer-confirm
+  customerConfirmCompensation = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const { customer_signature_confirm } = req.body;
+      const report = await this.svc.customerConfirmCompensation(req.params.appointmentId, customer_signature_confirm);
+      sendSuccess(res, report, 'Xác nhận đền bù hoàn tất thành công');
+    } catch (err) {
+      next(err);
+    }
+  };
+
   // ── PATCH /api/booking-checklists/appointment/:appointmentId/report/reject
   rejectReport = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
@@ -143,10 +165,10 @@ export class BookingChecklistController {
     try {
       const query = req.query as unknown as IGetReportListQuery;
       const dto: IGetReportListQuery = {
-        page     : query.page      ? Number(query.page)  : undefined,
-        limit    : query.limit     ? Number(query.limit) : undefined,
+        page: query.page ? Number(query.page) : undefined,
+        limit: query.limit ? Number(query.limit) : undefined,
         isConfirm: query.isConfirm !== undefined ? String(query.isConfirm) === 'true' : undefined,
-        status   : query.status    ? String(query.status) : undefined,
+        status: query.status ? String(query.status) : undefined,
       };
 
       const result = await this.svc.getAllReports(dto, req.user.id, req.user.role);

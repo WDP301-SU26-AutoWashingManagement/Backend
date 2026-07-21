@@ -472,10 +472,17 @@ class BookingChecklistService {
         'report.status': 'accepted',
         'report.compensation': {
           branch_info: branchInfoStr,
+          customer_info: dto.customer_info || {
+            fullname: user?.full_name || 'Khách hàng',
+            phone: user?.phone || '',
+            email: user?.email || '',
+          },
           compensation_amount: dto.compensation_amount,
-          transfer_image: dto.transfer_image,
+          transfer_image: dto.transfer_image || null,
+          qr_image: dto.qr_image || null,
           admin_signature: dto.admin_signature,
           customer_signature: dto.customer_signature,
+          customer_signature_confirm: null,
           created_at: new Date(),
         }
       },
@@ -497,6 +504,48 @@ class BookingChecklistService {
       appointmentId,
       {
         'report.compensation.transfer_image': transfer_image,
+      },
+      { new: true },
+    );
+
+    return updated?.report ?? updated;
+  }
+
+  async uploadCompensationQr(appointmentId: string, qr_image: string) {
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) throw new NotFoundError('Appointment không tồn tại');
+
+    if (!appointment.report || appointment.report.status !== 'accepted' || !appointment.report.compensation) {
+      throw new BadRequestError('Không thể tải lên ảnh QR vì chưa có biên bản đền bù hợp lệ');
+    }
+
+    const updated = await Appointment.findByIdAndUpdate(
+      appointmentId,
+      {
+        'report.compensation.qr_image': qr_image,
+      },
+      { new: true },
+    );
+
+    return updated?.report ?? updated;
+  }
+
+  async customerConfirmCompensation(appointmentId: string, customer_signature_confirm: string) {
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) throw new NotFoundError('Appointment không tồn tại');
+
+    if (!appointment.report || appointment.report.status !== 'accepted' || !appointment.report.compensation) {
+      throw new BadRequestError('Không thể ký xác nhận vì chưa có biên bản đền bù hợp lệ');
+    }
+
+    if (!appointment.report.compensation.transfer_image) {
+      throw new BadRequestError('Không thể ký xác nhận khi chưa có ảnh bill chuyển khoản từ cửa hàng');
+    }
+
+    const updated = await Appointment.findByIdAndUpdate(
+      appointmentId,
+      {
+        'report.compensation.customer_signature_confirm': customer_signature_confirm,
         booking_status: 'compensated',
       },
       { new: true },

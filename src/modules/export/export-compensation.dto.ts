@@ -9,8 +9,10 @@ export class ExportCompensationDto implements ICompensationForm {
     };
     compensation_amount!: number;
     transfer_image!: string | null;
+    qr_image?: string | null;
     admin_signature!: string;
     customer_signature!: string;
+    customer_signature_confirm?: string | null;
     created_at!: Date;
 
     constructor(partial: Partial<ExportCompensationDto>) {

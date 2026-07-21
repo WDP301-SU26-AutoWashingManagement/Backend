@@ -50,8 +50,10 @@ export interface ICompensationForm {
   };
   compensation_amount: number;
   transfer_image: string | null;
+  qr_image?: string | null;
   admin_signature: string;
   customer_signature: string;
+  customer_signature_confirm?: string | null;
   created_at: Date;
 }
 
@@ -140,8 +142,10 @@ const compensationFormSchema = new Schema<ICompensationForm>({
   },
   compensation_amount: { type: Number, required: true, min: 0 },
   transfer_image: { type: String, default: null },
+  qr_image: { type: String, default: null },
   admin_signature: { type: String, required: true },
   customer_signature: { type: String, required: true },
+  customer_signature_confirm: { type: String, default: null },
   created_at: { type: Date, default: Date.now },
 }, { _id: false });
 
