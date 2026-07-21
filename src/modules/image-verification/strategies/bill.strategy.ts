@@ -39,9 +39,10 @@ export class BillVerificationStrategy extends BaseVerificationStrategy {
         // 2. Danh sách Từ khóa nhận diện Bill (Dùng dạng KHÔNG DẤU để khớp OCR nhiễu)
         const successKeywords = [
             'CHUYEN TIEN THANH CONG',
-            'CHUYEN TIEN THANHCONG', // Chấp nhận OCR dính chữ
+            'CHUYEN TIEN THANHCONG', 
             'GIAO DICH THANH CONG',
             'GIAO DICH THANHCONG',
+            'CHUYEN THANH CONG',
             'THANH TOAN CHO',
             'THANH CONG',
             'MA GIAO DICH',
@@ -49,10 +50,14 @@ export class BillVerificationStrategy extends BaseVerificationStrategy {
             'SO THAM CHIEU',
             'CHI TIET GIAO DICH',
             'NOI DUNG',
+            'LOI NHAN',
             'CHUYEN LUC',
+            'NGAY THUC HIEN',
             'NGUOI NHAN',
+            'TAI KHOAN NHAN',
+            'TU TAI KHOAN',
             'NAPAS',
-            'BA MUOI NGHIN', // Từ đọc số tiền
+            'BA MUOI NGHIN', 
             'DONG'
         ];
 
@@ -83,15 +88,15 @@ export class BillVerificationStrategy extends BaseVerificationStrategy {
         const transactionId = transMatch ? transMatch[1].trim() : null;
         if (transactionId) score += 0.2;
 
-        // 4. Regex Số tiền NÂNG CẤP (Bắt được cả '20000VND', '30.000 VNĐ', '-35.000đ')
-        // Match số tiền dính liền hoặc có chấm/phẩy trước các đơn vị VND/VNĐ/Đ
-        const amountRegex = /(-?\s*[0-9]{1,3}(?:[.,][0-9]{3})+|-?\s*[0-9]{4,9})\s*(?:VND|VNĐ|Đ|DONG)/i;
+        // 4. Regex Số tiền NÂNG CẤP
+        // Match số tiền đứng độc lập (có word boundary \b) và có đơn vị VND trước hoặc sau
+        const amountRegex = /(?:VND|VNĐ|Đ|DONG)\s*(-?\s*\b[0-9]{1,3}(?:[.,][0-9]{3})+\b|-?\s*\b[0-9]{4,9}\b)|(-?\s*\b[0-9]{1,3}(?:[.,][0-9]{3})+\b|-?\s*\b[0-9]{4,9}\b)\s*(?:VND|VNĐ|Đ|DONG)/i;
         const amountMatch = rawUpper.match(amountRegex);
         let amount: string | null = null;
 
         if (amountMatch) {
             // Lấy chuỗi số, loại bỏ dấu trừ nếu có
-            const rawAmount = amountMatch[1].replace('-', '').trim();
+            const rawAmount = (amountMatch[1] || amountMatch[2]).replace('-', '').trim();
 
             // Nếu là chuỗi số thuần không chấm (VD: 20000) -> Format thành 20.000
             if (!rawAmount.includes('.') && !rawAmount.includes(',')) {
