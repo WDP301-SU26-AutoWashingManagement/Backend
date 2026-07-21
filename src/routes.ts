@@ -25,7 +25,7 @@ import bookingChecklistRoutes from './modules/booking-checklist/routes/bookingCh
 import checkinRoutes from './modules/check-in/routes/checkin.route';
 import sseNotificationRoutes from './modules/sse-notifications/routes/notification.route';
 import attendanceRoute from './modules/staff-manager/routes/attendance.route';
-
+import confidenceRoute from './modules/image-verification/routes/image-verification.route'
 // import notificationRoutes from './modules/notification/routes/notification.routes';
 // import feedbackRoutes from './modules/feedback/routes/feedback.routes';
 // import tierRoutes from './modules/tier/routes/tier.routes';
@@ -60,6 +60,7 @@ router.use('/promotions', promotionRoutes);
 router.use('/booking-checklists', bookingChecklistRoutes);
 router.use('/sse-notifications', sseNotificationRoutes);
 router.use('/attendance', attendanceRoute)
+router.use('/confidence', confidenceRoute)
 // router.use('/bookings', bookingRoutes);
 // router.use('/services', serviceRoutes);
 // router.use('/vehicles', vehicleRoutes);
