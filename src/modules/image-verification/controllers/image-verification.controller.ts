@@ -27,38 +27,44 @@ export class VerificationController {
         };
 
         try {
-            const type = (req.body.type || 'BILL').toUpperCase();
-            const strategy = VerificationStrategyFactory.getStrategy(type);
+            const type = (req.body.type || 'AUTO').toUpperCase();
 
-            // --- LUỒNG 1: XỬ LÝ ẢNH QR CODE ---
-            if (type === 'QR') {
-                sendProgress(20, 'Đang đọc và giải mã QR Code...');
-
-                // QR Code giải mã trực tiếp từ Buffer
-                const result = await (strategy as QrVerificationStrategy).verifyFromBuffer(req.file.buffer);
-
-                sendProgress(90, 'Đang phân tích định dạng QR Code...');
-                sendProgress(100, 'Xử lý QR Code thành công!', result);
-                return;
+            // --- LUỒNG 1: AUTO DETECT HOẶC QR CODE ---
+            if (type === 'QR' || type === 'AUTO') {
+                sendProgress(10, 'Đang kiểm tra và quét QR Code...');
+                
+                const qrStrategy = VerificationStrategyFactory.getStrategy('QR') as QrVerificationStrategy;
+                const qrResult = await qrStrategy.verifyFromBuffer(req.file.buffer);
+                
+                // Nếu quét ra QR hợp lệ (hoặc user ép buộc type=QR) thì trả về kết quả
+                if (qrResult.isValid || type === 'QR') {
+                    sendProgress(100, 'Xử lý QR Code thành công!', qrResult);
+                    return;
+                }
+                
+                // Nếu AUTO mà QR không ra gì, sẽ rơi xuống luồng OCR
+                sendProgress(20, 'Không phát hiện QR Code, chuyển sang quét hóa đơn...');
             }
 
             // --- LUỒNG 2: XỬ LÝ ẢNH BILL (OCR) ---
-            // Step 1: Khởi tạo OCR (10%)
-            sendProgress(10, 'Đã nhận ảnh Bill, đang khởi tạo bộ quét OCR...');
+            const billStrategy = VerificationStrategyFactory.getStrategy('BILL');
+            
+            // Step 1: Khởi tạo OCR (Tăng tiếp % từ luồng trước)
+            sendProgress(25, 'Đang khởi tạo bộ quét AI OCR...');
 
-            // Step 2: Quét Tesseract OCR (10% -> 80%)
+            // Step 2: Quét Tesseract OCR (25% -> 80%)
             const rawText = await ocrRepo.extractTextWithProgress(
                 req.file.buffer,
                 (ocrPercent) => {
-                    // Quy đổi tiến độ Tesseract (0-100%) sang dải tiến độ hệ thống (10% -> 80%)
-                    const currentProgress = 10 + Math.round((ocrPercent * 70) / 100);
+                    // Quy đổi tiến độ Tesseract (0-100%) sang dải tiến độ hệ thống (25% -> 80%)
+                    const currentProgress = 25 + Math.round((ocrPercent * 55) / 100);
                     sendProgress(currentProgress, `Đang nhận diện chữ trên Bill (${ocrPercent}%)...`);
                 }
             );
 
             // Step 3: Đánh giá Confidence bằng Bill Strategy (90%)
-            sendProgress(90, 'Đang kiểm tra độ tin cậy và đối soát dữ liệu Bill...');
-            const result = await strategy.verify(rawText);
+            sendProgress(90, 'Đang phân tích độ tin cậy và trích xuất dữ liệu Bill...');
+            const result = await billStrategy.verify(rawText);
 
             // Step 4: Hoàn thành (100%)
             sendProgress(100, 'Xử lý Bill thành công!', result);
