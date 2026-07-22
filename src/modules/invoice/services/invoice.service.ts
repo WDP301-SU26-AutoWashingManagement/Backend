@@ -18,6 +18,7 @@ import { TierConfig } from '../../../models/tierConfig.model';
 import { Promotion, EPromotionType } from '../../../models/promotion.model';
 import mongoose from 'mongoose';
 import { ICreateInvoiceRequest } from '../interfaces/invoice.interface';
+import { BookingChecklist } from '../../../models/bookingChecklist.model';
 
 // ─────────────────────────────────────────────────────────────
 // PayOS Client
@@ -88,6 +89,16 @@ async function addMembershipPoints(
 }
 
 export class InvoiceService {
+  private async assertCustomerSignedAfter(appointmentId: string): Promise<void> {
+    const checklist = await BookingChecklist.findOne({ appointment_id: appointmentId });
+    if (!checklist || !checklist.customer_signature_after || !checklist.customer_signature_after.trim()) {
+      throw new AppError(
+        'Khách hàng chưa ký xác nhận đã nhận xe vào biên bản checklist. Vui lòng ký xác nhận trước khi thực hiện thanh toán.',
+        400,
+      );
+    }
+  }
+
   async createInvoice(
     appointmentId: string,
     opts: Omit<ICreateInvoiceRequest, 'appointment_id'> = {},
@@ -108,6 +119,10 @@ export class InvoiceService {
         `Chỉ có thể tạo/cập nhật hóa đơn ở các trạng thái hợp lệ. Trạng thái hiện tại: "${appointment.booking_status}"`,
         400,
       );
+    }
+
+    if (appointment.booking_status === BookingStatus.WASHED) {
+      await this.assertCustomerSignedAfter(appointmentId);
     }
 
     // Kiểm tra invoice đã tồn tại chưa (1 appointment → 1 invoice)
@@ -233,6 +248,7 @@ export class InvoiceService {
           400,
         );
       }
+      await this.assertCustomerSignedAfter(invoice.appointment_id.toString());
     }
 
     if (invoice.invoice_status === InvoiceStatus.PAID) {
@@ -480,6 +496,10 @@ export class InvoiceService {
         `Invoice status is "${invoice.invoice_status}", expected "draft" or "cancelled"`,
         400
       );
+    }
+
+    if (invoice.appointment_id) {
+      await this.assertCustomerSignedAfter(invoice.appointment_id.toString());
     }
 
     const session = await mongoose.startSession();
