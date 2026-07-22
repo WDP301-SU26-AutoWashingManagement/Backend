@@ -1,4 +1,4 @@
-import { findCheckInPlates } from '@modules/check-in/services/checkin.service';
+import { findCheckInPlates, rollbackBooking } from '@modules/check-in/services/checkin.service';
 import { redisService } from '@modules/redis/services/redis.service';
 import { ActionType } from '@modules/sse-notifications/interfaces/washingStatus.interface';
 import { bookingService } from '@modules/booking/services/booking.service';
@@ -50,55 +50,107 @@ export class IOTService {
     }
 
     private async handleMessage(topic: string, message: string) {
-        let branchId = '';
-
-        if (topic === this.statusTopic) {
-            // Case 1: Arduino publishes to "wdp/pump/status", message payload is branchId
-            branchId = message.trim();
-        } else if (this.statusTopic && topic.startsWith(`${this.statusTopic}/`)) {
-            // Case 2: Arduino publishes to "wdp/pump/status/<branchId>", message payload is whatever (e.g. "DONE")
-            branchId = topic.substring(this.statusTopic.length + 1).trim();
-        } else {
-            return; // Not a topic we handle
+        // Only handle messages on our status topic
+        if (topic !== this.statusTopic && !(this.statusTopic && topic.startsWith(`${this.statusTopic}/`))) {
+            return;
         }
+
+        const msgStr = message.trim();
+
+        // Arduino sends messages in "branchId|STATUS" format (e.g. "branch123|SCRUBBING")
+        const separatorIndex = msgStr.indexOf('|');
+        if (separatorIndex === -1) {
+            logger.warn(`[MQTT] Invalid message format (expected "branchId|STATUS"): ${msgStr}`);
+            return;
+        }
+
+        const branchId = msgStr.substring(0, separatorIndex).trim();
+        const status = msgStr.substring(separatorIndex + 1).trim();
 
         if (!branchId) {
             logger.warn(`[MQTT] Received empty branch_id on topic ${topic}`);
             return;
         }
 
-        logger.info(`🔧 [MQTT] Pump finished for branch: ${branchId}`);
+        if (!status) {
+            logger.warn(`[MQTT] Received empty status on topic ${topic}`);
+            return;
+        }
+
+        logger.info(`🔧 [MQTT] Branch: ${branchId} | Status: ${status}`);
 
         try {
-            // 1. Update washing status to DONE
-            await redisService.updateWashingStatus(branchId, ActionType.DONE);
-            logger.info(`[MQTT] Washing status updated to DONE for branch: ${branchId}`);
+            switch (status) {
+                case 'SCRUBBING':
+                    await redisService.updateWashingStatus(branchId, ActionType.SCRUBBING);
+                    logger.info(`[MQTT] Washing status updated to SCRUBBING for branch: ${branchId}`);
+                    break;
 
-            // 2. Get bookingId from Redis and update booking to WASHED
-            try {
-                const bookingId = await redisService.getStoreBookingId(branchId);
-                if (bookingId) {
-                    await bookingService.washedBooking(bookingId);
-                    logger.info(`[MQTT] Booking ${bookingId} marked as WASHED`);
+                case 'POST_RINSE':
+                    await redisService.updateWashingStatus(branchId, ActionType.POST_RINSE);
+                    logger.info(`[MQTT] Washing status updated to POST_RINSE for branch: ${branchId}`);
+                    break;
 
-                    // Clean up the stored booking ID
-                    await redisService.deleteStoreBookingId(branchId);
-                } else {
-                    logger.warn(`[MQTT] No bookingId found in Redis for branch: ${branchId}`);
-                }
-            } catch (dbErr) {
-                logger.error(`[MQTT] Database update failed for booking:`, dbErr);
+                case 'DRYING':
+                    await redisService.updateWashingStatus(branchId, ActionType.DRYING);
+                    logger.info(`[MQTT] Washing status updated to DRYING for branch: ${branchId}`);
+                    break;
+
+                case 'DONE':
+                    // 1. Update washing status to DONE
+                    await redisService.updateWashingStatus(branchId, ActionType.DONE);
+                    logger.info(`[MQTT] Washing status updated to DONE for branch: ${branchId}`);
+
+                    // 2. Get bookingId from Redis and update booking to WASHED
+                    try {
+                        const bookingId = await redisService.getStoreBookingId(branchId);
+                        if (bookingId) {
+                            await bookingService.washedBooking(bookingId);
+                            logger.info(`[MQTT] Booking ${bookingId} marked as WASHED`);
+
+                            // Clean up the stored booking ID
+                            await redisService.deleteStoreBookingId(branchId);
+                        } else {
+                            logger.warn(`[MQTT] No bookingId found in Redis for branch: ${branchId}`);
+                        }
+                    } catch (dbErr) {
+                        logger.error(`[MQTT] Database update failed for booking:`, dbErr);
+                    }
+
+                    // 3. After 5 seconds, reset washing status to IDLE
+                    setTimeout(async () => {
+                        try {
+                            await redisService.updateWashingStatus(branchId, ActionType.IDLE);
+                            logger.info(`[MQTT] Washing status reset to IDLE for branch: ${branchId}`);
+                        } catch (err) {
+                            logger.error(`[MQTT] Failed to reset status to IDLE for branch: ${branchId}`, err);
+                        }
+                    }, 5000);
+                    break;
+
+                case 'STOPPED':
+                    // Emergency stop: rollback booking and reset to IDLE immediately
+                    logger.warn(`🚨 [MQTT] Emergency STOP received for branch: ${branchId}`);
+
+                    try {
+                        const bookingId = await redisService.getStoreBookingId(branchId);
+                        if (bookingId) {
+                            await rollbackBooking(bookingId);
+                            logger.info(`[MQTT] Booking ${bookingId} rolled back due to emergency stop`);
+                            await redisService.deleteStoreBookingId(branchId);
+                        }
+                    } catch (rollbackErr) {
+                        logger.error(`[MQTT] Failed to rollback booking for branch: ${branchId}`, rollbackErr);
+                    }
+
+                    await redisService.updateWashingStatus(branchId, ActionType.IDLE);
+                    logger.info(`[MQTT] Washing status reset to IDLE (emergency stop) for branch: ${branchId}`);
+                    break;
+
+                default:
+                    logger.warn(`[MQTT] Unknown status "${status}" for branch: ${branchId}`);
+                    break;
             }
-
-            // 3. After 5 seconds, reset washing status to PREPAIRING
-            setTimeout(async () => {
-                try {
-                    await redisService.updateWashingStatus(branchId, ActionType.PREPAIRING);
-                    logger.info(`[MQTT] Washing status reset to PREPAIRING for branch: ${branchId}`);
-                } catch (err) {
-                    logger.error(`[MQTT] Failed to reset status to PREPAIRING for branch: ${branchId}`, err);
-                }
-            }, 5000);
         } catch (err) {
             logger.error(`[MQTT] Error handling pump status for branch: ${branchId}`, err);
         }
@@ -111,13 +163,15 @@ export class IOTService {
         return this.client!;
     }
 
-    async turnOnWaterPump(branchId: string): Promise<void> {
+    async turnOnWaterPump(branchId: string, licensePlate: string): Promise<void> {
         const branchTopic = this.pumpTopic + branchId;
+        const message = `ON|${licensePlate}`;
 
         const client = this.getClient();
         await new Promise<void>((resolve, reject) => {
-            client.publish(branchTopic, 'ON', (err) => (err ? reject(err) : resolve()));
+            client.publish(branchTopic, message, (err) => (err ? reject(err) : resolve()));
         });
+        logger.info(`[MQTT] Published "${message}" to topic: ${branchTopic}`);
     }
 
     async turnOffWaterPump(branchId: string): Promise<void> {
@@ -138,9 +192,9 @@ export class IOTService {
         return result;
     }
 
-    async checkPrepairing(branchId: string): Promise<boolean> {
+    async checkIdle(branchId: string): Promise<boolean> {
         const action = await redisService.getWashingStatus(branchId);
-        return action === ActionType.PREPAIRING || action === null;
+        return action === ActionType.IDLE || action === null;
     }
 }
 

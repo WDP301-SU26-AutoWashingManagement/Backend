@@ -17,17 +17,6 @@ export interface IRecommendedItem {
   duration_minutes    : number;
 }
 
-/** Thông tin promotion đã populate, đính kèm trong response thay vì chỉ trả về id. */
-export interface IApplicablePromotion {
-  id                   : string;
-  promotion_name       : string;
-  code                 : string;
-  type                 : string;
-  discount_percentage? : number;
-  discount_amount?     : number;
-  min_order_amount     : number;
-}
-
 /** Gợi ý combo khi có >=2 service trong recommended_items cùng nằm trong 1 package active. */
 export interface ISuggestedCombo {
   package_id           : string;
@@ -43,8 +32,6 @@ export interface IBookingRecommendation {
   branch_id                : string | null;
   recommended_items        : IRecommendedItem[];
   reason                   : string;
-  applicable_promotion_id  : string | null;
-  applicable_promotion     : IApplicablePromotion | null;
   suggested_combo          : ISuggestedCombo | null;
   estimated_total          : number;
   suggested_scheduled_at   : string | null;
