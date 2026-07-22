@@ -413,6 +413,11 @@ class BookingChecklistService {
       throw new ConflictError('Appointment này đã có report');
     }
 
+    const checklist = await this.repo.findByAppointmentId(appointmentId);
+    if (checklist?.customer_signature_after && checklist.customer_signature_after.trim()) {
+      throw new BadRequestError('Xe đã được ký xác nhận bàn giao, không thể tạo đơn khiếu nại.');
+    }
+
     const updated = await Appointment.findByIdAndUpdate(
       appointmentId,
       {
