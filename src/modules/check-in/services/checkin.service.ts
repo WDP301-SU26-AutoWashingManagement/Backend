@@ -39,9 +39,20 @@ async function fetchPlatesFromImage(
 export async function findAppointmentByPlates(plates: string[]) {
   if (plates.length === 0) return null;
 
+  // Tạo danh sách điều kiện tìm kiếm linh hoạt cho biển số (có/không có dấu gạch ngang, viết hoa/thường)
+  const searchConditions = plates.flatMap((p) => {
+    const raw = p.trim();
+    const clean = raw.replace(/[^a-zA-Z0-9]/g, "");
+    return [
+      { license_plate: raw },
+      { license_plate: { $regex: new RegExp(`^${raw}$`, "i") } },
+      { license_plate: { $regex: new RegExp(`^${clean}$`, "i") } },
+    ];
+  });
+
   // Tìm vehicle có license_plate khớp với bất kỳ biển nào trong list
   const vehicle = await Vehicle.findOne({
-    license_plate: { $in: plates },
+    $or: searchConditions,
   });
 
   if (!vehicle) return null;
@@ -54,11 +65,11 @@ export async function findAppointmentByPlates(plates: string[]) {
   const endOfDay = new Date();
   endOfDay.setHours(23, 59, 59, 999);
 
-  // Tìm appointment của xe này, hôm nay, đang ở trạng thái confirmed
+  // Tìm appointment của xe này, hôm nay, đang ở trạng thái confirmed hoặc arrived
   const appointment = await Appointment.findOne({
     vehicle_id: vehicle._id,
     scheduled_at: { $gte: startOfDay, $lte: endOfDay },
-    booking_status: BookingStatus.CONFIRMED,
+    booking_status: { $in: [BookingStatus.CONFIRMED, BookingStatus.ARRIVED] },
   });
   console.log(appointment);
   return appointment ? { appointment, vehicle } : null;
