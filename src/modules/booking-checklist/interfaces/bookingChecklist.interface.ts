@@ -58,5 +58,6 @@ export interface IGetReportListQuery {
   page?     : number;
   limit?    : number;
   isConfirm?: boolean;
-  status?: string;
+  status?   : string;
+  branchId? : string;
 }

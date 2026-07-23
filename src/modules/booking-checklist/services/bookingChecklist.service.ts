@@ -597,7 +597,7 @@ class BookingChecklistService {
   // ── 8. Lấy danh sách report (phân trang) ─────────────────────────────────
 
   async getAllReports(query: IGetReportListQuery, requesterId: string, requesterRole: string) {
-    const { page = 1, limit = 10, isConfirm, status } = query;
+    const { page = 1, limit = 10, isConfirm, status, branchId } = query;
 
     const filter: FilterQuery<IAppointment> = { report: { $ne: null } };
 
@@ -607,13 +607,15 @@ class BookingChecklistService {
       filter['report.isConfirm'] = isConfirm;
     }
 
-    // STAFF/ADMIN chỉ được xem report của branch mình (BOSS xem tất cả)
+    // STAFF/ADMIN chỉ được xem report của branch mình (BOSS xem tất cả hoặc chọn theo branchId)
     if (requesterRole === UserRole.STAFF || requesterRole === UserRole.ADMIN) {
       const user = await User.findById(requesterId);
       if (!user?.branch_id) {
         throw new ForbiddenError('Tài khoản chưa được gán branch');
       }
       filter.branch_id = user.branch_id;
+    } else if (branchId) {
+      filter.branch_id = new Types.ObjectId(branchId);
     }
 
     return (Appointment as any).paginate(filter, {
@@ -664,6 +666,165 @@ class BookingChecklistService {
     );
 
     return updated?.report ?? null;
+  }
+
+  // ── 10. Thống kê tổng số tiền đền bù (Admin / Boss) ──────────────────────
+
+  async getCompensationSummary(requesterId: string, requesterRole: string, branchIdQuery?: string) {
+    let targetBranchId: Types.ObjectId | null = null;
+
+    if (requesterRole === UserRole.STAFF || requesterRole === UserRole.ADMIN) {
+      const user = await User.findById(requesterId);
+      if (!user?.branch_id) {
+        throw new ForbiddenError('Tài khoản chưa được gán branch');
+      }
+      targetBranchId = new Types.ObjectId(user.branch_id);
+    } else if (branchIdQuery) {
+      targetBranchId = new Types.ObjectId(branchIdQuery);
+    }
+
+    const matchFilter: any = {
+      report: { $ne: null },
+    };
+
+    if (targetBranchId) {
+      matchFilter.branch_id = targetBranchId;
+    }
+
+    const summaryResult = await Appointment.aggregate([
+      { $match: matchFilter },
+      {
+        $group: {
+          _id: null,
+          totalCompensationAmount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$report.status', 'accepted'] },
+                    { $gt: ['$report.compensation.compensation_amount', 0] },
+                  ],
+                },
+                '$report.compensation.compensation_amount',
+                0,
+              ],
+            },
+          },
+          totalCases: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$report.status', 'accepted'] },
+                    { $gt: ['$report.compensation.compensation_amount', 0] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          rejectedCases: {
+            $sum: {
+              $cond: [
+                { $eq: ['$report.status', 'rejected'] },
+                1,
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    const totalAmount = summaryResult[0]?.totalCompensationAmount || 0;
+    const totalCases = summaryResult[0]?.totalCases || 0;
+    const rejectedCases = summaryResult[0]?.rejectedCases || 0;
+
+    let branchBreakdown: any[] = [];
+    if (requesterRole === UserRole.BOSS) {
+      const breakdownResult = await Appointment.aggregate([
+        {
+          $match: {
+            report: { $ne: null },
+          },
+        },
+        {
+          $group: {
+            _id: '$branch_id',
+            totalAmount: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $eq: ['$report.status', 'accepted'] },
+                      { $gt: ['$report.compensation.compensation_amount', 0] },
+                    ],
+                  },
+                  '$report.compensation.compensation_amount',
+                  0,
+                ],
+              },
+            },
+            totalCases: {
+              $sum: {
+                $cond: [
+                  {
+                    $and: [
+                      { $eq: ['$report.status', 'accepted'] },
+                      { $gt: ['$report.compensation.compensation_amount', 0] },
+                    ],
+                  },
+                  1,
+                  0,
+                ],
+              },
+            },
+            rejectedCases: {
+              $sum: {
+                $cond: [
+                  { $eq: ['$report.status', 'rejected'] },
+                  1,
+                  0,
+                ],
+              },
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: 'branches',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'branchInfo',
+          },
+        },
+        {
+          $unwind: {
+            path: '$branchInfo',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            branchId: '$_id',
+            branchAddress: '$branchInfo.branch_address',
+            branchPhone: '$branchInfo.branch_phone',
+            totalAmount: 1,
+            totalCases: 1,
+            rejectedCases: 1,
+          },
+        },
+      ]);
+      branchBreakdown = breakdownResult;
+    }
+
+    return {
+      totalCompensationAmount: totalAmount,
+      totalCases,
+      rejectedCases,
+      branchBreakdown,
+    };
   }
 }
 

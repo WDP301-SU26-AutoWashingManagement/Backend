@@ -169,6 +169,7 @@ export class BookingChecklistController {
         limit: query.limit ? Number(query.limit) : undefined,
         isConfirm: query.isConfirm !== undefined ? String(query.isConfirm) === 'true' : undefined,
         status: query.status ? String(query.status) : undefined,
+        branchId: query.branchId ? String(query.branchId) : undefined,
       };
 
       const result = await this.svc.getAllReports(dto, req.user.id, req.user.role);
@@ -184,6 +185,18 @@ export class BookingChecklistController {
     try {
       await this.svc.deleteReport(req.params.appointmentId, req.user.id, req.user.role);
       sendSuccess(res, null, 'Xoá report thành công');
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  // ── GET /api/booking-checklists/reports/compensation-summary ─────────────
+
+  getCompensationSummary = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const branchId = req.query.branchId ? String(req.query.branchId) : undefined;
+      const summary = await this.svc.getCompensationSummary(req.user.id, req.user.role, branchId);
+      sendSuccess(res, summary, 'Lấy thống kê đền bù thành công');
     } catch (err) {
       next(err);
     }
