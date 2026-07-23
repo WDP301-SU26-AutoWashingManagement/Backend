@@ -36,7 +36,7 @@ export const createBookingSchema = Joi.object({
     .required()
     .messages({
       'string.isoDate': 'scheduled_at must be a valid ISO 8601 date',
-      'any.required'  : 'scheduled_at is required',
+      'any.required': 'scheduled_at is required',
     }),
 
   services: Joi.array()
@@ -44,14 +44,14 @@ export const createBookingSchema = Joi.object({
     .min(1)
     .required()
     .messages({
-      'array.min'   : 'At least one service is required',
+      'array.min': 'At least one service is required',
       'any.required': 'services is required',
     }),
 
   booking_source: Joi.string()
     .valid(...Object.values(BookingSource))
     .default(BookingSource.APP),
-    
+
   promotion_id: mongoId.optional(),
   vat_requested: Joi.boolean().default(false),
   tax_code: Joi.string().allow('').optional(),
@@ -61,16 +61,16 @@ export const createBookingSchema = Joi.object({
  * GET /bookings — query params
  */
 export const getBookingListSchema = Joi.object({
-  page  : Joi.number().integer().min(1).default(1),
-  limit : Joi.number().integer().min(1).max(100).default(10),
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(150).default(10),
 
-  branch_id   : mongoId.optional(),
-  customer_id : mongoId.optional(),
+  branch_id: mongoId.optional(),
+  customer_id: mongoId.optional(),
 
   booking_status: Joi.string().optional(),
 
   from_date: Joi.string().isoDate().optional(),
-  to_date  : Joi.string().isoDate().optional(),
+  to_date: Joi.string().isoDate().optional(),
   time_slot: Joi.string().optional(),
 });
 
@@ -83,7 +83,7 @@ export const availableSlotsSchema = Joi.object({
     .required()
     .messages({
       'string.pattern.base': 'date must be in YYYY-MM-DD format',
-      'any.required'       : 'date is required',
+      'any.required': 'date is required',
     }),
 
   service_ids: Joi.alternatives()
@@ -100,7 +100,7 @@ export const availableSlotsSchema = Joi.object({
  */
 export const cancelBookingSchema = Joi.object({
   cancellation_reason: Joi.string().trim().min(5).max(500).required().messages({
-    'string.min'  : 'cancellation_reason must be at least 5 characters',
+    'string.min': 'cancellation_reason must be at least 5 characters',
     'any.required': 'cancellation_reason is required',
   }),
 });
