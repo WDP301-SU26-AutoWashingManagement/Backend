@@ -92,6 +92,17 @@ router.patch(
 );
 
 /**
+ * GET /api/booking-checklists/reports/compensation-summary
+ * Thống kê tổng số tiền đền bù (Admin / Boss)
+ */
+router.get(
+  '/reports/compensation-summary',
+  authenticate,
+  authorize(UserRole.STAFF, UserRole.ADMIN, UserRole.BOSS),
+  bookingChecklistController.getCompensationSummary,
+);
+
+/**
  * GET /api/booking-checklists/reports
  * Danh sách report (phân trang). Query: page, limit, isConfirm
  * Phải đặt TRƯỚC GET /:id để không bị "reports" parse thành id
@@ -99,7 +110,7 @@ router.patch(
 router.get(
   '/reports',
   authenticate,
-  authorize(UserRole.STAFF, UserRole.ADMIN),
+  authorize(UserRole.STAFF, UserRole.ADMIN, UserRole.BOSS),
   bookingChecklistController.getAllReports,
 );
 
